@@ -1,0 +1,228 @@
+using System;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using StrangeUniverse.Game.Entities;
+using StrangeUniverse.Rendering.ProceduralGeneration;
+
+namespace StrangeUniverse.Game.World;
+
+/// <summary>
+/// Creates and populates a <see cref="StarSystem"/> with procedurally generated content.
+/// This is the only place that bridges game entities with the rendering/generation layer.
+/// </summary>
+public class WorldGenerator
+{
+    private readonly GraphicsDevice         _gd;
+    private readonly ProceduralTextureCache _cache;
+    private readonly WorldSettings          _worldSettings;
+    private readonly ShipStats              _shipStats;
+
+    private static readonly string[] PlanetNames =
+    {
+        "Aether", "Boras", "Calyss", "Drevon", "Eston",
+        "Fyrath", "Gavorn", "Helix", "Iridia", "Joras"
+    };
+
+    public WorldGenerator(GraphicsDevice gd, ProceduralTextureCache cache,
+                          WorldSettings worldSettings, ShipStats shipStats)
+    {
+        _gd            = gd;
+        _cache         = cache;
+        _worldSettings = worldSettings;
+        _shipStats     = shipStats;
+    }
+
+    public StarSystem Generate()
+    {
+        var rng    = new Random(_worldSettings.Seed);
+        var system = new StarSystem();
+
+        GenerateStar(system, rng);
+        GeneratePlanets(system, rng);
+        GenerateAsteroids(system, rng);
+        GenerateBackgroundStars(system, rng);
+        GenerateNebula(system, rng);
+        GeneratePlayer(system);
+
+        return system;
+    }
+
+    // ── Star ─────────────────────────────────────────────────────────────────
+
+    private void GenerateStar(StarSystem system, Random rng)
+    {
+        var starColors = new[]
+        {
+            new Color(255, 240, 180),   // warm yellow (G-type)
+            new Color(255, 200, 120),   // orange (K-type)
+            new Color(255, 160, 80),    // orange-red (M-type)
+            new Color(180, 210, 255),   // blue-white (A-type)
+        };
+        Color starColor = starColors[rng.Next(starColors.Length)];
+
+        const string id = "star";
+        var tex = StarTextureGenerator.Generate(_gd, starColor, _worldSettings.Seed);
+        _cache.Register(id, tex);
+
+        system.Star = new Star
+        {
+            TextureId = id,
+            Radius    = _worldSettings.StarRadius,
+            Name      = "Sol",
+        };
+        system.Star.Transform.Position = Vector2.Zero;
+    }
+
+    // ── Planets ───────────────────────────────────────────────────────────────
+
+    private void GeneratePlanets(StarSystem system, Random rng)
+    {
+        var types = (PlanetType[])Enum.GetValues(typeof(PlanetType));
+
+        // Space planets evenly in the system, skipping the asteroid belt zone
+        float minOrbit = _worldSettings.StarRadius * 3.5f;
+        float beltInner = _worldSettings.AsteroidBeltInnerRadius;
+        float beltOuter = _worldSettings.AsteroidBeltOuterRadius;
+        float maxOrbit  = _worldSettings.SystemRadius * 0.75f;
+
+        // Generate inner planets (before belt) and outer planets (after belt)
+        int innerCount = Math.Max(1, _worldSettings.PlanetCount / 2);
+        int outerCount = _worldSettings.PlanetCount - innerCount;
+
+        PlacePlanets(system, rng, types, innerCount, minOrbit,  beltInner * 0.9f);
+        PlacePlanets(system, rng, types, outerCount, beltOuter * 1.1f, maxOrbit);
+    }
+
+    private void PlacePlanets(StarSystem system, Random rng, PlanetType[] types,
+                               int count, float minOrbit, float maxOrbit)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            var type   = types[rng.Next(types.Length)];
+            int seed   = rng.Next();
+            float radius = MathHelper.Lerp(_worldSettings.MinPlanetRadius,
+                                           _worldSettings.MaxPlanetRadius,
+                                           (float)rng.NextDouble());
+
+            string id  = $"planet_{system.Planets.Count}";
+            var tex    = PlanetTextureGenerator.Generate(_gd, type, seed);
+            _cache.Register(id, tex);
+
+            float orbit = MathHelper.Lerp(minOrbit, maxOrbit,
+                                          (float)(i + 0.5f + rng.NextDouble() * 0.5f - 0.25f) / count);
+            orbit = Math.Clamp(orbit, minOrbit, maxOrbit);
+            float angle = (float)(rng.NextDouble() * MathHelper.TwoPi);
+
+            string name = PlanetNames[system.Planets.Count % PlanetNames.Length];
+
+            var planet = new Planet
+            {
+                TextureId = id,
+                Radius    = radius,
+                Name      = name,
+            };
+            planet.Transform.Position = new Vector2(
+                (float)Math.Cos(angle) * orbit,
+                (float)Math.Sin(angle) * orbit);
+            planet.Transform.Scale    = 1f;
+
+            system.Planets.Add(planet);
+        }
+    }
+
+    // ── Asteroids ────────────────────────────────────────────────────────────
+
+    private void GenerateAsteroids(StarSystem system, Random rng)
+    {
+        // Pre-generate a small palette of asteroid textures and reuse them
+        const int PaletteSize = 8;
+        var paletteIds = new string[PaletteSize];
+        for (int i = 0; i < PaletteSize; i++)
+        {
+            paletteIds[i] = $"asteroid_tex_{i}";
+            var tex = AsteroidTextureGenerator.Generate(_gd, rng.Next());
+            _cache.Register(paletteIds[i], tex);
+        }
+
+        float beltInner = _worldSettings.AsteroidBeltInnerRadius;
+        float beltOuter = _worldSettings.AsteroidBeltOuterRadius;
+
+        for (int i = 0; i < _worldSettings.AsteroidCount; i++)
+        {
+            float orbit = MathHelper.Lerp(beltInner, beltOuter, (float)rng.NextDouble());
+            float angle = (float)(rng.NextDouble() * MathHelper.TwoPi);
+
+            float radius = MathHelper.Lerp(_worldSettings.MinAsteroidRadius,
+                                           _worldSettings.MaxAsteroidRadius,
+                                           (float)rng.NextDouble());
+
+            var asteroid = new Asteroid
+            {
+                TextureId = paletteIds[rng.Next(PaletteSize)],
+                Radius    = radius,
+            };
+
+            asteroid.Transform.Position = new Vector2(
+                (float)Math.Cos(angle) * orbit,
+                (float)Math.Sin(angle) * orbit);
+            asteroid.Transform.Rotation = (float)(rng.NextDouble() * MathHelper.TwoPi);
+
+            // Slow orbital drift
+            float speed = MathHelper.Lerp(8f, 30f, (float)rng.NextDouble());
+            float perpAngle = angle + MathHelper.PiOver2;
+            asteroid.Physics.Velocity = new Vector2(
+                (float)Math.Cos(perpAngle) * speed,
+                (float)Math.Sin(perpAngle) * speed);
+            asteroid.Physics.AngularVelocity = MathHelper.Lerp(-0.4f, 0.4f, (float)rng.NextDouble());
+
+            system.Asteroids.Add(asteroid);
+        }
+    }
+
+    // ── Background stars ─────────────────────────────────────────────────────
+
+    private void GenerateBackgroundStars(StarSystem system, Random rng)
+    {
+        // Positions are in a virtual 2048×2048 space used only for parallax scrolling
+        const float VirtualSize = 2048f;
+        for (int i = 0; i < _worldSettings.BackgroundStarCount; i++)
+        {
+            system.BackgroundStars.Add(new BackgroundStar
+            {
+                Position   = new Vector2(
+                    (float)rng.NextDouble() * VirtualSize,
+                    (float)rng.NextDouble() * VirtualSize),
+                Brightness = MathHelper.Lerp(0.35f, 1f, (float)rng.NextDouble()),
+                Size       = rng.NextDouble() < 0.15 ? 2f : 1f,
+            });
+        }
+    }
+
+    // ── Nebula ────────────────────────────────────────────────────────────────
+
+    private void GenerateNebula(StarSystem system, Random rng)
+    {
+        const string id = "nebula";
+        var tex = NebulaGenerator.Generate(_gd, _worldSettings.Seed + 77777);
+        _cache.Register(id, tex);
+        system.NebulaTextureId = id;
+    }
+
+    // ── Player ────────────────────────────────────────────────────────────────
+
+    private void GeneratePlayer(StarSystem system)
+    {
+        const string id = "player_ship";
+        var tex = ShipTextureGenerator.Generate(_gd);
+        _cache.Register(id, tex);
+
+        var player = new PlayerShip(_shipStats)
+        {
+            TextureId = id,
+        };
+        player.Transform.Position = new Vector2(
+            _worldSettings.AsteroidBeltInnerRadius * 0.35f, 0f);
+
+        system.Player = player;
+    }
+}

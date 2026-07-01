@@ -1,0 +1,7 @@
+{
+  "SmoothSpeed": 8.0,
+  "DefaultZoom": 1.0,
+  "MinZoom": 0.04,
+  "MaxZoom": 5.0,
+  "ZoomSpeed": 0.12
+}
