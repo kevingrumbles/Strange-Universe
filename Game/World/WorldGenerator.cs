@@ -66,9 +66,10 @@ public class WorldGenerator
 
         system.Star = new Star
         {
-            TextureId = id,
-            Radius    = _worldSettings.StarRadius,
-            Name      = "Sol",
+            TextureId    = id,
+            Radius       = _worldSettings.StarRadius,
+            Name         = "Sol",
+            MinimapColor = starColor,
         };
         system.Star.Transform.Position = Vector2.Zero;
     }
@@ -117,9 +118,10 @@ public class WorldGenerator
 
             var planet = new Planet
             {
-                TextureId = id,
-                Radius    = radius,
-                Name      = name,
+                TextureId    = id,
+                Radius       = radius,
+                Name         = name,
+                MinimapColor = PlanetMinimapColor(type),
             };
             planet.Transform.Position = new Vector2(
                 (float)Math.Cos(angle) * orbit,
@@ -129,6 +131,17 @@ public class WorldGenerator
             system.Planets.Add(planet);
         }
     }
+
+    private static Color PlanetMinimapColor(PlanetType type) => type switch
+    {
+        PlanetType.Terran   => new Color( 70, 160, 220),
+        PlanetType.Rocky    => new Color(160, 130, 100),
+        PlanetType.GasGiant => new Color(210, 170, 100),
+        PlanetType.Ice      => new Color(200, 225, 255),
+        PlanetType.Lava     => new Color(220,  70,  30),
+        PlanetType.Ocean    => new Color( 30, 100, 200),
+        _                   => Color.LightGray,
+    };
 
     // ── Asteroids ────────────────────────────────────────────────────────────
 

@@ -118,4 +118,69 @@ public class SpriteRenderer
             new Rectangle((int)barX, (int)barY, (int)(barW * fill), (int)barH),
             fillColor * 0.8f);
     }
+
+    // ── Minimap ───────────────────────────────────────────────────────────────
+
+    public void DrawMinimap(StarSystem starSystem, float systemRadius, int screenWidth, int screenHeight)
+    {
+        const int MapSize = 180;
+        const int Margin  = 14;
+        const int Border  = 1;
+
+        int   mapLeft   = screenWidth - MapSize - Margin;
+        int   mapTop    = Margin;
+        float halfMap   = MapSize * 0.5f;
+        float scale     = halfMap / systemRadius;   // world unit → minimap pixel
+
+        // ── Local helpers ────────────────────────────────────────────────────
+
+        // Converts a world-space position to a screen-space position on the minimap.
+        Vector2 WorldToMap(Vector2 world) => new(
+            mapLeft + halfMap + world.X * scale,
+            mapTop  + halfMap + world.Y * scale);
+
+        // Draws a square dot centred on screenPos, clipped to the map bounds.
+        void Dot(Vector2 screenPos, int size, Color color)
+        {
+            int x = (int)screenPos.X - size / 2;
+            int y = (int)screenPos.Y - size / 2;
+            if (x + size <= mapLeft || x >= mapLeft + MapSize) return;
+            if (y + size <= mapTop  || y >= mapTop  + MapSize) return;
+            _spriteBatch.Draw(_pixel, new Rectangle(x, y, size, size), color);
+        }
+
+        // ── Background ───────────────────────────────────────────────────────
+        _spriteBatch.Draw(_pixel,
+            new Rectangle(mapLeft, mapTop, MapSize, MapSize),
+            new Color(0, 5, 18) * 0.84f);
+
+        // ── Asteroids (drawn first — smallest, dimmest) ───────────────────
+        foreach (var asteroid in starSystem.Asteroids)
+            Dot(WorldToMap(asteroid.Transform.Position), 1, new Color(85, 85, 90, 170));
+
+        // ── Planets ───────────────────────────────────────────────────────
+        foreach (var planet in starSystem.Planets)
+            Dot(WorldToMap(planet.Transform.Position), 4, planet.MinimapColor);
+
+        // ── Star ──────────────────────────────────────────────────────────
+        Vector2 starMap = WorldToMap(starSystem.Star.Transform.Position);
+        Dot(starMap, 10, starSystem.Star.MinimapColor * 0.55f);   // soft outer glow
+        Dot(starMap,  6, starSystem.Star.MinimapColor);            // coloured body
+        Dot(starMap,  3, Color.White * 0.90f);                     // bright core
+
+        // ── Player ────────────────────────────────────────────────────────
+        Vector2 playerMap = WorldToMap(starSystem.Player.Transform.Position);
+        Dot(playerMap, 4, new Color(55, 215, 255));                // cyan body
+
+        // Heading pip — white dot ahead of the player indicating facing direction
+        Vector2 pip = playerMap + starSystem.Player.Transform.Forward * 5f;
+        Dot(pip, 2, Color.White);
+
+        // ── Border (drawn last to cleanly cap any dot bleed) ─────────────
+        Color border = Color.White * 0.30f;
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    MapSize, Border),  border);
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop + MapSize - Border, MapSize, Border),  border);
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    Border,  MapSize), border);
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border, mapTop,              Border,  MapSize), border);
+    }
 }
