@@ -121,7 +121,7 @@ namespace StrangeUniverse
 
             // ── HUD pass (no transform) ───────────────────────────────────────
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawHud(_starSystem.Player, _screenWidth, _screenHeight);
+            _renderer.DrawHud(_starSystem.Player, _screenWidth, _screenHeight, GameSettings.Ship.MaxSpeed);
             _spriteBatch.End();
 
             base.Draw(gameTime);

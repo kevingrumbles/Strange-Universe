@@ -13,7 +13,7 @@ public class InputHandler
             RotateLeft  = kb.IsKeyDown(Keys.Left)  || kb.IsKeyDown(Keys.A),
             RotateRight = kb.IsKeyDown(Keys.Right) || kb.IsKeyDown(Keys.D),
             Thrust      = kb.IsKeyDown(Keys.Up)    || kb.IsKeyDown(Keys.W),
-            Brake       = kb.IsKeyDown(Keys.Down)  || kb.IsKeyDown(Keys.S) || kb.IsKeyDown(Keys.Space),
+            Retrograde  = kb.IsKeyDown(Keys.Down)  || kb.IsKeyDown(Keys.S),
             ZoomIn      = kb.IsKeyDown(Keys.OemPlus)  || kb.IsKeyDown(Keys.PageUp),
             ZoomOut     = kb.IsKeyDown(Keys.OemMinus) || kb.IsKeyDown(Keys.PageDown),
         };

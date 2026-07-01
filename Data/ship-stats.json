@@ -1,8 +1,8 @@
 {
-  "ThrustForce": 220.0,
-  "RotationSpeed": 3.0,
-  "MaxSpeed": 550.0,
-  "LinearDamping": 0.994,
-  "BrakeForce": 260.0,
-  "Radius": 14.0
+  "ThrustForce": 260.0,
+  "RotationSpeed": 3.5,
+  "MaxSpeed": 480.0,
+  "LinearDamping": 1.0,
+  "Radius": 14.0,
+  "SoftCapStart": 0.75
 }

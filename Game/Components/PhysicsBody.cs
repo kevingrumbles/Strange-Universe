@@ -21,17 +21,18 @@ public class PhysicsBody
         Velocity += force * (deltaTime / Mass);
     }
 
-    /// <summary>Advances velocity by one frame and caps speed if a limit is given (≤ 0 = unlimited).</summary>
-    public void Integrate(Transform transform, float deltaTime, float maxSpeed = 0f)
+    /// <summary>
+    /// Advances physics by one frame.
+    /// No speed clamp is applied here — callers handle soft limiting at the force-application layer.
+    /// </summary>
+    public void Integrate(Transform transform, float deltaTime)
     {
-        // Exponential damping: v *= damping^dt (frame-rate independent)
+        // Exponential damping: v *= damping^dt (frame-rate independent).
+        // With LinearDamping == 1.0 (default) this is a no-op — true vacuum.
         float dampFactor = (float)System.Math.Pow(LinearDamping, deltaTime);
         Velocity = Velocity * dampFactor;
 
         transform.Position += Velocity * deltaTime;
         transform.Rotation += AngularVelocity * deltaTime;
-
-        if (maxSpeed > 0f && Velocity.LengthSquared() > maxSpeed * maxSpeed)
-            Velocity = Vector2.Normalize(Velocity) * maxSpeed;
     }
 }

@@ -101,11 +101,10 @@ public class SpriteRenderer
 
     // ── HUD pass (no camera transform) ───────────────────────────────────────
 
-    public void DrawHud(PlayerShip player, int screenWidth, int screenHeight)
+    public void DrawHud(PlayerShip player, int screenWidth, int screenHeight, float maxSpeed)
     {
         // Speed bar in bottom-left
         float speed     = player.Physics.Velocity.Length();
-        float maxSpeed  = 550f;
         float barW      = 140;
         float barH      = 8;
         float barX      = 14;
