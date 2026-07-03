@@ -9,10 +9,11 @@ namespace StrangeUniverse.Game.Entities;
 /// <summary>The player-controlled ship.  Pure game logic — no MonoGame rendering types.</summary>
 public class PlayerShip
 {
-    public Transform   Transform { get; } = new();
-    public PhysicsBody Physics   { get; }
-    public string      TextureId { get; set; } = string.Empty;
-    public float       Radius    { get; set; }
+    public Transform   Transform           { get; } = new();
+    public PhysicsBody Physics             { get; }
+    public string      TextureId           { get; set; } = string.Empty;
+    public float       Radius              { get; set; }
+    public float       SpriteRotationOffset => _stats.SpriteRotationOffset;
 
     private readonly ShipStats _stats;
 

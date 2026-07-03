@@ -4,5 +4,7 @@
   "MaxSpeed": 480.0,
   "LinearDamping": 1.0,
   "Radius": 14.0,
-  "SoftCapStart": 0.75
+  "SoftCapStart": 0.75,
+  // -1.5708 = sprite points up; 0 = sprite already points right
+  "SpriteRotationOffset": 1.5708
 }

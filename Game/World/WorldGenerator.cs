@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Rendering.ProceduralGeneration;
+using StrangeUniverse.Rendering.SpriteRenderer;
 
 namespace StrangeUniverse.Game.World;
 
@@ -225,8 +226,12 @@ public class WorldGenerator
 
     private void GeneratePlayer(StarSystem system)
     {
-        const string id = "player_ship";
-        var tex = ShipTextureGenerator.Generate(_gd);
+        const string id          = "player_ship";
+        const string spriteFile  = "Art/Shuttle_sprite.png";
+
+        var tex = ArtLoader.TryLoad(_gd, spriteFile)
+               ?? ShipTextureGenerator.Generate(_gd);
+
         _cache.Register(id, tex);
 
         var player = new PlayerShip(_shipStats)

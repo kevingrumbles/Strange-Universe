@@ -10,4 +10,9 @@ public class ShipStats
     public float Radius         { get; set; } = 14f;
     /// <summary>Fraction of MaxSpeed at which the forward thrust soft-cap begins (0-1).</summary>
     public float SoftCapStart   { get; set; } = 0.75f;
+    /// <summary>
+    /// Radians added to the sprite's rotation before drawing.
+    /// Use -1.5708 (≈ -π/2) if the sprite points upward; 0 if it already points right (+X).
+    /// </summary>
+    public float SpriteRotationOffset { get; set; } = -1.5708f;
 }

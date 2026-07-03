@@ -97,7 +97,9 @@ public class SpriteRenderer
         DrawEntity(asteroid.TextureId, asteroid.Transform.Position, asteroid.Transform.Rotation, asteroid.Radius);
 
     public void DrawPlayer(PlayerShip player) =>
-        DrawEntity(player.TextureId, player.Transform.Position, player.Transform.Rotation, player.Radius * 2.2f);
+        DrawEntity(player.TextureId, player.Transform.Position,
+                   player.Transform.Rotation + player.SpriteRotationOffset,
+                   player.Radius * 2.2f);
 
     // ── HUD pass (no camera transform) ───────────────────────────────────────
 
