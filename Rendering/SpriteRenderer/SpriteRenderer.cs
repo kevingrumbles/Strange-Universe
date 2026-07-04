@@ -30,25 +30,19 @@ public class SpriteRenderer
 
     // ── World-space pass (SpriteBatch already began with camera matrix) ──────
 
-    public void DrawNebula(string textureId, int screenWidth, int screenHeight, Vector2 cameraPos)
+    /// <summary>
+    /// Draws the nebula as a single large rectangle in world space.
+    /// Because SpriteBatch has the camera transform applied, only the
+    /// visible portion renders each frame — no tiling or screen-space tricks.
+    /// </summary>
+    public void DrawNebula(string textureId, float worldSize)
     {
         if (!_cache.TryGet(textureId, out var tex) || tex is null) return;
 
-        // Tile the nebula across the screen at a slow parallax rate
-        float parallax = 0.05f;
-        float ox = (cameraPos.X * parallax) % tex.Width;
-        float oy = (cameraPos.Y * parallax) % tex.Height;
-
-        // Draw 2×2 tiles to ensure full coverage after offset
-        for (int tx = -1; tx <= 1; tx++)
-        for (int ty = -1; ty <= 1; ty++)
-        {
-            var dest = new Rectangle(
-                (int)(-ox + tx * tex.Width  - screenWidth  / 2),
-                (int)(-oy + ty * tex.Height - screenHeight / 2),
-                tex.Width, tex.Height);
-            _spriteBatch.Draw(tex, dest, Color.White * 0.55f);
-        }
+        int half = (int)(worldSize * 0.5f);
+        _spriteBatch.Draw(tex,
+            new Rectangle(-half, -half, (int)worldSize, (int)worldSize),
+            Color.White);
     }
 
     public void DrawBackgroundStars(IReadOnlyList<BackgroundStar> stars,

@@ -99,15 +99,15 @@ namespace StrangeUniverse
                 samplerState:    SamplerState.LinearClamp,
                 transformMatrix: cameraMatrix);
 
-            _renderer.DrawNebula(
-                _starSystem.NebulaTextureId,
-                _screenWidth, _screenHeight, _camera.Position);
-
+            // Draw order: background stars → system star → nebula → planets → asteroids → player
+            // This lets stars appear embedded inside the nebula while planets float in front of it.
             _renderer.DrawBackgroundStars(
                 _starSystem.BackgroundStars,
                 _screenWidth, _screenHeight, _camera.Position);
 
             _renderer.DrawStar(_starSystem.Star);
+
+            _renderer.DrawNebula(_starSystem.NebulaTextureId, _starSystem.NebulaWorldSize);
 
             foreach (var planet in _starSystem.Planets)
                 _renderer.DrawPlanet(planet);

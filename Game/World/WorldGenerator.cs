@@ -220,6 +220,9 @@ public class WorldGenerator
         var tex = NebulaGenerator.Generate(_gd, _worldSettings.Seed + 77777);
         _cache.Register(id, tex);
         system.NebulaTextureId = id;
+        // Cover the full system plus a comfortable margin so the player never
+        // flies off the edge of the nebula at any practical zoom level.
+        system.NebulaWorldSize = _worldSettings.SystemRadius * 2.4f;
     }
 
     // ── Player ────────────────────────────────────────────────────────────────

@@ -14,6 +14,7 @@ public class StarSystem
     public List<Asteroid>         Asteroids       { get; }      = new();
     public List<BackgroundStar>   BackgroundStars { get; }      = new();
     public string                 NebulaTextureId { get; set; } = string.Empty;
+    public float                  NebulaWorldSize { get; set; } = 40000f;
 
     private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();

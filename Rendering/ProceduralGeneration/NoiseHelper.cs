@@ -62,4 +62,31 @@ public static class NoiseHelper
 
     /// <summary>Remaps a value from [−1,1] to [0,1].</summary>
     public static float Remap01(float v) => (v + 1f) * 0.5f;
+
+    /// <summary>
+    /// Ridged multifractal noise: inverts and squares each octave to produce
+    /// sharp ridges and peaks — used to create cloud-edge structure.
+    /// Returns a value in approximately [0, 1].
+    /// </summary>
+    public static float RidgedFbm(float x, float y, int seed,
+                                   int octaves = 4, float persistence = 0.5f, float lacunarity = 2f)
+    {
+        float value     = 0f;
+        float amplitude = 1f;
+        float frequency = 1f;
+        float maxValue  = 0f;
+
+        for (int i = 0; i < octaves; i++)
+        {
+            float n = Noise(x * frequency, y * frequency, seed + i * 1000);
+            n = 1f - Math.Abs(n);   // invert to put peaks at 0-crossings
+            n = n * n;              // sharpen ridge tips
+            value    += n * amplitude;
+            maxValue += amplitude;
+            amplitude *= persistence;
+            frequency *= lacunarity;
+        }
+
+        return maxValue > 0f ? value / maxValue : 0f;
+    }
 }
