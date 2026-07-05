@@ -46,11 +46,14 @@ public class SpriteRenderer
     }
 
     public void DrawBackgroundStars(IReadOnlyList<BackgroundStar> stars,
-                                     int screenWidth, int screenHeight, Vector2 cameraPos)
+                                     int screenWidth, int screenHeight, Vector2 cameraPos,
+                                     int layer)
     {
         float parallax = 0.08f;
         foreach (var star in stars)
         {
+            if (star.Layer != layer) continue;
+
             // Screen-space parallax wrapping
             float sx = ((star.Position.X - cameraPos.X * parallax) % screenWidth  + screenWidth)  % screenWidth;
             float sy = ((star.Position.Y - cameraPos.Y * parallax) % screenHeight + screenHeight) % screenHeight;

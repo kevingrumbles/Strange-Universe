@@ -57,13 +57,13 @@ namespace StrangeUniverse
             _camera = new Rendering.Camera.Camera(
                 GameSettings.Camera, _screenWidth, _screenHeight);
 
-            // Generate the world (this creates all procedural textures)
-            System.Console.WriteLine("[Strange Universe] Generating world…");
-            var generator = new WorldGenerator(
+            // Generate the universe (this creates all procedural textures)
+            System.Console.WriteLine("[Strange Universe] Generating universe…");
+            var generator = new UniverseGenerator(
                 GraphicsDevice, _textureCache,
-                GameSettings.World, GameSettings.Ship);
+                GameSettings.Universe, GameSettings.Ship);
             _starSystem = generator.Generate();
-            System.Console.WriteLine("[Strange Universe] World ready.");
+            System.Console.WriteLine("[Strange Universe] Universe ready.");
 
             _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, _textureCache);
 
@@ -99,15 +99,24 @@ namespace StrangeUniverse
                 samplerState:    SamplerState.LinearClamp,
                 transformMatrix: cameraMatrix);
 
-            // Draw order: background stars → system star → nebula → planets → asteroids → player
-            // This lets stars appear embedded inside the nebula while planets float in front of it.
+            // Draw order (back to front):
+            //   Layer 3 – stars behind the nebula
+            //   Layer 2 – system star + nebula
+            //   Layer 1 – stars in front of the nebula
+            //   Layer 0 – planets, asteroids, player
             _renderer.DrawBackgroundStars(
                 _starSystem.BackgroundStars,
-                _screenWidth, _screenHeight, _camera.Position);
+                _screenWidth, _screenHeight, _camera.Position,
+                layer: 3);
 
             _renderer.DrawStar(_starSystem.Star);
 
             _renderer.DrawNebula(_starSystem.NebulaTextureId, _starSystem.NebulaWorldSize);
+
+            _renderer.DrawBackgroundStars(
+                _starSystem.BackgroundStars,
+                _screenWidth, _screenHeight, _camera.Position,
+                layer: 1);
 
             foreach (var planet in _starSystem.Planets)
                 _renderer.DrawPlanet(planet);
@@ -122,7 +131,7 @@ namespace StrangeUniverse
             // ── HUD pass (no transform) ───────────────────────────────────────
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
             _renderer.DrawHud(_starSystem.Player, _screenWidth, _screenHeight, GameSettings.Ship.MaxSpeed);
-            _renderer.DrawMinimap(_starSystem, GameSettings.World.SystemRadius, _screenWidth, _screenHeight);
+            _renderer.DrawMinimap(_starSystem, GameSettings.Universe.SystemRadius, _screenWidth, _screenHeight);
             _spriteBatch.End();
 
             base.Draw(gameTime);

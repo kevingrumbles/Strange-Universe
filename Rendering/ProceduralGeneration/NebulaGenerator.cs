@@ -13,7 +13,7 @@ namespace StrangeUniverse.Rendering.ProceduralGeneration;
 /// </summary>
 public static class NebulaGenerator
 {
-    private const int Size = 1024;
+    private const int Size = 2048;
 
     // Eight vivid hues spread across the color wheel so any triplet produces
     // clearly distinct, strongly-contrasting color regions.
