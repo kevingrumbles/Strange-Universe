@@ -423,7 +423,7 @@ namespace StrangeUniverse
             // ── HUD pass (no transform) ────────────────────────────────────────
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
             _renderer.DrawHud(sys.Player, _screenWidth, _screenHeight, _shipStats.MaxSpeed);
-            _renderer.DrawMinimap(sys, _activeUniverse.SystemRadius, _screenWidth, _screenHeight);
+            _renderer.DrawMinimap(sys, sys.SystemRadius, _screenWidth, _screenHeight);
             _spriteBatch.End();
         }
 

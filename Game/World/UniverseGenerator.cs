@@ -97,7 +97,7 @@ public class UniverseGenerator
         system.Star = new Star
         {
             TextureId    = id,
-            Radius       = _universe.StarRadius,
+            Radius       = system.StarRadius,
             Name         = "Sol",
             MinimapColor = starColor,
         };
@@ -111,14 +111,14 @@ public class UniverseGenerator
         var types = (PlanetType[])Enum.GetValues(typeof(PlanetType));
 
         // Space planets evenly in the system, skipping the asteroid belt zone
-        float minOrbit  = _universe.StarRadius * 3.5f;
-        float beltInner = _universe.AsteroidBeltInnerRadius;
-        float beltOuter = _universe.AsteroidBeltOuterRadius;
-        float maxOrbit  = _universe.SystemRadius * 0.75f;
+        float minOrbit  = system.StarRadius * 3.5f;
+        float beltInner = system.AsteroidBeltInnerRadius;
+        float beltOuter = system.AsteroidBeltOuterRadius;
+        float maxOrbit  = system.SystemRadius * 0.75f;
 
         // Generate inner planets (before belt) and outer planets (after belt)
-        int innerCount = Math.Max(1, _universe.PlanetCount / 2);
-        int outerCount = _universe.PlanetCount - innerCount;
+        int innerCount = Math.Max(1, system.PlanetCount / 2);
+        int outerCount = system.PlanetCount - innerCount;
 
         PlacePlanets(system, rng, types, innerCount, minOrbit,        beltInner * 0.9f);
         PlacePlanets(system, rng, types, outerCount, beltOuter * 1.1f, maxOrbit);
@@ -131,8 +131,8 @@ public class UniverseGenerator
         {
             var   type   = types[rng.Next(types.Length)];
             int   seed   = rng.Next();
-            float radius = MathHelper.Lerp(_universe.MinPlanetRadius,
-                                           _universe.MaxPlanetRadius,
+            float radius = MathHelper.Lerp(system.MinPlanetRadius,
+                                           system.MaxPlanetRadius,
                                            (float)rng.NextDouble());
 
             string id  = $"planet_{system.Planets.Count}";
@@ -187,16 +187,16 @@ public class UniverseGenerator
             _cache.Register(paletteIds[i], tex);
         }
 
-        float beltInner = _universe.AsteroidBeltInnerRadius;
-        float beltOuter = _universe.AsteroidBeltOuterRadius;
+        float beltInner = system.AsteroidBeltInnerRadius;
+        float beltOuter = system.AsteroidBeltOuterRadius;
 
-        for (int i = 0; i < _universe.AsteroidCount; i++)
+        for (int i = 0; i < system.AsteroidCount; i++)
         {
             float orbit = MathHelper.Lerp(beltInner, beltOuter, (float)rng.NextDouble());
             float angle = (float)(rng.NextDouble() * MathHelper.TwoPi);
 
-            float radius = MathHelper.Lerp(_universe.MinAsteroidRadius,
-                                           _universe.MaxAsteroidRadius,
+            float radius = MathHelper.Lerp(system.MinAsteroidRadius,
+                                           system.MaxAsteroidRadius,
                                            (float)rng.NextDouble());
 
             var asteroid = new Asteroid
@@ -228,7 +228,7 @@ public class UniverseGenerator
     {
         // Positions are in a virtual 2048×2048 space used only for parallax scrolling
         const float VirtualSize = 2048f;
-        for (int i = 0; i < _universe.BackgroundStarCount; i++)
+        for (int i = 0; i < system.BackgroundStarCount; i++)
         {
             system.BackgroundStars.Add(new BackgroundStar
             {
@@ -253,7 +253,7 @@ public class UniverseGenerator
         system.NebulaTextureId = id;
         // Cover the full system plus a comfortable margin so the player never
         // flies off the edge of the nebula at any practical zoom level.
-        system.NebulaWorldSize = _universe.SystemRadius * 2.4f;
+        system.NebulaWorldSize = system.SystemRadius * 2.4f;
     }
 
     // ── Player ────────────────────────────────────────────────────────────────
@@ -273,7 +273,7 @@ public class UniverseGenerator
             TextureId = id,
         };
         player.Transform.Position = new Vector2(
-            _universe.AsteroidBeltInnerRadius * 0.35f, 0f);
+            system.AsteroidBeltInnerRadius * 0.35f, 0f);
 
         system.Player = player;
     }
