@@ -229,6 +229,7 @@ namespace StrangeUniverse
             if (WasPressed(keys, Keys.Escape))
             {
                 _state = GameState.Menu;
+                _prevKeys = keys;
             }
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
