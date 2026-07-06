@@ -8,6 +8,8 @@ namespace StrangeUniverse.Game.World;
 /// <summary>Owns all game entities and drives the frame update.</summary>
 public class StarSystem
 {
+    /// <summary>Deterministic seed derived from the parent Universe seed.</summary>
+    public string                 Seed            { get; set; } = string.Empty;
     public Star                   Star            { get; set; } = new();
     public PlayerShip             Player          { get; set; } = null!;
     public List<Planet>           Planets         { get; }      = new();

@@ -8,14 +8,15 @@ using StrangeUniverse.Rendering.SpriteRenderer;
 namespace StrangeUniverse.Game.World;
 
 /// <summary>
-/// Creates and populates a <see cref="StarSystem"/> with procedurally generated content.
-/// This is the only place that bridges game entities with the rendering/generation layer.
+/// Builds a <see cref="Universe"/> containing a single procedurally generated
+/// <see cref="StarSystem"/>. This is the only place that bridges game entities
+/// with the rendering/generation layer.
 /// </summary>
 public class UniverseGenerator
 {
     private readonly GraphicsDevice         _gd;
     private readonly ProceduralTextureCache _cache;
-    private readonly UniverseSettings       _universeSettings;
+    private readonly Universe               _universe;
     private readonly ShipStats              _shipStats;
 
     private static readonly string[] PlanetNames =
@@ -25,18 +26,46 @@ public class UniverseGenerator
     };
 
     public UniverseGenerator(GraphicsDevice gd, ProceduralTextureCache cache,
-                              UniverseSettings universeSettings, ShipStats shipStats)
+                              Universe universe, ShipStats shipStats)
     {
-        _gd               = gd;
-        _cache            = cache;
-        _universeSettings = universeSettings;
-        _shipStats        = shipStats;
+        _gd        = gd;
+        _cache     = cache;
+        _universe  = universe;
+        _shipStats = shipStats;
     }
 
-    public StarSystem Generate()
+    public Universe Generate()
     {
-        var rng    = new Random(_universeSettings.Seed.GetHashCode());
-        var system = new StarSystem();
+        var universeRng = new Random(SeedHash(_universe.Seed));
+
+        // Derive a deterministic per-system seed from the universe seed.
+        int    systemSeedInt = universeRng.Next();
+        string systemSeed    = systemSeedInt.ToString();
+
+        var system = GenerateStarSystem(systemSeed);
+        _universe.AddStarSystem(system);
+        return _universe;
+    }
+
+    /// <summary>
+    /// Deterministic 32-bit FNV-1a hash of a string.
+    /// Unlike string.GetHashCode(), this returns the same value on every run.
+    /// </summary>
+    private static int SeedHash(string s)
+    {
+        unchecked
+        {
+            uint hash = 2166136261u;
+            foreach (char c in s)
+                hash = (hash ^ c) * 16777619u;
+            return (int)hash;
+        }
+    }
+
+    private StarSystem GenerateStarSystem(string seed)
+    {
+        var rng    = new Random(SeedHash(seed));
+        var system = new StarSystem { Seed = seed };
 
         GenerateStar(system, rng);
         GeneratePlanets(system, rng);
@@ -62,13 +91,13 @@ public class UniverseGenerator
         Color starColor = starColors[rng.Next(starColors.Length)];
 
         const string id = "star";
-        var tex = StarTextureGenerator.Generate(_gd, starColor, _universeSettings.Seed.GetHashCode());
+        var tex = StarTextureGenerator.Generate(_gd, starColor, SeedHash(_universe.Seed));
         _cache.Register(id, tex);
 
         system.Star = new Star
         {
             TextureId    = id,
-            Radius       = _universeSettings.StarRadius,
+            Radius       = _universe.StarRadius,
             Name         = "Sol",
             MinimapColor = starColor,
         };
@@ -82,14 +111,14 @@ public class UniverseGenerator
         var types = (PlanetType[])Enum.GetValues(typeof(PlanetType));
 
         // Space planets evenly in the system, skipping the asteroid belt zone
-        float minOrbit  = _universeSettings.StarRadius * 3.5f;
-        float beltInner = _universeSettings.AsteroidBeltInnerRadius;
-        float beltOuter = _universeSettings.AsteroidBeltOuterRadius;
-        float maxOrbit  = _universeSettings.SystemRadius * 0.75f;
+        float minOrbit  = _universe.StarRadius * 3.5f;
+        float beltInner = _universe.AsteroidBeltInnerRadius;
+        float beltOuter = _universe.AsteroidBeltOuterRadius;
+        float maxOrbit  = _universe.SystemRadius * 0.75f;
 
         // Generate inner planets (before belt) and outer planets (after belt)
-        int innerCount = Math.Max(1, _universeSettings.PlanetCount / 2);
-        int outerCount = _universeSettings.PlanetCount - innerCount;
+        int innerCount = Math.Max(1, _universe.PlanetCount / 2);
+        int outerCount = _universe.PlanetCount - innerCount;
 
         PlacePlanets(system, rng, types, innerCount, minOrbit,        beltInner * 0.9f);
         PlacePlanets(system, rng, types, outerCount, beltOuter * 1.1f, maxOrbit);
@@ -102,8 +131,8 @@ public class UniverseGenerator
         {
             var   type   = types[rng.Next(types.Length)];
             int   seed   = rng.Next();
-            float radius = MathHelper.Lerp(_universeSettings.MinPlanetRadius,
-                                           _universeSettings.MaxPlanetRadius,
+            float radius = MathHelper.Lerp(_universe.MinPlanetRadius,
+                                           _universe.MaxPlanetRadius,
                                            (float)rng.NextDouble());
 
             string id  = $"planet_{system.Planets.Count}";
@@ -158,16 +187,16 @@ public class UniverseGenerator
             _cache.Register(paletteIds[i], tex);
         }
 
-        float beltInner = _universeSettings.AsteroidBeltInnerRadius;
-        float beltOuter = _universeSettings.AsteroidBeltOuterRadius;
+        float beltInner = _universe.AsteroidBeltInnerRadius;
+        float beltOuter = _universe.AsteroidBeltOuterRadius;
 
-        for (int i = 0; i < _universeSettings.AsteroidCount; i++)
+        for (int i = 0; i < _universe.AsteroidCount; i++)
         {
             float orbit = MathHelper.Lerp(beltInner, beltOuter, (float)rng.NextDouble());
             float angle = (float)(rng.NextDouble() * MathHelper.TwoPi);
 
-            float radius = MathHelper.Lerp(_universeSettings.MinAsteroidRadius,
-                                           _universeSettings.MaxAsteroidRadius,
+            float radius = MathHelper.Lerp(_universe.MinAsteroidRadius,
+                                           _universe.MaxAsteroidRadius,
                                            (float)rng.NextDouble());
 
             var asteroid = new Asteroid
@@ -199,7 +228,7 @@ public class UniverseGenerator
     {
         // Positions are in a virtual 2048×2048 space used only for parallax scrolling
         const float VirtualSize = 2048f;
-        for (int i = 0; i < _universeSettings.BackgroundStarCount; i++)
+        for (int i = 0; i < _universe.BackgroundStarCount; i++)
         {
             system.BackgroundStars.Add(new BackgroundStar
             {
@@ -219,12 +248,12 @@ public class UniverseGenerator
     private void GenerateNebula(StarSystem system, Random rng)
     {
         const string id = "nebula";
-        var tex = NebulaGenerator.Generate(_gd, _universeSettings.Seed.GetHashCode() + 77777);
+        var tex = NebulaGenerator.Generate(_gd, SeedHash(_universe.Seed) + 77777);
         _cache.Register(id, tex);
         system.NebulaTextureId = id;
         // Cover the full system plus a comfortable margin so the player never
         // flies off the edge of the nebula at any practical zoom level.
-        system.NebulaWorldSize = _universeSettings.SystemRadius * 2.4f;
+        system.NebulaWorldSize = _universe.SystemRadius * 2.4f;
     }
 
     // ── Player ────────────────────────────────────────────────────────────────
@@ -244,7 +273,7 @@ public class UniverseGenerator
             TextureId = id,
         };
         player.Transform.Position = new Vector2(
-            _universeSettings.AsteroidBeltInnerRadius * 0.35f, 0f);
+            _universe.AsteroidBeltInnerRadius * 0.35f, 0f);
 
         system.Player = player;
     }
