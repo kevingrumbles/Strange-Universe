@@ -1,10 +1,14 @@
-{
-  "ThrustForce": 260.0,
-  "RotationSpeed": 3.5,
-  "MaxSpeed": 880.0,
-  "LinearDamping": 1.0,
-  "Radius": 14.0,
-  "SoftCapStart": 0.75,
-  // -1.5708 = sprite points up; 0 = sprite already points right
-  "SpriteRotationOffset": 1.5708
-}
+[
+  {
+    "ShipName": "Shuttle",
+    "ThrustForce": 260.0,
+    "RotationSpeed": 3.5,
+    "MaxSpeed": 880.0,
+    "LinearDamping": 1.0,
+    "Radius": 14.0,
+    "SoftCapStart": 0.75,
+    // -1.5708 = sprite points up; 0 = sprite already points right
+    "SpriteRotationOffset": 1.5708,
+    "SpriteName": "Art/Shuttle_sprite.png"
+  }
+]

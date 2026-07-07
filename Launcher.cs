@@ -1,11 +1,13 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Strange_Universe.Game.Entities;
 using StrangeUniverse.Game.World;
 using StrangeUniverse.Input;
 using StrangeUniverse.Rendering.Camera;
 using StrangeUniverse.Rendering.ProceduralGeneration;
 using StrangeUniverse.Rendering.SpriteRenderer;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection.Emit;
@@ -41,7 +43,6 @@ namespace StrangeUniverse
         private SpriteRenderer          _renderer       = null!;
         private Universe                _activeUniverse = null!;
         private CameraSettings          _cameraSettings = null!;
-        private ShipStats               _shipStats      = null!;
         private List<Universe>         _universes      = null!;
         private static string _universeFilePath = "Data/universe-settings.json";
 
@@ -87,7 +88,8 @@ namespace StrangeUniverse
 
         protected override void OnExiting(object sender, ExitingEventArgs args)
         {
-            Persist(_universes, _universeFilePath);
+            if (_activeUniverse != null)
+                Persist(_activeUniverse, _universeFilePath);
             base.OnExiting(sender, args);
         }
 
@@ -97,7 +99,8 @@ namespace StrangeUniverse
             _font        = Content.Load<SpriteFont>("Fonts/DefaultFont");
 
             _cameraSettings = LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
-            _shipStats = LoadFile<ShipStats>("Data/ship-stats.json") ?? new ShipStats();
+            var shipStats = LoadFile<List<ShipStats>>("Data/ship-stats.json");
+            ShipStats.Presets = shipStats;
             _universes = LoadExisting(_universeFilePath);
 
             _menuIndex = 0;
@@ -124,12 +127,12 @@ namespace StrangeUniverse
             if (!File.Exists(path)) return new List<Universe>();
             try
             {
-                return JsonSerializer.Deserialize<List<Universe>>(
-                           File.ReadAllText(path), _readOptions)
-                       ?? new List<Universe>();
+                string json = File.ReadAllText(path);
+                return JsonSerializer.Deserialize<List<Universe>>(json, _readOptions) ?? new List<Universe>();
             }
-            catch
+            catch(Exception e)
             {
+                System.Console.WriteLine($"[Strange Universe] Failed to load universe settings: {e.Message}");
                 return new List<Universe>();
             }
         }
@@ -212,7 +215,7 @@ namespace StrangeUniverse
 
             System.Console.WriteLine($"[Strange Universe] Generating universe '{universe.Name}'...");
             var generator = new UniverseGenerator(
-                GraphicsDevice, _textureCache, universe, _shipStats);
+                GraphicsDevice, _textureCache, universe);
             _activeUniverse = generator.Generate();
             System.Console.WriteLine("[Strange Universe] Universe ready.");
 
@@ -423,7 +426,7 @@ namespace StrangeUniverse
 
             // ── HUD pass (no transform) ────────────────────────────────────────
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawHud(sys.Player, _screenWidth, _screenHeight, _shipStats.MaxSpeed);
+            _renderer.DrawHud(sys.Player, _screenWidth, _screenHeight, sys.Player.Ship.MaxSpeed);
             _renderer.DrawMinimap(sys, sys.SystemRadius, _screenWidth, _screenHeight);
             _spriteBatch.End();
         }
@@ -445,17 +448,24 @@ namespace StrangeUniverse
             try
             {
                 string json = File.ReadAllText(path);
-                return JsonSerializer.Deserialize<T>(json, _readOptions);
+                var deserialized = JsonSerializer.Deserialize<T>(json, _readOptions);
+                return deserialized;
             }
             catch
             {
                 return null;
             }
         }
-        public void Persist(List<Universe> universes, string path)
+        private void Persist(Universe activeUniverse, string path)
         {
-            File.WriteAllText(path,
-                JsonSerializer.Serialize(universes, _writeOptions));
+            var all = LoadExisting(path);
+            int idx = all.FindIndex(u => u.Id == activeUniverse.Id);
+            if (idx >= 0)
+                all[idx] = activeUniverse;
+            else
+                all.Add(activeUniverse);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(all, _writeOptions));
         }
     }
 }

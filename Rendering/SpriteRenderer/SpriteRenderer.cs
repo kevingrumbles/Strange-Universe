@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Strange_Universe.Game.World;
 using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Game.World;
 using StrangeUniverse.Rendering.Camera;
@@ -93,14 +94,14 @@ public class SpriteRenderer
     public void DrawAsteroid(Asteroid asteroid) =>
         DrawEntity(asteroid.TextureId, asteroid.Transform.Position, asteroid.Transform.Rotation, asteroid.Radius);
 
-    public void DrawPlayer(PlayerShip player) =>
+    public void DrawPlayer(Player player) =>
         DrawEntity(player.TextureId, player.Transform.Position,
                    player.Transform.Rotation + player.SpriteRotationOffset,
                    player.Radius * 2.2f);
 
     // ── HUD pass (no camera transform) ───────────────────────────────────────
 
-    public void DrawHud(PlayerShip player, int screenWidth, int screenHeight, float maxSpeed)
+    public void DrawHud(Player player, int screenWidth, int screenHeight, float maxSpeed)
     {
         // Speed bar in bottom-left
         float speed     = player.Physics.Velocity.Length();

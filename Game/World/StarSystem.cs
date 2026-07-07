@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+using Strange_Universe.Game.World;
 using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Game.Systems;
 using StrangeUniverse.Input;
@@ -26,13 +28,13 @@ public class StarSystem
     public float  MaxAsteroidRadius       { get; set; } = 32f;
 
     // ── Entities ─────────────────────────────────────────────────────────────
-    public Star                   Star            { get; set; } = new();
-    public PlayerShip             Player          { get; set; } = null!;
-    public List<Planet>           Planets         { get; }      = new();
-    public List<Asteroid>         Asteroids       { get; }      = new();
-    public List<BackgroundStar>   BackgroundStars { get; }      = new();
-    public string                 NebulaTextureId { get; set; } = string.Empty;
-    public float                  NebulaWorldSize { get; set; } = 40000f;
+    [JsonIgnore] public Star                 Star            { get; set; } = new();
+    [JsonIgnore] public Player           Player          { get; set; } = null!;
+    [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
+    [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
+    [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
+    [JsonIgnore] public string               NebulaTextureId { get; set; } = string.Empty;
+    [JsonIgnore] public float                NebulaWorldSize { get; set; } = 40000f;
 
     private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();

@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Strange_Universe.Game.World;
 using StrangeUniverse.Input;
 
 namespace StrangeUniverse.Game.World;
@@ -19,12 +20,27 @@ public class Universe
     public Guid   Id   { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New Universe";
     public string Seed { get; set; } = Guid.NewGuid().ToString();
+    public Player Player { get; set; }
 
     // ── Runtime state (not serialized) ─────────────────────────────────────────────────
     [JsonIgnore]
-    public StarSystem ActiveStarSystem { get; private set; } = null!;
+    public StarSystem ActiveStarSystem
+    {
+        get
+        {
+            if (_activeStarSystem == null && StarSystems.Count > 0)
+                _activeStarSystem = StarSystems[0];
+            return _activeStarSystem;
+        }
+        set
+        {
+            _activeStarSystem = value;
+        }
+    }
+    [JsonIgnore]
+    private StarSystem _activeStarSystem { get; set;  }
 
-    private readonly List<StarSystem> _starSystems = new();
+    public List<StarSystem> StarSystems { get; set; } = new();
 
     // ── Factory ────────────────────────────────────────────────────────────────────────
     /// <summary>
@@ -36,9 +52,10 @@ public class Universe
 
         return new Universe
         {
-            Id   = id,
+            Id = id,
             Name = name,
             Seed = seed ?? id.ToString(),
+            Player = new Player()
         };
     }
 
@@ -46,9 +63,7 @@ public class Universe
     /// <summary>Adds a star system and makes it active if it is the first one.</summary>
     public void AddStarSystem(StarSystem system)
     {
-        _starSystems.Add(system);
-        if (_starSystems.Count == 1)
-            ActiveStarSystem = system;
+        StarSystems.Add(system);
     }
 
     /// <summary>Sets the active star system. Must already belong to this universe.</summary>

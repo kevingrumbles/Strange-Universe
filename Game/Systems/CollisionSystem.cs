@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Strange_Universe.Game.World;
 using StrangeUniverse.Game.Entities;
 
 namespace StrangeUniverse.Game.Systems;
@@ -9,7 +10,7 @@ public class CollisionSystem
 {
     private const float Restitution = 0.35f;
 
-    public void Resolve(PlayerShip player, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
+    public void Resolve(Player player, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
     {
         foreach (var planet in planets)
             ResolveStatic(player, planet.Transform.Position, planet.Radius);
@@ -18,7 +19,7 @@ public class CollisionSystem
             ResolveStatic(player, asteroid.Transform.Position, asteroid.Radius);
     }
 
-    private static void ResolveStatic(PlayerShip player, Vector2 otherPos, float otherRadius)
+    private static void ResolveStatic(Player player, Vector2 otherPos, float otherRadius)
     {
         Vector2 diff    = player.Transform.Position - otherPos;
         float   distSq  = diff.LengthSquared();

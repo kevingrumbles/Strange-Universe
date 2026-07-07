@@ -1,29 +1,31 @@
-using System;
 using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Entities;
 using StrangeUniverse.Game.Components;
-using StrangeUniverse.Game.World;
 using StrangeUniverse.Input;
+using System;
+using System.Text.Json.Serialization;
 
-namespace StrangeUniverse.Game.Entities;
+namespace Strange_Universe.Game.World;
 
 /// <summary>The player-controlled ship.  Pure game logic — no MonoGame rendering types.</summary>
-public class PlayerShip
+public class Player
 {
-    public Transform   Transform           { get; } = new();
-    public PhysicsBody Physics             { get; }
-    public string      TextureId           { get; set; } = string.Empty;
-    public float       Radius              { get; set; }
-    public float       SpriteRotationOffset => _stats.SpriteRotationOffset;
+    public string Name     { get; set; } = "Player";
+    public string ShipName { get; set; } = "Shuttle";
+    [JsonIgnore] public ShipStats Ship  { get; set; } = new();
+    [JsonIgnore] public Transform   Transform           { get; } = new();
+    [JsonIgnore] public PhysicsBody Physics             { get; }
+    [JsonIgnore] public string      TextureId           { get; set; } = string.Empty;
+    [JsonIgnore] public float       Radius              { get; set; }
+    [JsonIgnore] public float       SpriteRotationOffset => Ship.SpriteRotationOffset;
 
-    private readonly ShipStats _stats;
-
-    public PlayerShip(ShipStats stats)
+    public Player(string shipName = "Shuttle")
     {
-        _stats = stats;
-        Radius = stats.Radius;
+        Ship = Ship.GetShipStats(shipName);
+        Radius = Ship.Radius;
         Physics = new PhysicsBody
         {
-            LinearDamping = stats.LinearDamping,   // 1.0 = no passive drag
+            LinearDamping = Ship.LinearDamping,   // 1.0 = no passive drag
             Mass          = 1f,
         };
     }
@@ -43,9 +45,9 @@ public class PlayerShip
     private void HandleManualRotation(float deltaTime, InputState input)
     {
         if (input.RotateLeft)
-            Transform.Rotation -= _stats.RotationSpeed * deltaTime;
+            Transform.Rotation -= Ship.RotationSpeed * deltaTime;
         if (input.RotateRight)
-            Transform.Rotation += _stats.RotationSpeed * deltaTime;
+            Transform.Rotation += Ship.RotationSpeed * deltaTime;
     }
 
     // ── Maneuvering thrusters (S) ─────────────────────────────────────────────
@@ -59,7 +61,7 @@ public class PlayerShip
 
         float retrogradeAngle = (float)Math.Atan2(-Physics.Velocity.Y, -Physics.Velocity.X);
         float diff            = WrapAngle(retrogradeAngle - Transform.Rotation);
-        float maxDelta        = _stats.RotationSpeed * deltaTime;
+        float maxDelta        = Ship.RotationSpeed * deltaTime;
 
         if (Math.Abs(diff) <= maxDelta)
             Transform.Rotation = retrogradeAngle;   // snap when very close
@@ -79,7 +81,7 @@ public class PlayerShip
     {
         if (!input.Thrust) return;
 
-        Vector2 thrustForce  = Transform.Forward * _stats.ThrustForce;
+        Vector2 thrustForce  = Transform.Forward * Ship.ThrustForce;
         float   currentSpeed = Physics.Velocity.Length();
 
         if (currentSpeed > 0f)
@@ -90,9 +92,9 @@ public class PlayerShip
             // Only reduce thrust that would push speed higher (positive parallel component)
             if (parallelMag > 0f)
             {
-                float softStart = _stats.MaxSpeed * _stats.SoftCapStart;
+                float softStart = Ship.MaxSpeed * Ship.SoftCapStart;
 
-                if (currentSpeed >= _stats.MaxSpeed)
+                if (currentSpeed >= Ship.MaxSpeed)
                 {
                     // At or above max: strip the forward component entirely.
                     // The ship can still turn — lateral thrust is unaffected.
@@ -101,7 +103,7 @@ public class PlayerShip
                 else if (currentSpeed > softStart)
                 {
                     // Soft zone: linearly fade the forward component to zero.
-                    float t = (currentSpeed - softStart) / (_stats.MaxSpeed - softStart);
+                    float t = (currentSpeed - softStart) / (Ship.MaxSpeed - softStart);
                     thrustForce -= velDir * (parallelMag * t);
                 }
                 // Below softStart: full thrust, no reduction

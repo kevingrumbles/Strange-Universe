@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.World;
 using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Rendering.ProceduralGeneration;
 using StrangeUniverse.Rendering.SpriteRenderer;
@@ -17,7 +20,6 @@ public class UniverseGenerator
     private readonly GraphicsDevice         _gd;
     private readonly ProceduralTextureCache _cache;
     private readonly Universe               _universe;
-    private readonly ShipStats              _shipStats;
 
     private static readonly string[] PlanetNames =
     {
@@ -26,12 +28,11 @@ public class UniverseGenerator
     };
 
     public UniverseGenerator(GraphicsDevice gd, ProceduralTextureCache cache,
-                              Universe universe, ShipStats shipStats)
+                              Universe universe)
     {
         _gd        = gd;
         _cache     = cache;
         _universe  = universe;
-        _shipStats = shipStats;
     }
 
     public Universe Generate()
@@ -268,7 +269,7 @@ public class UniverseGenerator
 
         _cache.Register(id, tex);
 
-        var player = new PlayerShip(_shipStats)
+        var player = new Player()
         {
             TextureId = id,
         };
