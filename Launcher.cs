@@ -1,3 +1,4 @@
+using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
@@ -20,6 +21,7 @@ namespace StrangeUniverse
     public class Launcher : Microsoft.Xna.Framework.Game
     {
         // ── Core ──────────────────────────────────────────────────────────────
+        public static GraphicsDevice GD;
         private readonly GraphicsDeviceManager _graphics;
         private SpriteBatch             _spriteBatch = null!;
         private SpriteFont              _font        = null!;
@@ -39,7 +41,7 @@ namespace StrangeUniverse
         // ── Gameplay ──────────────────────────────────────────────────────────
         private InputHandler            _inputHandler   = null!;
         private Rendering.Camera.Camera _camera         = null!;  
-        private ProceduralTextureCache  _textureCache   = null!;
+        public static ProceduralTextureCache  TextureCache   = null!;
         private SpriteRenderer          _renderer       = null!;
         private Universe                _activeUniverse = null!;
         private CameraSettings          _cameraSettings = null!;
@@ -95,12 +97,16 @@ namespace StrangeUniverse
 
         protected override void LoadContent()
         {
+            GD = GraphicsDevice;
+            _inputHandler = new InputHandler();
+            TextureCache = new ProceduralTextureCache();
             _spriteBatch = new SpriteBatch(GraphicsDevice);
+            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
             _font        = Content.Load<SpriteFont>("Fonts/DefaultFont");
-
             _cameraSettings = LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
+            _camera = new Rendering.Camera.Camera(_cameraSettings, _screenWidth, _screenHeight);
             var shipStats = LoadFile<List<ShipStats>>("Data/ship-stats.json");
-            ShipStats.Presets = shipStats;
+            ShipStats.Presets = LoadFile<List<ShipStats>>("Data/ship-stats.json"); 
             _universes = LoadExisting(_universeFilePath);
 
             _menuIndex = 0;
@@ -208,18 +214,8 @@ namespace StrangeUniverse
 
         private void LaunchUniverse(Universe universe)
         {
-            _inputHandler = new InputHandler();
-            _textureCache = new ProceduralTextureCache();
-            _camera = new Rendering.Camera.Camera(
-                                _cameraSettings, _screenWidth, _screenHeight);
-
-            System.Console.WriteLine($"[Strange Universe] Generating universe '{universe.Name}'...");
-            var generator = new UniverseGenerator(
-                GraphicsDevice, _textureCache, universe);
+            var generator = new UniverseGenerator(universe);
             _activeUniverse = generator.Generate();
-            System.Console.WriteLine("[Strange Universe] Universe ready.");
-
-            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, _textureCache);
             _camera.Update(_activeUniverse.ActiveStarSystem.Player.Transform.Position, 1f, new InputState());
 
             IsMouseVisible = false;
@@ -433,7 +429,7 @@ namespace StrangeUniverse
 
         protected override void UnloadContent()
         {
-            _textureCache?.Dispose();
+            TextureCache?.Dispose();
             base.UnloadContent();
         }
 

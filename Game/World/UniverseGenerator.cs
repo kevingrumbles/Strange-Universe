@@ -17,8 +17,6 @@ namespace StrangeUniverse.Game.World;
 /// </summary>
 public class UniverseGenerator
 {
-    private readonly GraphicsDevice         _gd;
-    private readonly ProceduralTextureCache _cache;
     private readonly Universe               _universe;
 
     private static readonly string[] PlanetNames =
@@ -27,11 +25,8 @@ public class UniverseGenerator
         "Fyrath", "Gavorn", "Helix", "Iridia", "Joras"
     };
 
-    public UniverseGenerator(GraphicsDevice gd, ProceduralTextureCache cache,
-                              Universe universe)
+    public UniverseGenerator(Universe universe)
     {
-        _gd        = gd;
-        _cache     = cache;
         _universe  = universe;
     }
 
@@ -92,8 +87,8 @@ public class UniverseGenerator
         Color starColor = starColors[rng.Next(starColors.Length)];
 
         const string id = "star";
-        var tex = StarTextureGenerator.Generate(_gd, starColor, SeedHash(_universe.Seed));
-        _cache.Register(id, tex);
+        var tex = StarTextureGenerator.Generate(Launcher.GD, starColor, SeedHash(_universe.Seed));
+        Launcher.TextureCache.Register(id, tex);
 
         system.Star = new Star
         {
@@ -137,8 +132,8 @@ public class UniverseGenerator
                                            (float)rng.NextDouble());
 
             string id  = $"planet_{system.Planets.Count}";
-            var    tex = PlanetTextureGenerator.Generate(_gd, type, seed);
-            _cache.Register(id, tex);
+            var    tex = PlanetTextureGenerator.Generate(Launcher.GD, type, seed);
+            Launcher.TextureCache.Register(id, tex);
 
             float orbit = MathHelper.Lerp(minOrbit, maxOrbit,
                                           (float)(i + 0.5f + rng.NextDouble() * 0.5f - 0.25f) / count);
@@ -184,8 +179,8 @@ public class UniverseGenerator
         for (int i = 0; i < PaletteSize; i++)
         {
             paletteIds[i] = $"asteroid_tex_{i}";
-            var tex = AsteroidTextureGenerator.Generate(_gd, rng.Next());
-            _cache.Register(paletteIds[i], tex);
+            var tex = AsteroidTextureGenerator.Generate(Launcher.GD, rng.Next());
+            Launcher.TextureCache.Register(paletteIds[i], tex);
         }
 
         float beltInner = system.AsteroidBeltInnerRadius;
@@ -249,8 +244,8 @@ public class UniverseGenerator
     private void GenerateNebula(StarSystem system, Random rng)
     {
         const string id = "nebula";
-        var tex = NebulaGenerator.Generate(_gd, SeedHash(_universe.Seed) + 77777);
-        _cache.Register(id, tex);
+        var tex = NebulaGenerator.Generate(Launcher.GD, SeedHash(_universe.Seed) + 77777);
+        Launcher.TextureCache.Register(id, tex);
         system.NebulaTextureId = id;
         // Cover the full system plus a comfortable margin so the player never
         // flies off the edge of the nebula at any practical zoom level.
@@ -264,10 +259,10 @@ public class UniverseGenerator
         const string id         = "player_ship";
         const string spriteFile = "Art/Shuttle_sprite.png";
 
-        var tex = ArtLoader.TryLoad(_gd, spriteFile)
-               ?? ShipTextureGenerator.Generate(_gd);
+        var tex = ArtLoader.TryLoad(Launcher.GD, spriteFile)
+               ?? ShipTextureGenerator.Generate(Launcher.GD);
 
-        _cache.Register(id, tex);
+        Launcher.TextureCache.Register(id, tex);
 
         var player = new Player()
         {
