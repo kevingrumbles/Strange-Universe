@@ -1,7 +1,10 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
+using StrangeUniverse;
 using StrangeUniverse.Game.Components;
 using StrangeUniverse.Input;
+using StrangeUniverse.Rendering.ProceduralGeneration;
+using StrangeUniverse.Rendering.SpriteRenderer;
 using System;
 using System.Text.Json.Serialization;
 
@@ -12,15 +15,18 @@ public class Player
 {
     public string Name     { get; set; } = "Player";
     public string ShipName { get; set; } = "Shuttle";
+    public Guid CurrentStarSystemID { get; set; }
     [JsonIgnore] public ShipStats Ship  { get; set; } = new();
-    [JsonIgnore] public Transform   Transform           { get; } = new();
+    public Transform   Transform           { get; set; } = new();
     [JsonIgnore] public PhysicsBody Physics             { get; }
     [JsonIgnore] public string      TextureId           { get; set; } = string.Empty;
     [JsonIgnore] public float       Radius              { get; set; }
     [JsonIgnore] public float       SpriteRotationOffset => Ship.SpriteRotationOffset;
 
+
     public Player(string shipName = "Shuttle")
     {
+        //const string id = "player_ship";
         Ship = Ship.GetShipStats(shipName);
         Radius = Ship.Radius;
         Physics = new PhysicsBody
@@ -28,6 +34,10 @@ public class Player
             LinearDamping = Ship.LinearDamping,   // 1.0 = no passive drag
             Mass          = 1f,
         };
+        var tex = ArtLoader.TryLoad(Launcher.GD, Ship.SpriteName)
+               ?? ShipTextureGenerator.Generate(Launcher.GD);
+
+        Launcher.TextureCache.Register(Ship.ShipName, tex);
     }
 
     public void Update(float deltaTime, InputState input)

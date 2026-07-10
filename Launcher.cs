@@ -59,11 +59,13 @@ namespace StrangeUniverse
             AllowTrailingCommas = true,
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
+            IncludeFields = true,
         };
 
         private static readonly JsonSerializerOptions _writeOptions = new()
         {
             WriteIndented = true,
+            IncludeFields = true,
         };
 
         public Launcher()
@@ -90,8 +92,6 @@ namespace StrangeUniverse
 
         protected override void OnExiting(object sender, ExitingEventArgs args)
         {
-            if (_activeUniverse != null)
-                Persist(_activeUniverse, _universeFilePath);
             base.OnExiting(sender, args);
         }
 
@@ -214,9 +214,9 @@ namespace StrangeUniverse
 
         private void LaunchUniverse(Universe universe)
         {
-            var generator = new UniverseGenerator(universe);
-            _activeUniverse = generator.Generate();
-            _camera.Update(_activeUniverse.ActiveStarSystem.Player.Transform.Position, 1f, new InputState());
+            _activeUniverse = universe;
+            _activeUniverse.Generate();
+            _camera.Update(_activeUniverse.Player.Transform.Position, 1f, new InputState());
 
             IsMouseVisible = false;
             _state = GameState.Playing;
@@ -227,6 +227,8 @@ namespace StrangeUniverse
             var keys = Keyboard.GetState();
             if (WasPressed(keys, Keys.Escape))
             {
+                if (_activeUniverse != null)
+                    Persist(_activeUniverse, _universeFilePath);
                 _state = GameState.Menu;
                 _prevKeys = keys;
             }
@@ -235,7 +237,7 @@ namespace StrangeUniverse
             var   input     = _inputHandler.GetState();
 
             _activeUniverse.Update(deltaTime, input);
-            _camera.Update(_activeUniverse.ActiveStarSystem.Player.Transform.Position, deltaTime, input);
+            _camera.Update(_activeUniverse.Player.Transform.Position, deltaTime, input);
         }
 
         // ── Draw ──────────────────────────────────────────────────────────────
@@ -416,14 +418,14 @@ namespace StrangeUniverse
             foreach (var asteroid in sys.Asteroids)
                 _renderer.DrawAsteroid(asteroid);
 
-            _renderer.DrawPlayer(sys.Player);
+            _renderer.DrawPlayer(_activeUniverse.Player);
 
             _spriteBatch.End();
 
             // ── HUD pass (no transform) ────────────────────────────────────────
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawHud(sys.Player, _screenWidth, _screenHeight, sys.Player.Ship.MaxSpeed);
-            _renderer.DrawMinimap(sys, sys.SystemRadius, _screenWidth, _screenHeight);
+            _renderer.DrawHud(_activeUniverse.Player, _screenWidth, _screenHeight, _activeUniverse.Player.Ship.MaxSpeed);
+            _renderer.DrawMinimap(_activeUniverse, _screenWidth, _screenHeight);
             _spriteBatch.End();
         }
 

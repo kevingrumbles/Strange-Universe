@@ -4,8 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.World;
 using StrangeUniverse.Input;
+using StrangeUniverse.Rendering.ProceduralGeneration;
 
 namespace StrangeUniverse.Game.World;
 
@@ -19,26 +21,43 @@ public class Universe
     // ── Serialized identity (saved to / loaded from JSON) ──────────────────────────────
     public Guid   Id   { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New Universe";
-    public string Seed { get; set; } = Guid.NewGuid().ToString();
     public Player Player { get; set; }
 
     // ── Runtime state (not serialized) ─────────────────────────────────────────────────
+    private string _seed;
+    public string Seed
+    {
+        get => _seed;
+        set
+        {
+            _universeHash = SeedHash(value);
+            _universeRng = new Random(_universeHash);
+            _seed = value;
+        }
+    }
+    private int _universeHash { get; set; }
+    private Random _universeRng { get; set; }
     [JsonIgnore]
     public StarSystem ActiveStarSystem
     {
         get
         {
-            if (_activeStarSystem == null && StarSystems.Count > 0)
-                _activeStarSystem = StarSystems[0];
-            return _activeStarSystem;
-        }
-        set
-        {
-            _activeStarSystem = value;
+            StarSystem currentSystem = StarSystems.FirstOrDefault(s => s.SystemId == Player.CurrentStarSystemID);
+            if (currentSystem == null)
+            {
+                if (StarSystems.Count == 0)
+                {
+                    // If there are no star systems, create a default one and add it to the universe.
+                    CreateDefaultStarSystem();
+                }
+
+                // If the player's current star system ID is not found, return the first star system as a fallback.
+                currentSystem = StarSystems.FirstOrDefault();
+                Player.CurrentStarSystemID = currentSystem?.SystemId ?? Guid.Empty; // Update player's current star system ID
+            }
+            return currentSystem;
         }
     }
-    [JsonIgnore]
-    private StarSystem _activeStarSystem { get; set;  }
 
     public List<StarSystem> StarSystems { get; set; } = new();
 
@@ -59,17 +78,34 @@ public class Universe
         };
     }
 
-    // ── Runtime methods ────────────────────────────────────────────────────────────────
-    /// <summary>Adds a star system and makes it active if it is the first one.</summary>
-    public void AddStarSystem(StarSystem system)
+    public void CreateDefaultStarSystem()
     {
-        StarSystems.Add(system);
+        StarSystem starSystem = new StarSystem();
+        StarSystems.Add(starSystem);
     }
 
-    /// <summary>Sets the active star system. Must already belong to this universe.</summary>
-    public void SetActiveStarSystem(StarSystem system) => ActiveStarSystem = system;
-
+    // ── Runtime methods ────────────────────────────────────────────────────────────────
     /// <summary>Advances simulation for the active star system.</summary>
     public void Update(float deltaTime, InputState input) =>
-        ActiveStarSystem.Update(deltaTime, input);
+        ActiveStarSystem.Update(Player, deltaTime, input);
+
+    // ── Generation ────────────────────────────────────────────────────────────
+
+    /// <summary>Procedurally generates a star system and adds it to this universe.</summary>
+    public void Generate()
+    {
+        ActiveStarSystem.Generate(_universeHash);
+    }
+
+    /// <summary>Deterministic 32-bit FNV-1a hash of a string.</summary>
+    private static int SeedHash(string s)
+    {
+        unchecked
+        {
+            uint hash = 2166136261u;
+            foreach (char c in s)
+                hash = (hash ^ c) * 16777619u;
+            return (int)hash;
+        }
+    }
 }

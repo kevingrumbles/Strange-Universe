@@ -47,7 +47,7 @@ public static class NebulaGenerator
     // producing completely uncorrelated warp and density fields per layer.
     private const int LayerStride = 7919;
 
-    public static Texture2D Generate(GraphicsDevice gd, int seed)
+    public static Texture2D Generate(int seed)
     {
         var rng    = new Random(seed);
         var pixels = new Color[Size * Size];
@@ -120,7 +120,7 @@ public static class NebulaGenerator
             }
         }
 
-        var tex = new Texture2D(gd, Size, Size);
+        var tex = new Texture2D(Launcher.GD, Size, Size);
         tex.SetData(pixels);
         return tex;
     }

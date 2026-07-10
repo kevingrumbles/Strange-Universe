@@ -5,21 +5,7 @@ namespace Strange_Universe.Game.Entities;
 
 public class ShipStats
 {
-    public static List<ShipStats> Presets { get; set; } = new()
-    {
-        //new ShipStats
-        //{
-        //    ShipName = "Shuttle",
-        //    ThrustForce = 260f,
-        //    RotationSpeed = 3.5f,
-        //    MaxSpeed = 480f,
-        //    LinearDamping = 1.0f,
-        //    Radius = 14f,
-        //    SoftCapStart = 0.75f,
-        //    SpriteRotationOffset = -1.5708f,
-        //    SpriteName = "Art/Shuttle_sprite.png"
-        //},
-    };
+    public static List<ShipStats> Presets { get; set; } = new();
     public string ShipName { get; set; }
 
     public string SpriteName { get; set; }

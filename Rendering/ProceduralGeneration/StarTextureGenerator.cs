@@ -11,7 +11,7 @@ public static class StarTextureGenerator
     /// <summary>
     /// Generates a glowing star texture: bright core, coloured corona, soft halo, and ray spikes.
     /// </summary>
-    public static Texture2D Generate(GraphicsDevice gd, Color starColor, int seed)
+    public static Texture2D Generate(Color starColor, int seed)
     {
         var colors = new Color[Size * Size];
         float cx = Size * 0.5f;
@@ -69,7 +69,7 @@ public static class StarTextureGenerator
             }
         }
 
-        var tex = new Texture2D(gd, Size, Size);
+        var tex = new Texture2D(Launcher.GD, Size, Size);
         tex.SetData(colors);
         return tex;
     }

@@ -95,7 +95,7 @@ public class SpriteRenderer
         DrawEntity(asteroid.TextureId, asteroid.Transform.Position, asteroid.Transform.Rotation, asteroid.Radius);
 
     public void DrawPlayer(Player player) =>
-        DrawEntity(player.TextureId, player.Transform.Position,
+        DrawEntity(player.ShipName, player.Transform.Position,
                    player.Transform.Rotation + player.SpriteRotationOffset,
                    player.Radius * 2.2f);
 
@@ -121,7 +121,7 @@ public class SpriteRenderer
 
     // ── Minimap ───────────────────────────────────────────────────────────────
 
-    public void DrawMinimap(StarSystem starSystem, float systemRadius, int screenWidth, int screenHeight)
+    public void DrawMinimap(Universe universe, int screenWidth, int screenHeight)
     {
         const int MapSize = 180;
         const int Margin  = 14;
@@ -130,7 +130,7 @@ public class SpriteRenderer
         int   mapLeft   = screenWidth - MapSize - Margin;
         int   mapTop    = Margin;
         float halfMap   = MapSize * 0.5f;
-        float scale     = halfMap / systemRadius;   // world unit → minimap pixel
+        float scale     = halfMap / universe.ActiveStarSystem.SystemRadius;   // world unit → minimap pixel
 
         // ── Local helpers ────────────────────────────────────────────────────
 
@@ -155,25 +155,25 @@ public class SpriteRenderer
             new Color(0, 5, 18) * 0.84f);
 
         // ── Asteroids (drawn first — smallest, dimmest) ───────────────────
-        foreach (var asteroid in starSystem.Asteroids)
+        foreach (var asteroid in universe.ActiveStarSystem.Asteroids)
             Dot(WorldToMap(asteroid.Transform.Position), 1, new Color(85, 85, 90, 170));
 
         // ── Planets ───────────────────────────────────────────────────────
-        foreach (var planet in starSystem.Planets)
+        foreach (var planet in universe.ActiveStarSystem.Planets)
             Dot(WorldToMap(planet.Transform.Position), 4, planet.MinimapColor);
 
         // ── Star ──────────────────────────────────────────────────────────
-        Vector2 starMap = WorldToMap(starSystem.Star.Transform.Position);
-        Dot(starMap, 10, starSystem.Star.MinimapColor * 0.55f);   // soft outer glow
-        Dot(starMap,  6, starSystem.Star.MinimapColor);            // coloured body
+        Vector2 starMap = WorldToMap(universe.ActiveStarSystem.Star.Transform.Position);
+        Dot(starMap, 10, universe.ActiveStarSystem.Star.MinimapColor * 0.55f);   // soft outer glow
+        Dot(starMap,  6, universe.ActiveStarSystem.Star.MinimapColor);            // coloured body
         Dot(starMap,  3, Color.White * 0.90f);                     // bright core
 
         // ── Player ────────────────────────────────────────────────────────
-        Vector2 playerMap = WorldToMap(starSystem.Player.Transform.Position);
+        Vector2 playerMap = WorldToMap(universe.Player.Transform.Position);
         Dot(playerMap, 4, new Color(55, 215, 255));                // cyan body
 
         // Heading pip — white dot ahead of the player indicating facing direction
-        Vector2 pip = playerMap + starSystem.Player.Transform.Forward * 5f;
+        Vector2 pip = playerMap + universe.Player.Transform.Forward * 5f;
         Dot(pip, 2, Color.White);
 
         // ── Border (drawn last to cleanly cap any dot bleed) ─────────────
