@@ -1,4 +1,5 @@
-﻿using StrangeUniverse.Game.World;
+﻿using Microsoft.Xna.Framework;
+using StrangeUniverse.Game.World;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -94,6 +95,19 @@ namespace StrangeUniverse
         {
         "Aether", "Boras", "Calyss", "Drevon", "Eston",
         "Fyrath", "Gavorn", "Helix", "Iridia", "Joras"
+        };
+
+        public static readonly string[] StarNames =
+        {
+        "Star 1", "Star 2", "Star 3", "Star 4", "Star 5"
+        };
+
+        public static readonly Color[] StarColors = new[]
+        {
+            new Color(255, 240, 180),   // warm yellow (G-type)
+            new Color(255, 200, 120),   // orange (K-type)
+            new Color(255, 160, 80),    // orange-red (M-type)
+            new Color(180, 210, 255),   // blue-white (A-type)
         };
     }
 }

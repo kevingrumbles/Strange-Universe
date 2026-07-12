@@ -380,7 +380,8 @@ namespace StrangeUniverse
                 sys.BackgroundStars, _screenWidth, _screenHeight, _camera.Position, layer: 1);
 
             //Draw Layer 3
-            _renderer.DrawStar(sys.Star);
+            foreach (var star in sys.Stars)
+                _renderer.DrawStar(star);
 
             //Draw Layer 4
             foreach (var planet in sys.Planets)

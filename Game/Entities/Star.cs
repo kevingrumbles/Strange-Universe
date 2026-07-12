@@ -10,4 +10,7 @@ public class Star
     public string    TextureId    { get; set; } = string.Empty;
     public string    Name         { get; set; } = "Sol";
     public Color     MinimapColor { get; set; } = new Color(255, 230, 100);
+    public float     OrbitRadius  { get; set; }
+    public float     OrbitAngle   { get; set; }
+    public float     OrbitSpeed   { get; set; }
 }

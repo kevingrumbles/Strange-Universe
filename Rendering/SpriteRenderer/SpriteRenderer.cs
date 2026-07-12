@@ -162,11 +162,14 @@ public class SpriteRenderer
         foreach (var planet in universe.ActiveStarSystem.Planets)
             Dot(WorldToMap(planet.Transform.Position), 4, planet.MinimapColor);
 
-        // ── Star ──────────────────────────────────────────────────────────
-        Vector2 starMap = WorldToMap(universe.ActiveStarSystem.Star.Transform.Position);
-        Dot(starMap, 10, universe.ActiveStarSystem.Star.MinimapColor * 0.55f);   // soft outer glow
-        Dot(starMap,  6, universe.ActiveStarSystem.Star.MinimapColor);            // coloured body
-        Dot(starMap,  3, Color.White * 0.90f);                     // bright core
+        // Stars
+        foreach (var star in universe.ActiveStarSystem.Stars)
+        {
+            Vector2 starMap = WorldToMap(star.Transform.Position);
+            Dot(starMap, 10, star.MinimapColor * 0.55f);   // soft outer glow
+            Dot(starMap,  6, star.MinimapColor);            // coloured body
+            Dot(starMap,  3, Color.White * 0.90f);          // bright core
+        }
 
         // ── Player ────────────────────────────────────────────────────────
         Vector2 playerMap = WorldToMap(universe.Player.Transform.Position);

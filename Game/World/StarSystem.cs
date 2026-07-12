@@ -24,7 +24,10 @@ public class StarSystem
     // ── Generation configuration ─────────────────────────────────────────────
     public int    PlanetCount             { get; set; }
     public int    AsteroidCount           { get; set; }
-    public float  SystemRadius            { get; set; } 
+    public int    StarCount               { get; set; }
+    public float  SystemRadius            { get; set; }
+    public float  StarOrbitRadius         { get; set; }
+    public float  StarOrbitSpeed          { get; set; }
     public float  AsteroidBeltInnerRadius { get; set; }
     public float  AsteroidBeltOuterRadius { get; set; }
     public int    BackgroundStarCount     { get; set; } 
@@ -36,12 +39,12 @@ public class StarSystem
     public int SystemConnections { get; set; } = 1;
 
     // ── Entities ─────────────────────────────────────────────────────────────
-    [JsonIgnore] public Star                 Star            { get; set; } = new();
+    [JsonIgnore] public List<Star>                 Stars            { get; set; } = new();
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
     [JsonIgnore] public string               NebulaTextureId { get; set; } = string.Empty;
-    [JsonIgnore] public Random systemRng { get; set; } = new Random();
+    [JsonIgnore] public Random SystemRng { get; set; } = new Random();
 
     private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();
@@ -49,33 +52,71 @@ public class StarSystem
     public StarSystem()
     {
         if (string.IsNullOrEmpty(Seed)) Seed = SystemId.ToString();
-        systemRng = new Random(StaticHelpers.SeedHash(Seed));
-        PlanetCount = (int)systemRng.NextWeightedFloat(0, 7);
-        AsteroidCount = (int)systemRng.NextWeightedFloat(0, 120);
-        SystemRadius = systemRng.NextWeightedFloat(12000f, 25000f);
-        AsteroidBeltInnerRadius = systemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f);
-        AsteroidBeltOuterRadius = systemRng.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
-        BackgroundStarCount = (int)systemRng.NextWeightedFloat(400, 800);
-        StarRadius = systemRng.NextWeightedFloat(120f, 250f);
-        MinPlanetRadius = systemRng.NextWeightedFloat(30f, 60f);
-        MaxPlanetRadius = systemRng.NextWeightedFloat(80f, 150f);
-        MinAsteroidRadius = systemRng.NextWeightedFloat(5f, 15f);
-        MaxAsteroidRadius = systemRng.NextWeightedFloat(20f, 40f);
-        SystemConnections = (int)systemRng.NextWeightedFloat(1, 4);
+        SystemRng = new Random(StaticHelpers.SeedHash(Seed));
+        PlanetCount = (int)SystemRng.NextWeightedFloat(0, 7);
+        AsteroidCount = (int)SystemRng.NextWeightedFloat(0, 120);
+        StarCount = (int)SystemRng.NextWeightedFloat(1, 3);
+        StarRadius = SystemRng.NextWeightedFloat(250f, 500f);
+        switch (StarCount)
+        {
+            case 1: 
+                StarOrbitRadius = 0f;  
+                StarOrbitSpeed = 0f;
+                break;
+            case 2: 
+                StarOrbitRadius = SystemRng.NextWeightedFloat(2000f, 4000f);
+                StarOrbitSpeed  = SystemRng.NextWeightedFloat(0.0001f, 0.0003f);
+                break;
+            case 3: 
+                StarOrbitRadius = SystemRng.NextWeightedFloat(3000f, 7000f);
+                StarOrbitSpeed  = SystemRng.NextWeightedFloat(0.00005f, 0.0002f);
+                break;
+        }
+        // The star core is the region occupied by all orbiting stars.
+        // For a single star StarOrbitRadius == 0, so starCoreRadius == StarRadius.
+        float starCoreRadius = StarOrbitRadius + StarRadius;
+        // SystemRadius is always large enough to contain the star core plus a meaningful planetary region.
+        float starCoreFootprint = StarOrbitRadius * 2f;
+        SystemRadius = SystemRng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
+        BackgroundStarCount = (int)SystemRng.NextWeightedFloat(400, 800);
+
+        AsteroidBeltInnerRadius = Math.Max(
+            SystemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),
+            starCoreRadius * 2.5f);
+        AsteroidBeltOuterRadius = SystemRng.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
+        
+        MinPlanetRadius = SystemRng.NextWeightedFloat(90f, 120f);
+        MaxPlanetRadius = SystemRng.NextWeightedFloat(150, 300f);
+        MinAsteroidRadius = SystemRng.NextWeightedFloat(15f, 30f);
+        MaxAsteroidRadius = SystemRng.NextWeightedFloat(40f, 50f);
+        SystemConnections = (int)SystemRng.NextWeightedFloat(1, 4);
     }
 
     public void Update(Player player, float deltaTime, InputState input)
     {
         player.Update(deltaTime, input);
+        UpdateStarOrbits(deltaTime);
         _physics.Update(Asteroids, deltaTime);
         _collision.Resolve(player, Planets, Asteroids);
+    }
+
+    private void UpdateStarOrbits(float deltaTime)
+    {
+        if (Stars.Count <= 1) return;
+        foreach (var star in Stars)
+        {
+            star.OrbitAngle += star.OrbitSpeed * deltaTime;
+            star.Transform.Position = new Vector2(
+                MathF.Cos(star.OrbitAngle) * star.OrbitRadius,
+                MathF.Sin(star.OrbitAngle) * star.OrbitRadius);
+        }
     }
 
     // ── Generation ────────────────────────────────────────────────────────────
 
     public void Generate()
     {
-        GenerateStar();
+        GenerateStars();
         GeneratePlanets();
         GenerateAsteroids();
         GenerateBackgroundStars();
@@ -89,29 +130,39 @@ public class StarSystem
 
     // ── Star ───────────────────────────────────────────────────────────────
 
-    private void GenerateStar()
+    private void GenerateStars()
     {
-        var starColors = new[]
+        for (int i = 0; i < StarCount; i++)
         {
-            new Color(255, 240, 180),   // warm yellow (G-type)
-            new Color(255, 200, 120),   // orange (K-type)
-            new Color(255, 160, 80),    // orange-red (M-type)
-            new Color(180, 210, 255),   // blue-white (A-type)
-        };
-        Color starColor = starColors[systemRng.Next(starColors.Length)];
+            Color starColor = StaticHelpers.StarColors[SystemRng.Next(StaticHelpers.StarColors.Length)];
+            string Name = StaticHelpers.StarNames[SystemRng.Next(StaticHelpers.StarNames.Length)];
+            while (Stars.Contains(Stars.Find(s => s.Name == Name)))
+            {
+                Name = StaticHelpers.StarNames[SystemRng.Next(StaticHelpers.StarNames.Length)];
+            }
 
-        const string id = "star";
-        var tex = StarTextureGenerator.Generate(starColor, StaticHelpers.SeedHash(Seed));
-        Launcher.TextureCache.Register(id, tex);
+            string id = $"{SystemId.ToString()}_{Name}";
+            var tex = StarTextureGenerator.Generate(starColor, StaticHelpers.SeedHash(Seed));
+            Launcher.TextureCache.Register(id, tex);
 
-        Star = new Star
-        {
-            TextureId    = id,
-            Radius       = StarRadius,
-            Name         = "Sol",
-            MinimapColor = starColor,
-        };
-        Star.Transform.Position = Vector2.Zero;
+            float initialAngle = MathHelper.TwoPi * i / StarCount;
+            Star newStar = new Star
+            {
+                TextureId   = id,
+                Radius      = StarRadius,
+                Name        = Name,
+                MinimapColor = starColor,
+                OrbitRadius  = StarOrbitRadius,
+                OrbitAngle   = initialAngle,
+                OrbitSpeed   = StarOrbitSpeed,
+            };
+            newStar.Transform.Position = StarCount == 1
+                ? Vector2.Zero
+                : new Vector2(
+                    MathF.Cos(initialAngle) * StarOrbitRadius,
+                    MathF.Sin(initialAngle) * StarOrbitRadius);
+            Stars.Add(newStar);
+        }
     }
 
     // ── Planets ────────────────────────────────────────────────────────────
@@ -120,7 +171,7 @@ public class StarSystem
     {
         var types = (PlanetType[])Enum.GetValues(typeof(PlanetType));
 
-        float minOrbit  = StarRadius * 3.5f;
+        float minOrbit  = Math.Max(StarRadius * 3.5f, StarOrbitRadius * 2f);
         float maxOrbit  = SystemRadius * 0.75f;
 
         int innerCount = Math.Max(1, PlanetCount / 2);
@@ -140,8 +191,8 @@ public class StarSystem
                 systemId: SystemId,
                 minPlanetRadius: MinPlanetRadius,
                 maxPlanetRadius: MaxPlanetRadius,
-                systemRng: systemRng,
-                type: types[systemRng.Next(types.Length)],
+                systemRng: SystemRng,
+                type: types[SystemRng.Next(types.Length)],
                 minOrbit: minOrbit,
                 maxOrbit: maxOrbit,
                 planetNumber: i,
@@ -162,35 +213,35 @@ public class StarSystem
         {
             paletteIds[i] = $"asteroid_tex_{i}";
             if (Launcher.TextureCache.TryGet(paletteIds[i], out Texture2D texture)) continue;
-            var tex = AsteroidTextureGenerator.Generate(Launcher.GD, systemRng.Next());
+            var tex = AsteroidTextureGenerator.Generate(Launcher.GD, SystemRng.Next());
             Launcher.TextureCache.Register(paletteIds[i], tex);
         }
 
         for (int i = 0; i < AsteroidCount; i++)
         {
-            float orbit = MathHelper.Lerp(AsteroidBeltInnerRadius, AsteroidBeltOuterRadius, (float)systemRng.NextDouble());
-            float angle = (float)(systemRng.NextDouble() * MathHelper.TwoPi);
+            float orbit = MathHelper.Lerp(AsteroidBeltInnerRadius, AsteroidBeltOuterRadius, (float)SystemRng.NextDouble());
+            float angle = (float)(SystemRng.NextDouble() * MathHelper.TwoPi);
 
             float radius = MathHelper.Lerp(MinAsteroidRadius, MaxAsteroidRadius,
-                                           (float)systemRng.NextDouble());
+                                           (float)SystemRng.NextDouble());
 
             var asteroid = new Asteroid
             {
-                TextureId = paletteIds[systemRng.Next(PaletteSize)],
+                TextureId = paletteIds[SystemRng.Next(PaletteSize)],
                 Radius    = radius,
             };
 
             asteroid.Transform.Position = new Vector2(
                 (float)Math.Cos(angle) * orbit,
                 (float)Math.Sin(angle) * orbit);
-            asteroid.Transform.Rotation = (float)(systemRng.NextDouble() * MathHelper.TwoPi);
+            asteroid.Transform.Rotation = (float)(SystemRng.NextDouble() * MathHelper.TwoPi);
 
-            float speed     = MathHelper.Lerp(8f, 30f, (float)systemRng.NextDouble());
+            float speed     = MathHelper.Lerp(8f, 30f, (float)SystemRng.NextDouble());
             float perpAngle = angle + MathHelper.PiOver2;
             asteroid.Physics.Velocity = new Vector2(
                 (float)Math.Cos(perpAngle) * speed,
                 (float)Math.Sin(perpAngle) * speed);
-            asteroid.Physics.AngularVelocity = MathHelper.Lerp(-0.4f, 0.4f, (float)systemRng.NextDouble());
+            asteroid.Physics.AngularVelocity = MathHelper.Lerp(-0.4f, 0.4f, (float)SystemRng.NextDouble());
 
             Asteroids.Add(asteroid);
         }
@@ -207,12 +258,12 @@ public class StarSystem
             BackgroundStars.Add(new BackgroundStar
             {
                 Position   = new Vector2(
-                    (float)systemRng.NextDouble() * VirtualSize,
-                    (float)systemRng.NextDouble() * VirtualSize),
-                Brightness = MathHelper.Lerp(0.35f, 1f, (float)systemRng.NextDouble()),
-                Size       = systemRng.NextDouble() < 0.15 ? 2f : 1f,
+                    (float)SystemRng.NextDouble() * VirtualSize,
+                    (float)SystemRng.NextDouble() * VirtualSize),
+                Brightness = MathHelper.Lerp(0.35f, 1f, (float)SystemRng.NextDouble()),
+                Size       = SystemRng.NextDouble() < 0.15 ? 2f : 1f,
                 // Randomly placed in front of (layer 1) or behind (layer 0) the nebula
-                Layer      = systemRng.NextDouble() < 0.5 ? 1 : 0,
+                Layer      = SystemRng.NextDouble() < 0.5 ? 1 : 0,
             });
         }
     }
