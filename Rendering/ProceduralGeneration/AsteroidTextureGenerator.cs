@@ -9,7 +9,8 @@ public static class AsteroidTextureGenerator
     private const int Size = 128;
 
     /// <summary>
-    /// Generates an irregular blob asteroid texture using radial polygon displacement + noise.
+    /// Generates an irregular rocky asteroid texture with bump-mapped lighting,
+    /// layered surface detail, cracks, and a natural rock color palette.
     /// </summary>
     public static Texture2D Generate(GraphicsDevice gd, int seed)
     {
@@ -19,17 +20,21 @@ public static class AsteroidTextureGenerator
         float cy   = Size * 0.5f;
         float baseR = cx * 0.80f;
 
-        // Build a radial profile: sample N angles with displaced radii
+        // ── Silhouette: 24 radial control points, smoothstep-interpolated ──────
         const int Samples = 24;
         float[] sampleAngles = new float[Samples];
         float[] sampleRadii  = new float[Samples];
-
         for (int i = 0; i < Samples; i++)
         {
             sampleAngles[i] = MathHelper.TwoPi * i / Samples;
-            float disp = (float)(rng.NextDouble() * 0.42 + 0.58);  // 0.58..1.0
+            float disp = (float)(rng.NextDouble() * 0.40 + 0.60);   // 0.60–1.00
             sampleRadii[i]  = baseR * disp;
         }
+
+        // ── Light direction: upper-left, lifted above plane ─────────────────────
+        float lx = -0.55f, ly = -0.45f, lz = 0.70f;
+        float ll = (float)Math.Sqrt(lx * lx + ly * ly + lz * lz);
+        lx /= ll; ly /= ll; lz /= ll;
 
         for (int py = 0; py < Size; py++)
         {
@@ -40,33 +45,100 @@ public static class AsteroidTextureGenerator
                 float dist  = (float)Math.Sqrt(dx * dx + dy * dy);
                 float angle = (float)Math.Atan2(dy, dx);
 
-                // Interpolate asteroid radius at this angle
+                // Low-freq control-point radius at this angle
                 float asteroidR = InterpolatedRadius(angle, sampleAngles, sampleRadii);
 
-                if (dist > asteroidR) continue;
+                // High-freq edge bumps — small protrusions and chipped indentations
+                float edgeBump = NoiseHelper.Fbm(
+                    (float)Math.Cos(angle) * 4.5f,
+                    (float)Math.Sin(angle) * 4.5f,
+                    seed + 91, 3, 0.50f, 2f);
+                asteroidR += edgeBump * baseR * 0.085f;   // ±8.5% fine-detail bumps
 
-                float normDist = dist / asteroidR;
+                if (dist > asteroidR + 1.5f) continue;   // early-out past AA fringe
 
-                // Surface noise
-                float noiseVal = NoiseHelper.Remap01(
-                    NoiseHelper.Fbm(dx / baseR * 2.5f, dy / baseR * 2.5f, seed, 4, 0.55f, 2f));
+                float normDist = dist / Math.Max(asteroidR, 0.001f);
 
-                // Base grey-brown rock color
-                byte baseR2  = (byte)(80  + (int)(noiseVal * 60f));
-                byte baseG   = (byte)(65  + (int)(noiseVal * 48f));
-                byte baseB   = (byte)(55  + (int)(noiseVal * 38f));
+                float u = dx / baseR;
+                float v = dy / baseR;
 
-                // Edge darkening
-                float edge = 1f - normDist;
-                float dark = (float)Math.Pow(edge, 0.4f);
-                baseR2 = (byte)(baseR2 * dark);
-                baseG  = (byte)(baseG  * dark);
-                baseB  = (byte)(baseB  * dark);
+                // ── Surface layers ──────────────────────────────────────────────
+                // Layer 1 – large rocky regions
+                float rocky = NoiseHelper.Remap01(
+                    NoiseHelper.Fbm(u * 2.0f, v * 2.0f, seed,      5, 0.55f, 2.0f));
+                // Layer 2 – fine surface grain
+                float grain = NoiseHelper.Remap01(
+                    NoiseHelper.Fbm(u * 5.0f, v * 5.0f, seed + 17, 3, 0.50f, 2.0f));
+                // Layer 3 – cracks via ridged noise, sharpened
+                float crack = NoiseHelper.RidgedFbm(
+                    u * 4.5f, v * 4.5f, seed + 43, 4, 0.55f, 2.1f);
+                crack = (float)Math.Pow(crack, 1.6);
 
-                // Soft anti-aliased edge
-                float alpha = normDist > 0.9f ? (1f - normDist) / 0.1f : 1f;
-                byte  a     = (byte)(alpha * 255f);
-                colors[py * Size + px] = new Color(baseR2, baseG, baseB, a);
+                // ── Bump-mapped surface normal ──────────────────────────────────
+                // Central-difference gradient of an FBm height field
+                const float Eps     = 0.035f;
+                const float BumpStr = 0.55f;
+                float h  = NoiseHelper.Remap01(NoiseHelper.Fbm( u          * 2.5f,  v          * 2.5f, seed + 7, 4, 0.50f, 2f));
+                float hx = NoiseHelper.Remap01(NoiseHelper.Fbm((u + Eps)   * 2.5f,  v          * 2.5f, seed + 7, 4, 0.50f, 2f));
+                float hy = NoiseHelper.Remap01(NoiseHelper.Fbm( u          * 2.5f, (v + Eps)   * 2.5f, seed + 7, 4, 0.50f, 2f));
+                float bx = (hx - h) / Eps * BumpStr;
+                float by = (hy - h) / Eps * BumpStr;
+
+                // Sphere base normal (implicit sphere that fits the asteroid body)
+                float snx = dx / baseR;
+                float sny = dy / baseR;
+                float snz = (float)Math.Sqrt(Math.Max(0f, 1f - snx * snx - sny * sny));
+
+                float nx = snx + bx;
+                float ny = sny + by;
+                float nz = snz;
+                float nl = (float)Math.Sqrt(nx * nx + ny * ny + nz * nz);
+                if (nl > 0.001f) { nx /= nl; ny /= nl; nz /= nl; }
+
+                float diffuse  = Math.Max(0f, nx * lx + ny * ly + nz * lz);
+                float lighting = 0.25f + 0.75f * diffuse;   // ambient + Lambert
+
+                // ── Color palette ───────────────────────────────────────────────
+                // Blend from dark gray-brown → medium warm gray using surface mix
+                float blend = rocky * 0.60f + grain * 0.40f;
+
+                float cr = MathHelper.Lerp(48f, 148f, blend);
+                float cg = MathHelper.Lerp(44f, 130f, blend);
+                float cb = MathHelper.Lerp(38f, 105f, blend);
+
+                // Brown-tan warm shift in mid tones
+                float warm = (float)Math.Max(0.0, Math.Sin(blend * Math.PI));
+                cr += warm * 22f;
+                cg += warm * 12f;
+                cb -= warm *  2f;
+
+                // Crack network darkens the surface
+                float crackDark = 1f - crack * 0.50f;
+                cr *= crackDark;
+                cg *= crackDark;
+                cb *= crackDark;
+
+                // Apply lighting
+                cr *= lighting;
+                cg *= lighting;
+                cb *= lighting;
+
+                // Rim ambient-occlusion — darken toward the silhouette edge
+                float rim = (float)Math.Pow(Math.Max(0f, 1f - normDist), 0.28f);
+                cr *= rim;
+                cg *= rim;
+                cb *= rim;
+
+                // Soft anti-aliased silhouette edge
+                float alpha = normDist > 0.93f
+                    ? Math.Clamp((1f - normDist) / 0.07f, 0f, 1f)
+                    : 1f;
+
+                colors[py * Size + px] = new Color(
+                    (byte)Math.Clamp(cr, 0f, 255f),
+                    (byte)Math.Clamp(cg, 0f, 255f),
+                    (byte)Math.Clamp(cb, 0f, 255f),
+                    (byte)(alpha * 255f));
             }
         }
 
@@ -75,11 +147,13 @@ public static class AsteroidTextureGenerator
         return tex;
     }
 
-    /// <summary>Linearly interpolates the radial profile between the nearest two sample angles.</summary>
+    /// <summary>
+    /// Smoothstep-interpolates the radial profile between the nearest two control angles.
+    /// C¹ continuity avoids the hard corners produced by linear interpolation.
+    /// </summary>
     private static float InterpolatedRadius(float angle, float[] angles, float[] radii)
     {
         int n = angles.Length;
-        // Normalise angle to [0, 2π)
         float a = (angle + MathHelper.TwoPi) % MathHelper.TwoPi;
 
         for (int i = 0; i < n; i++)
@@ -92,6 +166,7 @@ public static class AsteroidTextureGenerator
             if (a >= a0 && a < a1)
             {
                 float t = (a - a0) / (a1 - a0);
+                t = t * t * (3f - 2f * t);   // smoothstep
                 return MathHelper.Lerp(radii[i], radii[next], t);
             }
         }

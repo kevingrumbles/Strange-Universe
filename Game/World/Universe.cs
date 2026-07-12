@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.World;
 using StrangeUniverse.Input;
-using StrangeUniverse.Rendering.ProceduralGeneration;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace StrangeUniverse.Game.World;
 
@@ -30,7 +26,7 @@ public class Universe
         get => _seed;
         set
         {
-            _universeHash = SeedHash(value);
+            _universeHash = StaticHelpers.SeedHash(value);
             _universeRng = new Random(_universeHash);
             _seed = value;
         }
@@ -94,18 +90,6 @@ public class Universe
     /// <summary>Procedurally generates a star system and adds it to this universe.</summary>
     public void Generate()
     {
-        ActiveStarSystem.Generate(_universeHash);
-    }
-
-    /// <summary>Deterministic 32-bit FNV-1a hash of a string.</summary>
-    private static int SeedHash(string s)
-    {
-        unchecked
-        {
-            uint hash = 2166136261u;
-            foreach (char c in s)
-                hash = (hash ^ c) * 16777619u;
-            return (int)hash;
-        }
+        ActiveStarSystem.Generate();
     }
 }

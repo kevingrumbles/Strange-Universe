@@ -51,7 +51,6 @@ public static class PlanetTextureGenerator
 
                 // Atmosphere edge glow
                 float edgeFactor = 1f - normDist;
-                float atmAlpha   = (float)Math.Pow(Math.Max(0f, 1f - normDist * 1.05f), 3.5f);
 
                 Color surfaceColor = GetSurfaceColor(type, n, py, seed);
 
@@ -66,7 +65,10 @@ public static class PlanetTextureGenerator
                 float rimStrength = (float)Math.Pow(1f - edgeFactor, 4f);
                 surfaceColor = Color.Lerp(surfaceColor, atmColor, rimStrength * 0.7f);
 
-                byte alpha = (byte)Math.Min(255, (int)(atmAlpha * 255f));
+                // Planet body is fully opaque; only the outermost 5% fades for a soft edge
+                byte alpha = normDist < 0.95f
+                    ? (byte)255
+                    : (byte)(Math.Max(0f, 1f - (normDist - 0.95f) / 0.05f) * 255f);
                 colors[py * Size + px] = new Color(surfaceColor.R, surfaceColor.G, surfaceColor.B, alpha);
             }
         }
