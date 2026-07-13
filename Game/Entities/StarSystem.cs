@@ -10,14 +10,32 @@ using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
+public class StarSystemNode
+{
+    public string SystemId { get; set; }
+    public HashSet<string> SystemConnectionIds { get; set; } = new();
+    public string Name { get; set; }
+    [JsonIgnore] public Universe Universe { get; set; }
+    public StarSystemNode() { }
+    public StarSystemNode(Universe parentUniverse, StarSystem backConnection = null)
+    {
+        Name = parentUniverse.GetStarSystemName();
+        Universe = parentUniverse;
+        SystemId = $"{parentUniverse.Seed}_{Guid.NewGuid().ToString()}";
+
+        if (backConnection != null)
+        {
+            SystemConnectionIds.Add(backConnection.Node.SystemId);
+        }
+    }
+}
+
 /// <summary>Owns all game entities and drives the frame update.</summary>
 public class StarSystem
 {
     // ── Identity / seed ──────────────────────────────────────────────────────
     /// <summary>Deterministic seed derived from the parent Universe seed.</summary>
-    public string SystemId { get; set; }
-    public HashSet<string> SystemConnectionIds { get; set; } = new();
-    public string Name { get; set; }
+    public StarSystemNode Node { get; set; }
 
     // ── Generation configuration ─────────────────────────────────────────────
     [JsonIgnore] public int    PlanetCount             { get; set; }
@@ -43,29 +61,17 @@ public class StarSystem
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
     [JsonIgnore] public Nebula               Nebula { get; set; }
-    [JsonIgnore] public Universe             Universe { get; set; }
     private Random _systemRng { get; set; } = null;
 
     private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();
 
     public StarSystem() { }
-    public StarSystem(Universe parentUniverse, StarSystem backConnection = null)
+    public StarSystem(StarSystemNode node)
     {
-        Name = parentUniverse.GetStarSystemName();
-        Universe = parentUniverse;
-        SystemId = $"{parentUniverse.Seed}_{Guid.NewGuid().ToString()}";
+        Node = node;
 
-        if (backConnection != null)
-        {
-            SystemConnectionIds.Add(backConnection.SystemId);
-        }
-    }
-
-    public void Generate(Universe parentUniverse)
-    {
-        Universe = parentUniverse;
-        _systemRng = new Random(StaticHelpers.SeedHash(SystemId));
+        _systemRng = new Random(StaticHelpers.SeedHash(Node.SystemId));
         PlanetCount = _systemRng.Next(0, 7);
         AsteroidCount = _systemRng.Next(0, 120);
         StarCount = _systemRng.Next(1, 3);
@@ -134,15 +140,15 @@ public class StarSystem
 
     public void AddSystemConnection(string otherSystemId)
     {
-        SystemConnectionIds.Add(otherSystemId);
+        Node.SystemConnectionIds.Add(otherSystemId);
     }
 
     private void GenerateConnections()
     {
-        for (int i = SystemConnectionIds.Count; i < SystemConnectionCount; i++)
+        for (int i = Node.SystemConnectionIds.Count; i < SystemConnectionCount; i++)
         {
-            StarSystem newConnection = new StarSystem(parentUniverse: Universe, backConnection: this);
-            SystemConnectionIds.Add(newConnection.SystemId);
+            StarSystemNode newConnection = new StarSystemNode(Node.Universe, backConnection: this);
+            Node.SystemConnectionIds.Add(newConnection.SystemId);
         }
     }
 
@@ -150,7 +156,7 @@ public class StarSystem
     {
         for (int i = 0; i < StarCount; i++)
         {
-            string starId = $"{SystemId}_Star_{i}";
+            string starId = $"{Node.SystemId}_Star_{i}";
             Random starRandom = new Random(StaticHelpers.SeedHash(starId));
             Color starColor = StaticHelpers.StarColors[starRandom.Next(StaticHelpers.StarColors.Length)];
             string name = null;
@@ -179,7 +185,7 @@ public class StarSystem
             switch (i) 
             {
                 case var _ when i <= InnerPlanetCount:
-                    Planets.Add(new Planet(planetId: $"{SystemId}_Planet_{i}",
+                    Planets.Add(new Planet(planetId: $"{Node.SystemId}_Planet_{i}",
                                             minPlanetRadius: MinPlanetRadius,
                                             maxPlanetRadius: MaxPlanetRadius,
                                             minOrbit: Math.Max(StarRadius * 3.5f, StarOrbitRadius * 2f),
@@ -188,7 +194,7 @@ public class StarSystem
                                             totalPlanets: PlanetCount));
                     break;
                 default:
-                    Planets.Add(new Planet(planetId: $"{SystemId}_Planet_{i}",
+                    Planets.Add(new Planet(planetId: $"{Node.SystemId}_Planet_{i}",
                                           minPlanetRadius: MinPlanetRadius,
                                           maxPlanetRadius: MaxPlanetRadius,
                                           minOrbit: AsteroidBeltOuterRadius * 1.1f,
@@ -205,7 +211,7 @@ public class StarSystem
     private void GenerateAsteroids()
     {
         // Pre-generate a small palette of asteroid textures and reuse them
-        Random asteroidsRng = new Random(StaticHelpers.SeedHash($"{SystemId}_Asteroids"));
+        Random asteroidsRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Asteroids"));
         const int PaletteSize = 15;
         var paletteIds = new string[PaletteSize];
         for (int i = 0; i < PaletteSize; i++)
@@ -231,7 +237,7 @@ public class StarSystem
 
     private void GenerateBackgroundStars()
     {
-        Random backgroundStarsRng = new Random(StaticHelpers.SeedHash($"{SystemId}_BackgroundStars"));
+        Random backgroundStarsRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_BackgroundStars"));
 
         // Positions are in a virtual 2048×2048 space used only for parallax scrolling
         const float VirtualSize = 2048f;
@@ -254,7 +260,7 @@ public class StarSystem
 
     private void GenerateNebula()
     {
-        Nebula = new Nebula($"{SystemId}_nebula");
+        Nebula = new Nebula($"{Node.SystemId}_nebula");
         Launcher.TextureCache.Register(Nebula.Id, Nebula.Texture);
     }
 }

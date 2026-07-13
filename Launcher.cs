@@ -176,12 +176,9 @@ namespace StrangeUniverse
 
         private void LaunchUniverse(Universe universe)
         {
-            _activeUniverse = universe;
+            ClearRuntime();
 
-            TextureCache = new ProceduralTextureCache();
-            _inputHandler = new InputHandler();
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
+            _activeUniverse = universe;
             _activeUniverse.Generate();
             _camera.Update(_activeUniverse.Player.Transform.Position, 1f, new InputState());
 
@@ -189,6 +186,15 @@ namespace StrangeUniverse
             _state = GameState.Playing;
         }
 
+        private void ClearRuntime()
+        {
+            _activeUniverse?.ClearRuntime();
+            TextureCache = new ProceduralTextureCache();
+            _inputHandler = new InputHandler();
+            _spriteBatch = new SpriteBatch(GraphicsDevice);
+            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
+            _activeUniverse = null!;
+        }
         private void UpdatePlaying(GameTime gameTime)
         {
             var keys = Keyboard.GetState();
@@ -196,7 +202,8 @@ namespace StrangeUniverse
             {
                 if (_activeUniverse != null)
                     StaticHelpers.Persist(_activeUniverse, _universeFilePath);
-                _activeUniverse = null;
+                ClearRuntime();
+
                 _state = GameState.Menu;
                 _prevKeys = keys;
                 return;

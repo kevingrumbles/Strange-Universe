@@ -20,30 +20,34 @@ public class Universe
     public Player Player { get; set; }
     public string Seed { get; set; }
 
-
+    private StarSystem _activeStarSystem;
     [JsonIgnore]
     public StarSystem ActiveStarSystem
     {
         get
         {
-            StarSystem currentSystem = StarSystems.FirstOrDefault(s => s.SystemId == Player.CurrentStarSystemID);
-            if (currentSystem == null)
+            if (_activeStarSystem == null)
             {
-                if (StarSystems.Count == 0)
+                if (StarSystemNodes.Count == 0)
                 {
-                    // If there are no star systems, create a default one and add it to the universe.
-                    StarSystems.Add(new StarSystem(parentUniverse: this));
+                    // If there are no star systems nodes, create a default one and add it to the universe.
+                    StarSystemNode defaultNode = new StarSystemNode(this);
+                    StarSystemNodes.Add(defaultNode);
                 }
-
-                // If the player's current star system ID is not found, return the first star system as a fallback.
-                currentSystem = StarSystems.FirstOrDefault();
-                Player.CurrentStarSystemID = currentSystem?.SystemId ?? String.Empty; // Update player's current star system ID
+                StarSystemNode currentSystemNode = StarSystemNodes.FirstOrDefault(s => s.SystemId == Player.CurrentStarSystemID);
+                if (currentSystemNode == null)
+                {
+                    // If the player's current star system ID is not found, return the first star system as a fallback.
+                    currentSystemNode = StarSystemNodes.FirstOrDefault();
+                    Player.CurrentStarSystemID = currentSystemNode.SystemId; // Update player's current star system ID
+                }
+                _activeStarSystem = new StarSystem(currentSystemNode);
             }
-            return currentSystem;
+            return _activeStarSystem;
         }
     }
 
-    public List<StarSystem> StarSystems { get; set; } = new();
+    public List<StarSystemNode> StarSystemNodes { get; set; } = new();
 
     public Universe() { }
     public Universe(string name, string seed = null)
@@ -62,15 +66,20 @@ public class Universe
 
     public void Generate()
     {
+        ClearRuntime();
         Player.Generate();
-        ActiveStarSystem.Generate(this);
+    }
+
+    public void ClearRuntime()
+    {
+        _activeStarSystem = null;
     }
 
     public string GetStarSystemName()
     {
         Random universeRng = new Random(StaticHelpers.SeedHash(Seed));
         string name = "Sol";
-        while (name is null || StarSystems.Contains(StarSystems.Find(s => s.Name == name)))
+        while (name is null || StarSystemNodes.Contains(StarSystemNodes.Find(s => s.Name == name)))
         {
             name = StaticHelpers.StarSystemNames[universeRng.Next(StaticHelpers.StarSystemNames.Length)];
         }
