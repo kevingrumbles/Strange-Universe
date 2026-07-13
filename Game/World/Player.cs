@@ -15,7 +15,7 @@ public class Player
 {
     public string Name     { get; set; } = "Player";
     public string ShipName { get; set; } = "Shuttle";
-    public Guid CurrentStarSystemID { get; set; }
+    public string CurrentStarSystemID { get; set; }
     [JsonIgnore] public ShipStats Ship  { get; set; } = new();
     public Transform   Transform           { get; set; } = new();
     [JsonIgnore] public PhysicsBody Physics             { get; }
@@ -34,9 +34,11 @@ public class Player
             LinearDamping = Ship.LinearDamping,   // 1.0 = no passive drag
             Mass          = 1f,
         };
-        var tex = ArtLoader.TryLoad(Launcher.GD, Ship.SpriteName)
-               ?? ShipTextureGenerator.Generate(Launcher.GD);
+    }
 
+    public void Generate()
+    {
+        var tex = ArtLoader.TryLoad(Launcher.GD, Ship.SpriteName) ?? ShipTextureGenerator.Generate(Launcher.GD);
         Launcher.TextureCache.Register(Ship.ShipName, tex);
     }
 
@@ -70,7 +72,7 @@ public class Player
             return;
 
         float retrogradeAngle = (float)Math.Atan2(-Physics.Velocity.Y, -Physics.Velocity.X);
-        float diff            = WrapAngle(retrogradeAngle - Transform.Rotation);
+        float diff            = StaticHelpers.WrapAngle(retrogradeAngle - Transform.Rotation);
         float maxDelta        = Ship.RotationSpeed * deltaTime;
 
         if (Math.Abs(diff) <= maxDelta)
@@ -122,17 +124,6 @@ public class Player
         }
 
         Physics.ApplyForce(thrustForce, deltaTime);
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    /// <summary>Wraps an angle to the range [−π, π] for the shortest-path rotation calc.</summary>
-    private static float WrapAngle(float angle)
-    {
-        angle %= MathHelper.TwoPi;
-        if (angle >  MathHelper.Pi) angle -= MathHelper.TwoPi;
-        if (angle < -MathHelper.Pi) angle += MathHelper.TwoPi;
-        return angle;
     }
 }
 

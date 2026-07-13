@@ -92,7 +92,6 @@ namespace StrangeUniverse
             _font = Content.Load<SpriteFont>("Fonts/DefaultFont");
             _cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
             _camera = new Rendering.Camera.Camera(_cameraSettings, _screenWidth, _screenHeight);
-            var shipStats = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json");
             ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json");
             _universes = StaticHelpers.LoadExisting(_universeFilePath);
 
@@ -176,7 +175,7 @@ namespace StrangeUniverse
             {
                 string name = _newUniverseName.Trim();
                 if (name.Length == 0) name = "New Universe";
-                var created = Universe.CreateDefault(name);
+                var created = new Universe(name);
                 _universes.Add(created);
                 LaunchUniverse(created);
             }
@@ -187,6 +186,11 @@ namespace StrangeUniverse
         private void LaunchUniverse(Universe universe)
         {
             _activeUniverse = universe;
+
+            TextureCache = new ProceduralTextureCache();
+            _inputHandler = new InputHandler();
+            _spriteBatch = new SpriteBatch(GraphicsDevice);
+            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
             _activeUniverse.Generate();
             _camera.Update(_activeUniverse.Player.Transform.Position, 1f, new InputState());
 
@@ -201,8 +205,10 @@ namespace StrangeUniverse
             {
                 if (_activeUniverse != null)
                     StaticHelpers.Persist(_activeUniverse, _universeFilePath);
+                _activeUniverse = null;
                 _state = GameState.Menu;
                 _prevKeys = keys;
+                return;
             }
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
@@ -373,7 +379,7 @@ namespace StrangeUniverse
                 sys.BackgroundStars, _screenWidth, _screenHeight, _camera.Position, layer: 0);
 
             //Draw Layer 1
-            _renderer.DrawNebula(sys.NebulaTextureId, sys.SystemRadius * 2.4f);
+            _renderer.DrawNebula(sys.Nebula, sys.SystemRadius * 2.4f);
 
             //Draw Layer 2
             _renderer.DrawBackgroundStars(

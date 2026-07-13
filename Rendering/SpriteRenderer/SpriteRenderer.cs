@@ -36,9 +36,9 @@ public class SpriteRenderer
     /// Because SpriteBatch has the camera transform applied, only the
     /// visible portion renders each frame — no tiling or screen-space tricks.
     /// </summary>
-    public void DrawNebula(string textureId, float worldSize)
+    public void DrawNebula(Nebula nebula, float worldSize)
     {
-        if (!_cache.TryGet(textureId, out var tex) || tex is null) return;
+        if (!_cache.TryGet(nebula.Id, out var tex) || tex is null) return;
 
         int half = (int)(worldSize * 0.5f);
         _spriteBatch.Draw(tex,
@@ -86,10 +86,10 @@ public class SpriteRenderer
     }
 
     public void DrawStar(Star star) =>
-        DrawEntity(star.TextureId, star.Transform.Position, 0f, star.Radius);
+        DrawEntity(star.Id, star.Transform.Position, 0f, star.Radius);
 
     public void DrawPlanet(Planet planet) =>
-        DrawEntity(planet.TextureId, planet.Transform.Position, planet.Transform.Rotation, planet.Radius);
+        DrawEntity(planet.Id, planet.Transform.Position, planet.Transform.Rotation, planet.Radius);
 
     public void DrawAsteroid(Asteroid asteroid) =>
         DrawEntity(asteroid.TextureId, asteroid.Transform.Position, asteroid.Transform.Rotation, asteroid.Radius);
@@ -160,7 +160,7 @@ public class SpriteRenderer
 
         // ── Planets ───────────────────────────────────────────────────────
         foreach (var planet in universe.ActiveStarSystem.Planets)
-            Dot(WorldToMap(planet.Transform.Position), 4, planet.MinimapColor);
+            Dot(WorldToMap(planet.Transform.Position), 4, StaticHelpers.PlanetMinimapColor(planet.Type));
 
         // Stars
         foreach (var star in universe.ActiveStarSystem.Stars)

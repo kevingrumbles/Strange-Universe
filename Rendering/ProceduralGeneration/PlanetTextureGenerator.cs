@@ -1,10 +1,9 @@
 using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using static StrangeUniverse.StaticHelpers;
 
 namespace StrangeUniverse.Rendering.ProceduralGeneration;
-
-public enum PlanetType { Terran, Rocky, GasGiant, Ice, Lava, Ocean }
 
 public static class PlanetTextureGenerator
 {
