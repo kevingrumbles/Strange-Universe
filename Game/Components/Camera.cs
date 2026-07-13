@@ -1,5 +1,4 @@
 using Microsoft.Xna.Framework;
-using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Game.Components;
 

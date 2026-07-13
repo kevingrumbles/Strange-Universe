@@ -1,4 +1,4 @@
-namespace Strange_Universe.Game.Entities;
+namespace Strange_Universe.Game.Components;
 
 public class CameraSettings
 {
