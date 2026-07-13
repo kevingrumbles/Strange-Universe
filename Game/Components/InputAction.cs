@@ -1,4 +1,4 @@
-namespace StrangeUniverse.Input;
+namespace Strange_Universe.Game.Components;
 
 public enum InputAction
 {

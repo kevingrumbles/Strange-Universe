@@ -1,8 +1,7 @@
 using Microsoft.Xna.Framework;
-using StrangeUniverse.Game.World;
-using StrangeUniverse.Input;
+using Strange_Universe.Game.Entities;
 
-namespace StrangeUniverse.Rendering.Camera;
+namespace Strange_Universe.Game.Components;
 
 /// <summary>
 /// Smooth-following, zoomable camera.

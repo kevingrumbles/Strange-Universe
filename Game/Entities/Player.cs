@@ -1,14 +1,12 @@
 using Microsoft.Xna.Framework;
-using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Systems;
 using StrangeUniverse;
 using StrangeUniverse.Game.Components;
-using StrangeUniverse.Input;
-using StrangeUniverse.Rendering.ProceduralGeneration;
-using StrangeUniverse.Rendering.SpriteRenderer;
 using System;
 using System.Text.Json.Serialization;
 
-namespace Strange_Universe.Game.World;
+namespace Strange_Universe.Game.Entities;
 
 /// <summary>The player-controlled ship.  Pure game logic — no MonoGame rendering types.</summary>
 public class Player
@@ -38,7 +36,7 @@ public class Player
 
     public void Generate()
     {
-        var tex = ArtLoader.TryLoad(Launcher.GD, Ship.SpriteName) ?? ShipTextureGenerator.Generate(Launcher.GD);
+        var tex = ArtLoader.TryLoad(Launcher.GD, Ship.SpriteName);
         Launcher.TextureCache.Register(Ship.ShipName, tex);
     }
 

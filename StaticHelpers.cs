@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
-using StrangeUniverse.Game.World;
-using StrangeUniverse.Rendering.ProceduralGeneration;
+using Strange_Universe;
+using Strange_Universe.Game.Entities;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -185,17 +185,17 @@ namespace StrangeUniverse
             // Domain warp: displace the sample point with FBm so the resulting
             // cloud has organic curves, spirals, and trailing tendrils rather than
             // the repeating blobs that plain FBm produces.
-            float q0 = NoiseHelper.Fbm(u * 2.8f, v * 2.8f, seed, 3, 0.50f, 2.0f);
-            float q1 = NoiseHelper.Fbm(u * 2.8f + 5.2f, v * 2.8f + 1.3f, seed + 1000, 3, 0.50f, 2.0f);
+            float q0 = ProceduralHelpers.Fbm(u * 2.8f, v * 2.8f, seed, 3, 0.50f, 2.0f);
+            float q1 = ProceduralHelpers.Fbm(u * 2.8f + 5.2f, v * 2.8f + 1.3f, seed + 1000, 3, 0.50f, 2.0f);
             float wu = u + q0 * 0.44f;
             float wv = v + q1 * 0.44f;
 
             // Primary cloud mass
-            float densBase = NoiseHelper.Remap01(
-                NoiseHelper.Fbm(wu * 3.5f, wv * 3.5f, seed + 2000, 4, 0.50f, 2.05f));
+            float densBase = ProceduralHelpers.Remap01(
+                ProceduralHelpers.Fbm(wu * 3.5f, wv * 3.5f, seed + 2000, 4, 0.50f, 2.05f));
 
             // Ridged layer: bright filaments and sharpened cloud edges
-            float densRidged = NoiseHelper.RidgedFbm(wu * 2.6f, wv * 2.6f, seed + 4000, 3);
+            float densRidged = ProceduralHelpers.RidgedFbm(wu * 2.6f, wv * 2.6f, seed + 4000, 3);
 
             float total = densBase * 0.65f + densRidged * 0.35f;
 
@@ -206,6 +206,38 @@ namespace StrangeUniverse
 
             // Power curve: widens the contrast gap between thin wisps and dense cores
             return (float)Math.Pow(remapped, 1.6f);
+        }
+
+        /// <summary>
+        /// Smoothstep-interpolates the radial profile between the nearest two control angles.
+        /// C¹ continuity avoids the hard corners produced by linear interpolation.
+        /// </summary>
+        public static float AsteroidInterpolatedRadius(float angle, float[] angles, float[] radii)
+        {
+            int n = angles.Length;
+            float a = (angle + MathHelper.TwoPi) % MathHelper.TwoPi;
+
+            for (int i = 0; i < n; i++)
+            {
+                int next = (i + 1) % n;
+                float a0 = angles[i];
+                float a1 = angles[next];
+                if (next == 0) a1 += MathHelper.TwoPi;
+
+                if (a >= a0 && a < a1)
+                {
+                    float t = (a - a0) / (a1 - a0);
+                    t = t * t * (3f - 2f * t);   // smoothstep
+                    return MathHelper.Lerp(radii[i], radii[next], t);
+                }
+            }
+            return radii[0];
+        }
+        public static float StarDeltaAngle(float a, float b)
+        {
+            float d = (a - b + MathHelper.TwoPi) % MathHelper.TwoPi;
+            if (d > MathHelper.Pi) d -= MathHelper.TwoPi;
+            return d;
         }
     }
 }

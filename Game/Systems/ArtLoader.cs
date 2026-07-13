@@ -1,7 +1,7 @@
 using System.IO;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace StrangeUniverse.Rendering.SpriteRenderer;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// Loads sprite artwork from the Art folder at runtime.

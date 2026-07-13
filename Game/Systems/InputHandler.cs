@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework.Input;
+using Strange_Universe.Game.Components;
 
-namespace StrangeUniverse.Input;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>Reads keyboard state and produces an <see cref="InputState"/> each frame.</summary>
 public class InputHandler

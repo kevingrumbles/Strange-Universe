@@ -1,16 +1,14 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Strange_Universe.Game.World;
+using Strange_Universe.Game.Components;
+using StrangeUniverse;
 using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Game.Systems;
-using StrangeUniverse.Input;
-using StrangeUniverse.Rendering.ProceduralGeneration;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
-using System.Xml.Linq;
 
-namespace StrangeUniverse.Game.World;
+namespace Strange_Universe.Game.Entities;
 
 /// <summary>Owns all game entities and drives the frame update.</summary>
 public class StarSystem
@@ -215,7 +213,7 @@ public class StarSystem
             paletteIds[i] = $"asteroid_tex_{i}";
             if (Launcher.TextureCache.TryGet(paletteIds[i], out Texture2D texture)) continue;
 
-            var tex = AsteroidTextureGenerator.Generate(Launcher.GD, asteroidsRng.Next());
+            var tex = Asteroid.Generate(Launcher.GD, asteroidsRng.Next());
             Launcher.TextureCache.Register(paletteIds[i], tex);
         }
 

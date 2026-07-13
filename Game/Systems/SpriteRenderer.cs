@@ -1,14 +1,12 @@
-using System;
-using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Strange_Universe.Game.World;
+using Strange_Universe.Game.Entities;
+using StrangeUniverse;
 using StrangeUniverse.Game.Entities;
-using StrangeUniverse.Game.World;
-using StrangeUniverse.Rendering.Camera;
-using StrangeUniverse.Rendering.ProceduralGeneration;
+using System;
+using System.Collections.Generic;
 
-namespace StrangeUniverse.Rendering.SpriteRenderer;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// All SpriteBatch draw calls are funnelled through this class.

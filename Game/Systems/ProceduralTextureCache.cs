@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework.Graphics;
 
-namespace StrangeUniverse.Rendering.ProceduralGeneration;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>Owns all procedurally generated <see cref="Texture2D"/> objects keyed by ID string.</summary>
 public sealed class ProceduralTextureCache : IDisposable

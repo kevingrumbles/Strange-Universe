@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
-using Strange_Universe.Game.World;
+using Strange_Universe.Game.Entities;
 using StrangeUniverse.Game.Entities;
 
 namespace StrangeUniverse.Game.Systems;

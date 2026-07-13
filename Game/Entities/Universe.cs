@@ -1,12 +1,12 @@
-using Strange_Universe.Game.World;
+using Strange_Universe.Game.Components;
+using StrangeUniverse;
 using StrangeUniverse.Game.Entities;
-using StrangeUniverse.Input;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
 
-namespace StrangeUniverse.Game.World;
+namespace Strange_Universe.Game.Entities;
 
 /// <summary>
 /// A generated universe. Owns all <see cref="StarSystem"/>s and drives the

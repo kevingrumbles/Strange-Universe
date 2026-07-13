@@ -1,19 +1,10 @@
-using Microsoft.VisualBasic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse.Game.World;
-using StrangeUniverse.Input;
-using StrangeUniverse.Rendering.Camera;
-using StrangeUniverse.Rendering.ProceduralGeneration;
-using StrangeUniverse.Rendering.SpriteRenderer;
-using System;
+using Strange_Universe.Game.Systems;
 using System.Collections.Generic;
-using System.IO;
-using System.Reflection.Emit;
-using System.Security.Cryptography.X509Certificates;
-using System.Text.Json;
 
 namespace StrangeUniverse
 {
@@ -41,7 +32,7 @@ namespace StrangeUniverse
 
         // ── Gameplay ──────────────────────────────────────────────────────────
         private InputHandler _inputHandler = null!;
-        private Rendering.Camera.Camera _camera = null!;
+        private Camera _camera = null!;
         public static ProceduralTextureCache TextureCache = null!;
         private SpriteRenderer _renderer = null!;
         private Universe _activeUniverse = null!;
@@ -91,7 +82,7 @@ namespace StrangeUniverse
             _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
             _font = Content.Load<SpriteFont>("Fonts/DefaultFont");
             _cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
-            _camera = new Rendering.Camera.Camera(_cameraSettings, _screenWidth, _screenHeight);
+            _camera = new Camera(_cameraSettings, _screenWidth, _screenHeight);
             ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json");
             _universes = StaticHelpers.LoadExisting(_universeFilePath);
 
