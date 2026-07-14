@@ -72,7 +72,9 @@ public class StarSystem
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
-    [JsonIgnore] public Nebula               Nebula { get; set; }
+    [JsonIgnore] public string        NebulaId        { get; private set; }
+    [JsonIgnore] public Rectangle     NebulaCropRect  { get; private set; }
+    [JsonIgnore] public SpriteEffects NebulaEffects   { get; private set; }
     private Random _systemRng { get; set; } = null;
 
     private readonly PhysicsSystem   _physics   = new();
@@ -400,7 +402,19 @@ public class StarSystem
 
     private void GenerateNebula()
     {
-        Nebula = new Nebula($"{Node.SystemId}_nebula");
-        Launcher.TextureCache.Register(Nebula.Id, Nebula.Texture);
+        var pool = Node.Universe.NebulaPool;
+        int poolIndex = _systemRng.Next(pool.Count);
+        Nebula chosen = pool[poolIndex];
+        NebulaId = chosen.Id;
+
+        // Pick a random 512x512 crop within the 1024x1024 texture
+        const int CropSize   = 512;
+        const int MaxOrigin  = Nebula.Size - CropSize;   // 512
+        int cropX = _systemRng.Next(0, MaxOrigin + 1);
+        int cropY = _systemRng.Next(0, MaxOrigin + 1);
+        NebulaCropRect = new Rectangle(cropX, cropY, CropSize, CropSize);
+
+        // SpriteEffects 0-3: None / FlipH / FlipV / FlipH|FlipV
+        NebulaEffects = (SpriteEffects)_systemRng.Next(4);
     }
 }

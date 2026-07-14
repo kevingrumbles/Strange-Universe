@@ -30,18 +30,23 @@ public class SpriteRenderer
     // ── World-space pass (SpriteBatch already began with camera matrix) ──────
 
     /// <summary>
-    /// Draws the nebula as a single large rectangle in world space.
-    /// Because SpriteBatch has the camera transform applied, only the
-    /// visible portion renders each frame — no tiling or screen-space tricks.
+    /// Draws the nebula as a single large rectangle in world space using a cropped
+    /// region of one of the universe's shared pool textures, with optional H/V flips
+    /// for visual variety between star systems.
     /// </summary>
-    public void DrawNebula(Nebula nebula, float worldSize)
+    public void DrawNebula(string nebulaId, Rectangle sourceRect, SpriteEffects effects, float worldSize)
     {
-        if (!_cache.TryGet(nebula.Id, out var tex) || tex is null) return;
+        if (!_cache.TryGet(nebulaId, out var tex) || tex is null) return;
 
         int half = (int)(worldSize * 0.5f);
         _spriteBatch.Draw(tex,
             new Rectangle(-half, -half, (int)worldSize, (int)worldSize),
-            Color.White);
+            sourceRect,
+            Color.White,
+            0f,
+            Vector2.Zero,
+            effects,
+            0f);
     }
 
     public void DrawBackgroundStars(IReadOnlyList<BackgroundStar> stars,

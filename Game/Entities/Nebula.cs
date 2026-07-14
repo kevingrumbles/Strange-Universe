@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.Threading.Tasks;
 
 namespace StrangeUniverse.Game.Entities;
 
@@ -15,7 +16,7 @@ public class Nebula
 {
     public string Id { get; }
     public Texture2D Texture { get; private set; }
-    private const int Size = 2048;
+    public const int Size = 1024;
 
     // Large prime stride so each layer's seed range is well separated,
     // producing completely uncorrelated warp and density fields per layer.
@@ -28,7 +29,8 @@ public class Nebula
     }
     private void Generate()
     {
-        var rng    = new Random(StaticHelpers.SeedHash(Id));
+        int    baseSeed = StaticHelpers.SeedHash(Id);
+        var rng    = new Random(baseSeed);
         var pixels = new Color[Size * Size];
 
         // Pick 3 strongly-contrasting hues for this nebula
@@ -42,7 +44,8 @@ public class Nebula
         float r1f = c1.R / 255f;  float g1f = c1.G / 255f;  float b1f = c1.B / 255f;
         float r2f = c2.R / 255f;  float g2f = c2.G / 255f;  float b2f = c2.B / 255f;
 
-        for (int py = 0; py < Size; py++)
+        // Each row is independent — safe to parallelise across all CPU cores.
+        Parallel.For(0, Size, py =>
         {
             float v = py / (float)(Size - 1);   // [0, 1]
 
@@ -65,9 +68,9 @@ public class Nebula
                 // additively — exactly like mixing coloured gas emission.
                 // Distinct regions glow their own hue; overlaps produce mixed
                 // secondary colours (crimson+blue=purple, blue+cyan=teal, etc.)
-                float d0 = StaticHelpers.NebulaLayerDensity(u, v, StaticHelpers.SeedHash(Id) + LayerStride * 0) * edge;
-                float d1 = StaticHelpers.NebulaLayerDensity(u, v, StaticHelpers.SeedHash(Id) + LayerStride * 1) * edge;
-                float d2 = StaticHelpers.NebulaLayerDensity(u, v, StaticHelpers.SeedHash(Id) + LayerStride * 2) * edge;
+                float d0 = StaticHelpers.NebulaLayerDensity(u, v, baseSeed + LayerStride * 0) * edge;
+                float d1 = StaticHelpers.NebulaLayerDensity(u, v, baseSeed + LayerStride * 1) * edge;
+                float d2 = StaticHelpers.NebulaLayerDensity(u, v, baseSeed + LayerStride * 2) * edge;
 
                 float maxDens = Math.Max(d0, Math.Max(d1, d2));
                 if (maxDens < 0.01f) continue;
@@ -97,7 +100,7 @@ public class Nebula
                     (byte)Math.Min(255, (int)(b * 255f)),
                     alpha);
             }
-        }
+        });
 
         var tex = new Texture2D(Launcher.GD, Size, Size);
         tex.SetData(pixels);

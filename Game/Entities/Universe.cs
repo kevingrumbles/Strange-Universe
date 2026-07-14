@@ -50,6 +50,12 @@ public class Universe
 
     public List<StarSystemNode> StarSystemNodes { get; set; } = new();
 
+    private const int NebulaPoolSize = 3;
+
+    /// <summary>Shared nebula textures generated once per universe launch. Each StarSystem samples a crop of one of these.</summary>
+    [JsonIgnore]
+    public List<Nebula> NebulaPool { get; } = new();
+
     /// <summary>
     /// The system the player has selected on the Galaxy Map as the next jump destination.
     /// Null when no destination is selected or after a successful jump.
@@ -76,6 +82,19 @@ public class Universe
     {
         ClearRuntime();
         Player.Generate();
+        if (NebulaPool.Count == 0)
+            GenerateNebulaPool();
+    }
+
+    private void GenerateNebulaPool()
+    {
+        for (int i = 0; i < NebulaPoolSize; i++)
+        {
+            string id     = $"nebula_pool_{i}";
+            var    nebula = new Nebula($"{Seed}_{id}");
+            Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
+            NebulaPool.Add(nebula);
+        }
     }
 
     public void ClearRuntime()
