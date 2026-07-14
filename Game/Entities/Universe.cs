@@ -4,6 +4,7 @@ using StrangeUniverse.Game.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
@@ -31,14 +32,14 @@ public class Universe
                 if (StarSystemNodes.Count == 0)
                 {
                     // If there are no star systems nodes, create a default one and add it to the universe.
-                    StarSystemNode defaultNode = new StarSystemNode(this);
+                    StarSystemNode defaultNode = new StarSystemNode(parentUniverse: this, position: new Vector2(0,0), backConnection: null);
                     StarSystemNodes.Add(defaultNode);
                 }
                 StarSystemNode currentSystemNode = StarSystemNodes.FirstOrDefault(s => s.SystemId == Player.CurrentStarSystemID);
                 if (currentSystemNode == null)
                 {
                     // If the player's current star system ID is not found, return the first star system as a fallback.
-                    currentSystemNode = StarSystemNodes.FirstOrDefault();
+                    currentSystemNode = StarSystemNodes.FirstOrDefault(n => n.Name == "Sol") ?? StarSystemNodes.FirstOrDefault();
                     Player.CurrentStarSystemID = currentSystemNode.SystemId; // Update player's current star system ID
                 }
                 _activeStarSystem = new StarSystem(currentSystemNode);

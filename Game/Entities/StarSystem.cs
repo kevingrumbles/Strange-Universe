@@ -6,6 +6,7 @@ using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Game.Systems;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
@@ -15,17 +16,21 @@ public class StarSystemNode
     public string SystemId { get; set; }
     public HashSet<string> SystemConnectionIds { get; set; } = new();
     public string Name { get; set; }
+    public Vector2 GalaxyPosition { get; set; }
+    public bool Discovered { get; set; } = false;
+
     [JsonIgnore] public Universe Universe { get; set; }
     public StarSystemNode() { }
-    public StarSystemNode(Universe parentUniverse, StarSystem backConnection = null)
+    public StarSystemNode(Universe parentUniverse, Vector2 position, StarSystemNode backConnection = null)
     {
         Name = parentUniverse.GetStarSystemName();
         Universe = parentUniverse;
         SystemId = $"{parentUniverse.Seed}_{Guid.NewGuid().ToString()}";
+        GalaxyPosition = position;
 
         if (backConnection != null)
         {
-            SystemConnectionIds.Add(backConnection.Node.SystemId);
+            SystemConnectionIds.Add(backConnection.SystemId);
         }
     }
 }
@@ -70,6 +75,7 @@ public class StarSystem
     public StarSystem(StarSystemNode node)
     {
         Node = node;
+        Node.Discovered = true;
 
         _systemRng = new Random(StaticHelpers.SeedHash(Node.SystemId));
         PlanetCount = _systemRng.Next(0, 7);
@@ -138,17 +144,21 @@ public class StarSystem
         }
     }
 
-    public void AddSystemConnection(string otherSystemId)
-    {
-        Node.SystemConnectionIds.Add(otherSystemId);
-    }
-
     private void GenerateConnections()
     {
+        Random connectionRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Connections"));
         for (int i = Node.SystemConnectionIds.Count; i < SystemConnectionCount; i++)
         {
-            StarSystemNode newConnection = new StarSystemNode(Node.Universe, backConnection: this);
-            Node.SystemConnectionIds.Add(newConnection.SystemId);
+            Vector2 newlocation = new Vector2(
+                Node.GalaxyPosition.X + connectionRng.Next(3),
+                Node.GalaxyPosition.Y + connectionRng.Next(3));
+            StarSystemNode newNode = Node.Universe.StarSystemNodes.FirstOrDefault(n => n.GalaxyPosition == newlocation);
+            if (newNode is null)
+            {
+                newNode = new StarSystemNode(Node.Universe, newlocation, backConnection: this.Node);
+                Node.Universe.StarSystemNodes.Add(newNode);
+            }
+            Node.SystemConnectionIds.Add(newNode.SystemId);
         }
     }
 
