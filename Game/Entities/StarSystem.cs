@@ -6,6 +6,7 @@ using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Game.Systems;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json.Serialization;
 
@@ -19,13 +20,19 @@ public class StarSystemNode
     public Vector2 GalaxyPosition { get; set; }
     public bool Discovered { get; set; } = false;
 
-    [JsonIgnore] public Universe Universe { get; set; }
-    public StarSystemNode() { }
-    public StarSystemNode(Universe parentUniverse, Vector2 position, StarSystemNode backConnection = null)
+    [JsonIgnore]
+    public Universe Universe
     {
-        Name = parentUniverse.GetStarSystemName();
-        Universe = parentUniverse;
-        SystemId = $"{parentUniverse.Seed}_{Guid.NewGuid().ToString()}";
+        get
+        {
+            return Launcher.ActiveUniverse;
+        }
+    }
+    public StarSystemNode() { }
+    public StarSystemNode(Vector2 position, StarSystemNode backConnection = null)
+    {
+        Name = Universe.GetStarSystemName();
+        SystemId = $"{Universe.Seed}_{Guid.NewGuid().ToString()}";
         GalaxyPosition = position;
 
         if (backConnection != null)
@@ -74,6 +81,8 @@ public class StarSystem
     public StarSystem() { }
     public StarSystem(StarSystemNode node)
     {
+        var sw = Stopwatch.StartNew();
+        Debug.WriteLine($"StarSystem initialization started: {sw.ElapsedMilliseconds} ms");
         Node = node;
         Node.Discovered = true;
 
@@ -97,31 +106,52 @@ public class StarSystem
                 StarOrbitSpeed  = _systemRng.NextWeightedFloat(0.00005f, 0.0002f);
                 break;
         }
-        // The star core is the region occupied by all orbiting stars.
-        // For a single star StarOrbitRadius == 0, so starCoreRadius == StarRadius.
-        float starCoreRadius = StarOrbitRadius + StarRadius;
-        // SystemRadius is always large enough to contain the star core plus a meaningful planetary region.
-        float starCoreFootprint = StarOrbitRadius * 2f;
-        SystemRadius = _systemRng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
-        BackgroundStarCount = _systemRng.Next(400, 800);
-
-        AsteroidBeltInnerRadius = Math.Max(
-            _systemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),
-            starCoreRadius * 2.5f);
-        AsteroidBeltOuterRadius = _systemRng.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
         
         MinPlanetRadius = _systemRng.NextWeightedFloat(90f, 120f);
         MaxPlanetRadius = _systemRng.NextWeightedFloat(150, 300f);
         MinAsteroidRadius = _systemRng.NextWeightedFloat(15f, 30f);
         MaxAsteroidRadius = _systemRng.NextWeightedFloat(40f, 50f);
         SystemConnectionCount = _systemRng.Next(1, 4);
+        if (SystemConnectionCount == 1) SystemConnectionCount = _systemRng.Next(1, 4);
         InnerPlanetCount =_systemRng.Next(PlanetCount);
+        BackgroundStarCount = _systemRng.Next(400, 800);
+
+        if (Node.Name == "Sol")
+        {
+            InnerPlanetCount = 4;
+            PlanetCount = 8;
+            SystemConnectionCount = 4;
+            StarOrbitRadius = 0f;
+            StarOrbitSpeed = 0f;
+            StarCount = 1;
+            AsteroidCount = 100;
+        }
+
+        // The star core is the region occupied by all orbiting stars.
+        // For a single star StarOrbitRadius == 0, so starCoreRadius == StarRadius.
+        float starCoreRadius = StarOrbitRadius + StarRadius;
+        // SystemRadius is always large enough to contain the star core plus a meaningful planetary region.
+        float starCoreFootprint = StarOrbitRadius * 2f;
+        SystemRadius = _systemRng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
+
+        AsteroidBeltInnerRadius = Math.Max(
+            _systemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),
+            starCoreRadius * 2.5f);
+        AsteroidBeltOuterRadius = _systemRng.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
+        Debug.WriteLine($"properties loaded: {sw.ElapsedMilliseconds} ms");
+        Debug.WriteLine($"Generating Stars: {sw.ElapsedMilliseconds} ms");
         GenerateStars();
+        Debug.WriteLine($"Generating Planets: {sw.ElapsedMilliseconds} ms");
         GeneratePlanets();
+        Debug.WriteLine($"Generating Asteroids: {sw.ElapsedMilliseconds} ms");
         GenerateAsteroids();
+        Debug.WriteLine($"Generating Background Stars: {sw.ElapsedMilliseconds} ms");
         GenerateBackgroundStars();
+        Debug.WriteLine($"Generating Nebula: {sw.ElapsedMilliseconds} ms");
         GenerateNebula();
+        Debug.WriteLine($"Generating Connections: {sw.ElapsedMilliseconds} ms");
         GenerateConnections();
+        Debug.WriteLine($"StarSystem initialization completed: {sw.ElapsedMilliseconds} ms");
     }
 
     public void Update(Player player, float deltaTime, InputState input)
@@ -146,19 +176,119 @@ public class StarSystem
 
     private void GenerateConnections()
     {
-        Random connectionRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Connections"));
-        for (int i = Node.SystemConnectionIds.Count; i < SystemConnectionCount; i++)
+        Random rng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Connections"));
+
+        List<Point> directions = ProceduralHelpers.GalaxyConnectionPreferredDirections.ToList();
+
+        // Remove directions already occupied by existing connections.
+        foreach (string id in Node.SystemConnectionIds)
         {
-            Vector2 newlocation = new Vector2(
-                Node.GalaxyPosition.X + connectionRng.Next(3),
-                Node.GalaxyPosition.Y + connectionRng.Next(3));
-            StarSystemNode newNode = Node.Universe.StarSystemNodes.FirstOrDefault(n => n.GalaxyPosition == newlocation);
-            if (newNode is null)
+            StarSystemNode? connected =
+                Node.Universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == id);
+
+            if (connected == null)
+                continue;
+
+            Point dir = ProceduralHelpers.NormalizeDirection(
+                (int)(connected.GalaxyPosition.X - Node.GalaxyPosition.X),
+                (int)(connected.GalaxyPosition.Y - Node.GalaxyPosition.Y));
+
+            directions.Remove(dir);
+        }
+
+        // Deterministic shuffle.
+        for (int i = directions.Count - 1; i > 0; i--)
+        {
+            int j = rng.Next(i + 1);
+            (directions[i], directions[j]) = (directions[j], directions[i]);
+        }
+
+        //
+        // Determine how "developed" this region of space is.
+        //
+        const float LocalDensityRadius = 30f;
+
+        int nearbySystemCount = Node.Universe.StarSystemNodes.Count(n =>
+            n.SystemId != Node.SystemId &&
+            Vector2.Distance(Node.GalaxyPosition, n.GalaxyPosition) <= LocalDensityRadius);
+
+        // 0 nearby systems -> 5% chance
+        // 40 nearby systems -> 85% chance
+        double existingConnectionChance =
+            Math.Clamp(
+                0.05 + (nearbySystemCount / 40.0) * 0.80,
+                0.05,
+                0.85);
+
+        while (Node.SystemConnectionIds.Count < SystemConnectionCount &&
+               directions.Count > 0)
+        {
+            //
+            // Prefer connecting to an existing nearby system.
+            //
+            const float MaxConnectionDistance = 8f;
+
+            var nearbySystems = Node.Universe.StarSystemNodes
+                .Where(n =>
+                    n.SystemId != Node.SystemId &&
+                    !Node.SystemConnectionIds.Contains(n.SystemId) &&
+                    Vector2.Distance(Node.GalaxyPosition, n.GalaxyPosition) <= MaxConnectionDistance)
+                .OrderBy(n => Vector2.Distance(Node.GalaxyPosition, n.GalaxyPosition))
+                .ToList();
+
+            if (nearbySystems.Count > 0 &&
+                rng.NextDouble() < existingConnectionChance)
             {
-                newNode = new StarSystemNode(Node.Universe, newlocation, backConnection: this.Node);
-                Node.Universe.StarSystemNodes.Add(newNode);
+                // Favor the closest few systems.
+                int candidateCount = Math.Min(3, nearbySystems.Count);
+
+                StarSystemNode existing =
+                    nearbySystems[rng.Next(candidateCount)];
+
+                Node.SystemConnectionIds.Add(existing.SystemId);
+
+                if (!existing.SystemConnectionIds.Contains(Node.SystemId))
+                    existing.SystemConnectionIds.Add(Node.SystemId);
+
+                continue;
             }
-            Node.SystemConnectionIds.Add(newNode.SystemId);
+
+            //
+            // Otherwise create a new system.
+            //
+            Point dir = directions[0];
+            directions.RemoveAt(0);
+
+            foreach (int distance in new[]
+            {
+            rng.Next(2,4),
+            rng.Next(4,7),
+            rng.Next(7,10)
+        })
+            {
+                Vector2 location = Node.GalaxyPosition +
+                                   new Vector2(dir.X * distance,
+                                               dir.Y * distance);
+
+                StarSystemNode? node = Node.Universe.StarSystemNodes
+                    .FirstOrDefault(n => n.GalaxyPosition == location);
+
+                if (node == null)
+                {
+                    node = new StarSystemNode(location, Node);
+                    Node.Universe.StarSystemNodes.Add(node);
+                }
+
+                if (!Node.SystemConnectionIds.Contains(node.SystemId))
+                {
+                    Node.SystemConnectionIds.Add(node.SystemId);
+
+                    if (!node.SystemConnectionIds.Contains(Node.SystemId))
+                        node.SystemConnectionIds.Add(Node.SystemId);
+
+                    break;
+                }
+            }
         }
     }
 
@@ -172,7 +302,7 @@ public class StarSystem
             string name = null;
             while (name is null || Stars.Contains(Stars.Find(s => s.Name == name)))
             {
-                name = StaticHelpers.StarNames[starRandom.Next(StaticHelpers.StarNames.Length)];
+                name = StaticHelpers.GenerateCelestialName(StaticHelpers.CelestialNameType.Star, random: starRandom);
             }
             
             float initialAngle = MathHelper.TwoPi * i / StarCount;

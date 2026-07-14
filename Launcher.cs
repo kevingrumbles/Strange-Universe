@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Input;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Systems;
+using Strange_Universe.Game.UI;
 using System.Collections.Generic;
 
 namespace StrangeUniverse
@@ -12,6 +13,8 @@ namespace StrangeUniverse
 
     public class Launcher : Microsoft.Xna.Framework.Game
     {
+        public static Universe ActiveUniverse = null;
+
         // ── Core ──────────────────────────────────────────────────────────────
         public static GraphicsDevice GD;
         private readonly GraphicsDeviceManager _graphics;
@@ -35,7 +38,12 @@ namespace StrangeUniverse
         private Camera _camera = null!;
         public static ProceduralTextureCache TextureCache = null!;
         private SpriteRenderer _renderer = null!;
-        private Universe _activeUniverse = null!;
+        private GalaxyMapOverlay _galaxyMap = null!;
+        private Universe _activeUniverse
+        {
+            get { return ActiveUniverse; }
+            set { ActiveUniverse = value; }
+        }
         private CameraSettings _cameraSettings = null!;
         private List<Universe> _universes = null!;
         private static string _universeFilePath = "Data/universe-settings.json";
@@ -193,11 +201,24 @@ namespace StrangeUniverse
             _inputHandler = new InputHandler();
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
+            _galaxyMap?.Dispose();
+            _galaxyMap = new GalaxyMapOverlay(_spriteBatch, GraphicsDevice, _font);
             _activeUniverse = null!;
         }
         private void UpdatePlaying(GameTime gameTime)
         {
             var keys = Keyboard.GetState();
+
+            // Galaxy map intercepts all input while open
+            if (_galaxyMap.IsOpen)
+            {
+                bool closed = _galaxyMap.Update(_activeUniverse, _screenWidth, _screenHeight,
+                                                gameTime.ElapsedGameTime.TotalSeconds);
+                if (closed) IsMouseVisible = false;
+                _prevKeys = keys;
+                return;
+            }
+
             if (WasPressed(keys, Keys.Escape))
             {
                 if (_activeUniverse != null)
@@ -209,11 +230,28 @@ namespace StrangeUniverse
                 return;
             }
 
+            if (WasPressed(keys, Keys.M))
+            {
+                _galaxyMap.Open();
+                IsMouseVisible = true;
+                _prevKeys = keys;
+                return;
+            }
+
+            if (WasPressed(keys, Keys.J))
+            {
+                _activeUniverse.JumpToSystem();
+                _prevKeys = keys;
+                return;
+            }
+
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             var input = _inputHandler.GetState();
 
             _activeUniverse.Update(deltaTime, input);
             _camera.Update(_activeUniverse.Player.Transform.Position, deltaTime, input);
+
+            _prevKeys = keys;
         }
 
         // ── Draw ──────────────────────────────────────────────────────────────
@@ -364,6 +402,9 @@ namespace StrangeUniverse
             GraphicsDevice.Clear(new Color(4, 4, 12));
             DrawUniverseLayers(_activeUniverse.ActiveStarSystem);
             DrawHud();
+
+            if (_galaxyMap.IsOpen)
+                _galaxyMap.Draw(_activeUniverse, _screenWidth, _screenHeight);
         }
         private void DrawUniverseLayers(StarSystem sys)
         {
@@ -414,6 +455,7 @@ namespace StrangeUniverse
         protected override void UnloadContent()
         {
             TextureCache?.Dispose();
+            _galaxyMap?.Dispose();
             base.UnloadContent();
         }
 

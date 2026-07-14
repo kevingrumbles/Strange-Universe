@@ -162,4 +162,44 @@ public static class ProceduralHelpers
         PlanetType.Lava => new Color(200, 80, 20),
         _ => new Color(160, 140, 120),
     };
+
+    public static readonly Point[] GalaxyConnectionPreferredDirections =
+    {
+        // Cardinals
+        new( 1, 0), new(-1, 0), new( 0, 1), new( 0,-1),
+
+        // Diagonals
+        new( 1, 1), new(-1, 1), new( 1,-1), new(-1,-1),
+
+        // 2:1
+        new( 2, 1), new(-2, 1), new( 2,-1), new(-2,-1),
+        new( 1, 2), new(-1, 2), new( 1,-2), new(-1,-2),
+
+        // 3:1
+        new( 3, 1), new(-3, 1), new( 3,-1), new(-3,-1),
+        new( 1, 3), new(-1, 3), new( 1,-3), new(-1,-3),
+
+        // 3:2
+        new( 3, 2), new(-3, 2), new( 3,-2), new(-3,-2),
+        new( 2, 3), new(-2, 3), new( 2,-3), new(-2,-3),
+
+        // Long shallow
+        new( 4, 1), new(-4, 1), new( 4,-1), new(-4,-1),
+        new( 1, 4), new(-1, 4), new( 1,-4), new(-1,-4),
+    };
+    public static Point NormalizeDirection(int x, int y)
+    {
+        int gcd = Gcd(Math.Abs(x), Math.Abs(y));
+        return new Point(x / gcd, y / gcd);
+    }
+
+    private static int Gcd(int a, int b)
+    {
+        while (b != 0)
+        {
+            (a, b) = (b, a % b);
+        }
+
+        return a == 0 ? 1 : a;
+    }
 }

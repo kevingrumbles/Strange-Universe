@@ -32,7 +32,7 @@ public class Universe
                 if (StarSystemNodes.Count == 0)
                 {
                     // If there are no star systems nodes, create a default one and add it to the universe.
-                    StarSystemNode defaultNode = new StarSystemNode(parentUniverse: this, position: new Vector2(0,0), backConnection: null);
+                    StarSystemNode defaultNode = new StarSystemNode(position: new Vector2(0,0), backConnection: null);
                     StarSystemNodes.Add(defaultNode);
                 }
                 StarSystemNode currentSystemNode = StarSystemNodes.FirstOrDefault(s => s.SystemId == Player.CurrentStarSystemID);
@@ -49,6 +49,13 @@ public class Universe
     }
 
     public List<StarSystemNode> StarSystemNodes { get; set; } = new();
+
+    /// <summary>
+    /// The system the player has selected on the Galaxy Map as the next jump destination.
+    /// Null when no destination is selected or after a successful jump.
+    /// </summary>
+    [JsonIgnore]
+    public string SelectedJumpTargetSystemId { get; set; } = null;
 
     public Universe() { }
     public Universe(string name, string seed = null)
@@ -76,13 +83,38 @@ public class Universe
         _activeStarSystem = null;
     }
 
+    /// <summary>
+    /// Jumps the player to the selected jump target (SelectedJumpTargetSystemId).
+    /// Falls back to a random connected system when no target is selected.
+    /// Clears the selected target after a successful jump.
+    /// </summary>
+    public void JumpToSystem()
+    {
+        var connections = ActiveStarSystem.Node.SystemConnectionIds;
+        if (connections == null || connections.Count == 0) return;
+
+        // Prefer the player-selected destination; fall back to random.
+        string targetId = (!string.IsNullOrEmpty(SelectedJumpTargetSystemId) &&
+                           connections.Contains(SelectedJumpTargetSystemId))
+            ? SelectedJumpTargetSystemId
+            : connections.ToList()[new Random().Next(connections.Count)];
+
+        StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
+        if (targetNode == null) return;   // safety: unknown connection, do nothing
+
+        Player.CurrentStarSystemID = targetId;
+        Player.Transform.Position = System.Numerics.Vector2.Zero;
+        SelectedJumpTargetSystemId = null;  // clear after jump
+        Generate();
+    }
+
     public string GetStarSystemName()
     {
         Random universeRng = new Random(StaticHelpers.SeedHash(Seed));
         string name = "Sol";
         while (name is null || StarSystemNodes.Contains(StarSystemNodes.Find(s => s.Name == name)))
         {
-            name = StaticHelpers.StarSystemNames[universeRng.Next(StaticHelpers.StarSystemNames.Length)];
+            name = StaticHelpers.GenerateCelestialName(StaticHelpers.CelestialNameType.System, random: universeRng);
         }
         return name;
     }
