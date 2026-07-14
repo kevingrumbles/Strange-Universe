@@ -113,7 +113,7 @@ namespace StrangeUniverse
                 UpdateMenu();
             else if (_state == GameState.Naming)
                 UpdateNaming(gameTime);
-            else
+            else if (_state == GameState.Playing)
                 UpdatePlaying(gameTime);
 
             base.Update(gameTime);
