@@ -75,8 +75,17 @@ public class Universe
         Player = new Player();
     }
 
-    public void Update(float deltaTime, InputState input) =>
+    public void Update(float deltaTime, InputState input)
+    {
+        if (Player.JumpSequenceComplete)
+        {
+            Player.Physics.Velocity     = default;  // arrive in the new system at rest
+            Player.JumpSequenceComplete = false;
+            JumpToSystem();
+            return;
+        }
         ActiveStarSystem.Update(Player, deltaTime, input);
+    }
 
     public void Generate()
     {
@@ -100,6 +109,33 @@ public class Universe
     public void ClearRuntime()
     {
         _activeStarSystem = null;
+    }
+
+    /// <summary>
+    /// Resolves the jump target, computes the world-space heading toward it, and
+    /// hands control to <see cref="Player.BeginJump"/> to run the automated sequence.
+    /// The actual system transition fires once the sequence completes.
+    /// Falls back to a random connected system when no target is selected.
+    /// </summary>
+    public void BeginJump()
+    {
+        if (Player.IsJumping) return;
+
+        var connections = ActiveStarSystem.Node.SystemConnectionIds;
+        if (connections == null || connections.Count == 0) return;
+
+        // Lock in target (same resolution logic as JumpToSystem)
+        if (string.IsNullOrEmpty(SelectedJumpTargetSystemId) || !connections.Contains(SelectedJumpTargetSystemId))
+            SelectedJumpTargetSystemId = connections.ToList()[new Random().Next(connections.Count)];
+
+        StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == SelectedJumpTargetSystemId);
+        if (targetNode == null) return;
+
+        var   dir      = targetNode.GalaxyPosition - ActiveStarSystem.Node.GalaxyPosition;
+        if (dir.LengthSquared() == 0f) return;
+
+        float jumpAngle = MathF.Atan2(dir.Y, dir.X);
+        Player.BeginJump(jumpAngle, ActiveStarSystem.SystemRadius);
     }
 
     /// <summary>

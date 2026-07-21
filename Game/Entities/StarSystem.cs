@@ -161,7 +161,9 @@ public class StarSystem
         player.Update(deltaTime, input);
         UpdateStarOrbits(deltaTime);
         _physics.Update(Asteroids, deltaTime);
-        _collision.Resolve(player, Planets, Asteroids);
+        // Skip collision while jumping — the ship passes through all objects
+        if (!player.IsJumping)
+            _collision.Resolve(player, Planets, Asteroids);
     }
 
     private void UpdateStarOrbits(float deltaTime)

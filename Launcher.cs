@@ -238,18 +238,15 @@ namespace StrangeUniverse
                 return;
             }
 
-            if (WasPressed(keys, Keys.J))
-            {
-                _activeUniverse.JumpToSystem();
-                _prevKeys = keys;
-                return;
-            }
+            if (WasPressed(keys, Keys.J) && !_activeUniverse.Player.IsJumping)
+                _activeUniverse.BeginJump();
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             var input = _inputHandler.GetState();
 
             _activeUniverse.Update(deltaTime, input);
-            _camera.Update(_activeUniverse.Player.Transform.Position, deltaTime, input);
+            _camera.Update(_activeUniverse.Player.Transform.Position, deltaTime, input,
+                           snapToTarget: _activeUniverse.Player.IsJumping);
 
             _prevKeys = keys;
         }

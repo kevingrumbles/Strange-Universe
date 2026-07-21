@@ -21,6 +21,19 @@ public class Player
     [JsonIgnore] public float       Radius              { get; set; }
     [JsonIgnore] public float       SpriteRotationOffset => Ship.SpriteRotationOffset;
 
+    // ── Jump sequence ──────────────────────────────────────────────────────────────────
+    [JsonIgnore] public JumpPhase JumpPhase            { get; private set; } = JumpPhase.None;
+    [JsonIgnore] public bool      IsJumping            => JumpPhase != JumpPhase.None;
+    [JsonIgnore] public bool      JumpSequenceComplete { get; set; }
+
+    private float _jumpAngle;
+    private float _jumpSystemRadius;
+    private float _jumpAccelTime;   // seconds elapsed since the burn started; drives exponential growth
+
+    private const float JumpAccelMultiplier = 5f;   // multiplier on ThrustForce during the jump burn
+    private const float StopSpeedThreshold  = 10f;  // world units/s LengthSquared — treated as "stopped"
+    private const float BrakeAlignThreshold = 0.3f; // radians — begin braking once within this of retrograde
+    private const float JumpAlignThreshold  = 0.04f;// radians — snap to jump heading once within this
 
     public Player(string shipName = "Shuttle")
     {
@@ -42,10 +55,94 @@ public class Player
 
     public void Update(float deltaTime, InputState input)
     {
-        HandleManualRotation(deltaTime, input);
-        HandleRetrograde(deltaTime, input);
-        HandleThrust(deltaTime, input);
+        if (IsJumping)
+            UpdateJumpSequence(deltaTime);
+        else
+        {
+            HandleManualRotation(deltaTime, input);
+            HandleRetrograde(deltaTime, input);
+            HandleThrust(deltaTime, input);
+        }
         Physics.Integrate(Transform, deltaTime);
+    }
+
+    /// <summary>
+    /// Begins the automated jump sequence.  If the ship already has significant velocity
+    /// it decelerates first; otherwise it skips straight to the alignment phase.
+    /// </summary>
+    public void BeginJump(float jumpAngle, float systemRadius)
+    {
+        _jumpAngle           = jumpAngle;
+        _jumpSystemRadius    = systemRadius;
+        JumpSequenceComplete = false;
+        JumpPhase            = Physics.Velocity.LengthSquared() < StopSpeedThreshold * StopSpeedThreshold
+            ? JumpPhase.Align
+            : JumpPhase.Decelerate;
+    }
+
+    private void UpdateJumpSequence(float deltaTime)
+    {
+        switch (JumpPhase)
+        {
+            // ── Phase 1: spin to face retrograde and brake to a halt ──────────
+            case JumpPhase.Decelerate:
+            {
+                if (Physics.Velocity.LengthSquared() < StopSpeedThreshold * StopSpeedThreshold)
+                {
+                    Physics.Velocity = Vector2.Zero;
+                    JumpPhase        = JumpPhase.Align;
+                    break;
+                }
+
+                float retroAngle = (float)Math.Atan2(-Physics.Velocity.Y, -Physics.Velocity.X);
+                float diff       = StaticHelpers.WrapAngle(retroAngle - Transform.Rotation);
+                float maxDelta   = Ship.RotationSpeed * deltaTime;
+
+                if (Math.Abs(diff) <= maxDelta)
+                    Transform.Rotation = retroAngle;
+                else
+                    Transform.Rotation += Math.Sign(diff) * maxDelta;
+
+                // Start braking once reasonably aligned with retrograde
+                if (Math.Abs(StaticHelpers.WrapAngle(retroAngle - Transform.Rotation)) <= BrakeAlignThreshold)
+                    Physics.ApplyForce(Transform.Forward * Ship.ThrustForce, deltaTime);
+                break;
+            }
+
+            // ── Phase 2: rotate to face destination ───────────────────────────
+            case JumpPhase.Align:
+            {
+                float diff     = StaticHelpers.WrapAngle(_jumpAngle - Transform.Rotation);
+                float maxDelta = Ship.RotationSpeed * deltaTime;
+
+                if (Math.Abs(diff) <= JumpAlignThreshold)
+                {
+                    Transform.Rotation = _jumpAngle;
+                    _jumpAccelTime     = 0f;
+                    JumpPhase          = JumpPhase.Accelerate;
+                }
+                else
+                    Transform.Rotation += Math.Sign(diff) * maxDelta;
+                break;
+            }
+
+            // ── Phase 3: full-throttle burn — exponentially growing, no speed cap ─────
+            case JumpPhase.Accelerate:
+            {
+                _jumpAccelTime += deltaTime;
+                // Force doubles roughly every 0.5 s (e^(1.4*0.5) ≈ 2)
+                float force = Ship.ThrustForce * JumpAccelMultiplier
+                              * (float)Math.Exp(1.4f * _jumpAccelTime);
+                Physics.ApplyForce(Transform.Forward * force, deltaTime);
+
+                if (Transform.Position.LengthSquared() >= _jumpSystemRadius * _jumpSystemRadius)
+                {
+                    JumpPhase            = JumpPhase.None;
+                    JumpSequenceComplete = true;
+                }
+                break;
+            }
+        }
     }
 
     // ── Rotation ─────────────────────────────────────────────────────────────
