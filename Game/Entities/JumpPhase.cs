@@ -11,4 +11,6 @@ public enum JumpPhase
     Align,
     /// <summary>Ship burns hard toward the system edge with no speed cap.</summary>
     Accelerate,
+    /// <summary>Ship arrives at system edge and automatically decelerates toward Mandeville Point.</summary>
+    Arrival,
 }

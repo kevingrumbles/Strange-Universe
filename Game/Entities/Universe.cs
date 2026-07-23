@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Serialization;
+using MgVector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -77,11 +78,13 @@ public class Universe
 
     public void Update(float deltaTime, InputState input)
     {
-        if (Player.JumpSequenceComplete)
+        // Check if player has completed jump acceleration and left the system
+        if (Player.JumpPhase == JumpPhase.Accelerate && 
+            Player.Transform.Position.LengthSquared() >= ActiveStarSystem.SystemRadius * ActiveStarSystem.SystemRadius)
         {
-            Player.Physics.Velocity     = default;  // arrive in the new system at rest
-            Player.JumpSequenceComplete = false;
-            JumpToSystem();
+            Player.Physics.Velocity = default;  // reset velocity before transition
+            string originSystemId = Player.CurrentStarSystemID;  // Capture origin before jump
+            JumpToSystem(originSystemId);
             return;
         }
         ActiveStarSystem.Update(Player, deltaTime, input);
@@ -135,15 +138,17 @@ public class Universe
         if (dir.LengthSquared() == 0f) return;
 
         float jumpAngle = MathF.Atan2(dir.Y, dir.X);
-        Player.BeginJump(jumpAngle, ActiveStarSystem.SystemRadius);
+        Player.BeginJump(jumpAngle);
     }
 
     /// <summary>
     /// Jumps the player to the selected jump target (SelectedJumpTargetSystemId).
     /// Falls back to a random connected system when no target is selected.
     /// Clears the selected target after a successful jump.
+    /// Positions the player at the system edge and initiates the arrival sequence.
     /// </summary>
-    public void JumpToSystem()
+    /// <param name="originSystemId">The system ID the player is jumping from, used to calculate arrival direction.</param>
+    public void JumpToSystem(string originSystemId)
     {
         var connections = ActiveStarSystem.Node.SystemConnectionIds;
         if (connections == null || connections.Count == 0) return;
@@ -157,10 +162,47 @@ public class Universe
         StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
         if (targetNode == null) return;   // safety: unknown connection, do nothing
 
+        // Get origin system node for arrival direction calculation
+        StarSystemNode originNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == originSystemId);
+
         Player.CurrentStarSystemID = targetId;
-        Player.Transform.Position = System.Numerics.Vector2.Zero;
         SelectedJumpTargetSystemId = null;  // clear after jump
         Generate();
+
+        // Calculate arrival direction (from origin to destination)
+        MgVector2 arrivalDirection;
+        if (originNode != null)
+        {
+            // Direction from origin to destination in galaxy space (MonoGame Vector2)
+            var galaxyDirection = targetNode.GalaxyPosition - originNode.GalaxyPosition;
+            if (galaxyDirection.LengthSquared() > 0f)
+            {
+                // Normalize and invert direction so player enters from the side facing the origin
+                var normalizedGalaxy = MgVector2.Normalize(galaxyDirection);
+                arrivalDirection = -normalizedGalaxy;
+            }
+            else
+            {
+                // Fallback: random direction if positions are identical
+                float randomAngle = (float)(new Random().NextDouble() * Math.PI * 2);
+                arrivalDirection = new MgVector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle));
+            }
+        }
+        else
+        {
+            // Fallback: random direction if origin system not found
+            float randomAngle = (float)(new Random().NextDouble() * Math.PI * 2);
+            arrivalDirection = new MgVector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle));
+        }
+
+        // Calculate entry position at system edge
+        MgVector2 entryPosition = arrivalDirection * ActiveStarSystem.SystemRadius;
+
+        // Calculate direction toward system center (inverse of arrival direction)
+        MgVector2 entryDirection = -arrivalDirection;
+
+        // Begin arrival sequence
+        Player.BeginArrival(entryPosition, entryDirection, ActiveStarSystem.MandevilleRadius);
     }
 
     public string GetStarSystemName()

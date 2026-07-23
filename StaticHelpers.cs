@@ -23,6 +23,16 @@ namespace StrangeUniverse
             File.WriteAllText(path, JsonSerializer.Serialize(all, StaticHelpers._writeOptions));
         }
 
+        public static void Remove(Universe activeUniverse, string path)
+        {
+            var all = StaticHelpers.LoadExisting(path);
+            int idx = all.FindIndex(u => u.Id == activeUniverse.Id);
+            if (idx >= 0)
+                all.RemoveAt(idx);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(all, StaticHelpers._writeOptions));
+        }
+
         /// <summary>Deterministic 32-bit FNV-1a hash of a string.</summary>
         public static int SeedHash(string s)
         {

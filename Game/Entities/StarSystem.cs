@@ -54,6 +54,7 @@ public class StarSystem
     [JsonIgnore] public int    AsteroidCount           { get; set; }
     [JsonIgnore] public int    StarCount               { get; set; }
     [JsonIgnore] public float  SystemRadius            { get; set; }
+    [JsonIgnore] public float  MandevilleRadius        { get; set; }
     [JsonIgnore] public float  StarOrbitRadius         { get; set; }
     [JsonIgnore] public float  StarOrbitSpeed          { get; set; }
     [JsonIgnore] public float  AsteroidBeltInnerRadius { get; set; }
@@ -135,6 +136,7 @@ public class StarSystem
         // SystemRadius is always large enough to contain the star core plus a meaningful planetary region.
         float starCoreFootprint = StarOrbitRadius * 2f;
         SystemRadius = _systemRng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
+        MandevilleRadius = SystemRadius * 0.75f;
 
         AsteroidBeltInnerRadius = Math.Max(
             _systemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),

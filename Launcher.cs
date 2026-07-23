@@ -138,7 +138,14 @@ namespace StrangeUniverse
                 _menuIndex = (_menuIndex + 1) % (_universes.Count + 1);
             if (WasPressed(keys, Keys.Enter))
                 LaunchSelected();
-
+            if (WasPressed(keys, Keys.Delete) && _menuIndex < _universes.Count)
+            {
+                var toDelete = _universes[_menuIndex];
+                _universes.RemoveAt(_menuIndex);
+                StaticHelpers.Remove(toDelete, _universeFilePath);
+                if (_menuIndex >= _universes.Count && _menuIndex > 0)
+                    _menuIndex = _universes.Count - 1;
+            }
             _prevKeys = keys;
         }
 
@@ -246,7 +253,7 @@ namespace StrangeUniverse
 
             _activeUniverse.Update(deltaTime, input);
             _camera.Update(_activeUniverse.Player.Transform.Position, deltaTime, input,
-                           snapToTarget: _activeUniverse.Player.IsJumping);
+                           snapToTarget: true);
 
             _prevKeys = keys;
         }
@@ -299,7 +306,7 @@ namespace StrangeUniverse
                         "+ Create New Universe", string.Empty, _menuIndex == _universes.Count, true);
 
             // Footer hint
-            const string hint = "Up/Down  Navigate      Enter  Select      Esc  Quit";
+            const string hint = "Up/Down  Navigate      Enter  Select      Del  Delete      Esc  Quit";
             Vector2 hintSz = _font.MeasureString(hint);
             _spriteBatch.DrawString(_font, hint,
                 new Vector2((_screenWidth - hintSz.X) / 2f, _screenHeight - 38f),
