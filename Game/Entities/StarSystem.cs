@@ -73,10 +73,10 @@ public class StarSystem
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
+    [JsonIgnore] public Player ActivePlayer { get { return Launcher.ActiveUniverse.Player;  }  }
     [JsonIgnore] public string        NebulaId        { get; private set; }
     [JsonIgnore] public Rectangle     NebulaCropRect  { get; private set; }
     [JsonIgnore] public SpriteEffects NebulaEffects   { get; private set; }
-    private Random _systemRng { get; set; } = null;
 
     private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();
@@ -89,11 +89,11 @@ public class StarSystem
         Node = node;
         Node.Discovered = true;
 
-        _systemRng = new Random(StaticHelpers.SeedHash(Node.SystemId));
-        PlanetCount = _systemRng.Next(0, 7);
-        AsteroidCount = _systemRng.Next(0, 120);
-        StarCount = _systemRng.Next(1, 3);
-        StarRadius = _systemRng.NextWeightedFloat(250f, 500f);
+        Random systemRng = new Random(StaticHelpers.SeedHash(Node.SystemId));
+        PlanetCount = systemRng.Next(0, 7);
+        AsteroidCount = systemRng.Next(0, 120);
+        StarCount = systemRng.Next(1, 3);
+        StarRadius = systemRng.NextWeightedFloat(250f, 500f);
         switch (StarCount)
         {
             case 1: 
@@ -101,23 +101,23 @@ public class StarSystem
                 StarOrbitSpeed = 0f;
                 break;
             case 2: 
-                StarOrbitRadius = _systemRng.NextWeightedFloat(2000f, 4000f);
-                StarOrbitSpeed  = _systemRng.NextWeightedFloat(0.0001f, 0.0003f);
+                StarOrbitRadius = systemRng.NextWeightedFloat(2000f, 4000f);
+                StarOrbitSpeed  = systemRng.NextWeightedFloat(0.0001f, 0.0003f);
                 break;
             case 3: 
-                StarOrbitRadius = _systemRng.NextWeightedFloat(3000f, 7000f);
-                StarOrbitSpeed  = _systemRng.NextWeightedFloat(0.00005f, 0.0002f);
+                StarOrbitRadius = systemRng.NextWeightedFloat(3000f, 7000f);
+                StarOrbitSpeed  = systemRng.NextWeightedFloat(0.00005f, 0.0002f);
                 break;
         }
         
-        MinPlanetRadius = _systemRng.NextWeightedFloat(90f, 120f);
-        MaxPlanetRadius = _systemRng.NextWeightedFloat(150, 300f);
-        MinAsteroidRadius = _systemRng.NextWeightedFloat(15f, 30f);
-        MaxAsteroidRadius = _systemRng.NextWeightedFloat(40f, 50f);
-        SystemConnectionCount = _systemRng.Next(1, 4);
-        if (SystemConnectionCount == 1) SystemConnectionCount = _systemRng.Next(1, 4);
-        InnerPlanetCount =_systemRng.Next(PlanetCount);
-        BackgroundStarCount = _systemRng.Next(400, 800);
+        MinPlanetRadius = systemRng.NextWeightedFloat(90f, 120f);
+        MaxPlanetRadius = systemRng.NextWeightedFloat(150, 300f);
+        MinAsteroidRadius = systemRng.NextWeightedFloat(15f, 30f);
+        MaxAsteroidRadius = systemRng.NextWeightedFloat(40f, 50f);
+        SystemConnectionCount = systemRng.Next(1, 4);
+        if (SystemConnectionCount == 1) SystemConnectionCount = systemRng.Next(1, 4);
+        InnerPlanetCount =systemRng.Next(PlanetCount);
+        BackgroundStarCount = systemRng.Next(400, 800);
 
         if (Node.Name == "Sol")
         {
@@ -135,13 +135,13 @@ public class StarSystem
         float starCoreRadius = StarOrbitRadius + StarRadius;
         // SystemRadius is always large enough to contain the star core plus a meaningful planetary region.
         float starCoreFootprint = StarOrbitRadius * 2f;
-        SystemRadius = _systemRng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
+        SystemRadius = systemRng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
         MandevilleRadius = SystemRadius * 0.75f;
 
         AsteroidBeltInnerRadius = Math.Max(
-            _systemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),
+            systemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),
             starCoreRadius * 2.5f);
-        AsteroidBeltOuterRadius = _systemRng.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
+        AsteroidBeltOuterRadius = systemRng.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
         Debug.WriteLine($"properties loaded: {sw.ElapsedMilliseconds} ms");
         Debug.WriteLine($"Generating Stars: {sw.ElapsedMilliseconds} ms");
         GenerateStars();
@@ -158,14 +158,15 @@ public class StarSystem
         Debug.WriteLine($"StarSystem initialization completed: {sw.ElapsedMilliseconds} ms");
     }
 
-    public void Update(Player player, float deltaTime, InputState input)
+    public void Update(float deltaTime, InputState input)
     {
-        player.Update(deltaTime, input);
+        ActivePlayer.Update(deltaTime, input);
         UpdateStarOrbits(deltaTime);
         _physics.Update(Asteroids, deltaTime);
+
         // Skip collision while jumping — the ship passes through all objects
-        if (!player.IsJumping)
-            _collision.Resolve(player, Planets, Asteroids);
+        if (!ActivePlayer.IsJumping)
+            _collision.Resolve(ActivePlayer, Planets, Asteroids);
     }
 
     private void UpdateStarOrbits(float deltaTime)
@@ -177,6 +178,9 @@ public class StarSystem
             star.Transform.Position = new Vector2(
                 MathF.Cos(star.OrbitAngle) * star.OrbitRadius,
                 MathF.Sin(star.OrbitAngle) * star.OrbitRadius);
+
+            // Update gravity well center as star moves
+            star.GravityWell.Center = star.Transform.Position;
         }
     }
 
@@ -322,8 +326,6 @@ public class StarSystem
         }
     }
 
-    // ── Planets ────────────────────────────────────────────────────────────
-
     private void GeneratePlanets()
     {
         for (int i = 1; i <= PlanetCount; i++)
@@ -352,8 +354,6 @@ public class StarSystem
         }
     }
 
-    // ── Asteroids ───────────────────────────────────────────────────────────
-
     private void GenerateAsteroids()
     {
         // Pre-generate a small palette of asteroid textures and reuse them
@@ -379,8 +379,6 @@ public class StarSystem
         }
     }
 
-    // ── Background stars ──────────────────────────────────────────────────
-
     private void GenerateBackgroundStars()
     {
         Random backgroundStarsRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_BackgroundStars"));
@@ -402,23 +400,48 @@ public class StarSystem
         }
     }
 
-    // ── Nebula ───────────────────────────────────────────────────────────────
-
     private void GenerateNebula()
     {
+        Random nebulaRandom = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Nebula"));
+
         var pool = Node.Universe.NebulaPool;
-        int poolIndex = _systemRng.Next(pool.Count);
+        int poolIndex = nebulaRandom.Next(pool.Count);
         Nebula chosen = pool[poolIndex];
         NebulaId = chosen.Id;
 
         // Pick a random 512x512 crop within the 1024x1024 texture
         const int CropSize   = 512;
         const int MaxOrigin  = Nebula.Size - CropSize;   // 512
-        int cropX = _systemRng.Next(0, MaxOrigin + 1);
-        int cropY = _systemRng.Next(0, MaxOrigin + 1);
+        int cropX = nebulaRandom.Next(0, MaxOrigin + 1);
+        int cropY = nebulaRandom.Next(0, MaxOrigin + 1);
         NebulaCropRect = new Rectangle(cropX, cropY, CropSize, CropSize);
 
         // SpriteEffects 0-3: None / FlipH / FlipV / FlipH|FlipV
-        NebulaEffects = (SpriteEffects)_systemRng.Next(4);
+        NebulaEffects = (SpriteEffects)nebulaRandom.Next(4);
+    }
+
+    /// <summary>
+    /// Calculates the total gravitational force at a given location by summing
+    /// all overlapping gravity wells from stars and planets in this system.
+    /// </summary>
+    /// <param name="position">World position to calculate gravity at</param>
+    /// <returns>The combined gravitational force vector</returns>
+    public Vector2 CalculateGravityAtLocation(Vector2 position)
+    {
+        Vector2 totalForce = Vector2.Zero;
+
+        // Sum forces from all star gravity wells
+        foreach (var star in Stars)
+        {
+            totalForce += star.GravityWell.CalculateForce(position);
+        }
+
+        // Sum forces from all planet gravity wells
+        foreach (var planet in Planets)
+        {
+            totalForce += planet.GravityWell.CalculateForce(position);
+        }
+
+        return totalForce;
     }
 }

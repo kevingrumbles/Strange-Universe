@@ -102,6 +102,48 @@ public class SpriteRenderer
                    player.Transform.Rotation + player.SpriteRotationOffset,
                    player.Radius * 2.2f);
 
+    /// <summary>
+    /// Draws a circle outline (ring) for debug visualization.
+    /// Uses line segments to approximate a circle.
+    /// </summary>
+    public void DrawDebugCircle(Vector2 center, float radius, Color color, int segments = 32)
+    {
+        float angleStep = MathHelper.TwoPi / segments;
+        for (int i = 0; i < segments; i++)
+        {
+            float angle1 = i * angleStep;
+            float angle2 = (i + 1) * angleStep;
+
+            Vector2 p1 = center + new Vector2(
+                MathF.Cos(angle1) * radius,
+                MathF.Sin(angle1) * radius);
+            Vector2 p2 = center + new Vector2(
+                MathF.Cos(angle2) * radius,
+                MathF.Sin(angle2) * radius);
+
+            DrawLine(p1, p2, color, 2f);
+        }
+    }
+
+    /// <summary>
+    /// Draws a line between two points using a stretched pixel.
+    /// </summary>
+    private void DrawLine(Vector2 start, Vector2 end, Color color, float thickness)
+    {
+        Vector2 edge = end - start;
+        float length = edge.Length();
+        float angle = MathF.Atan2(edge.Y, edge.X);
+
+        _spriteBatch.Draw(_pixel,
+            new Rectangle((int)start.X, (int)start.Y, (int)length, (int)thickness),
+            null,
+            color,
+            angle,
+            new Vector2(0, 0.5f),
+            SpriteEffects.None,
+            0);
+    }
+
     // ── HUD pass (no camera transform) ───────────────────────────────────────
 
     public void DrawHud(Player player, int screenWidth, int screenHeight, float maxSpeed)

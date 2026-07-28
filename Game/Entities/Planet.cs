@@ -14,6 +14,7 @@ public class Planet
     public string    Name         { get; set; } = string.Empty;
     public PlanetType Type { get; set;  }
     public string Id { get; }
+    public GravityWell GravityWell { get; private set; }
 
     private const int Size = 256;
     private static readonly Color[] TerranLow = { new(30, 80, 160), new(25, 75, 155) }; // ocean
@@ -40,6 +41,28 @@ public class Planet
             (float)Math.Cos(angle) * orbit,
             (float)Math.Sin(angle) * orbit);
         Transform.Scale = 1f;
+
+        // Create gravity well based on planet type and size
+        // Maximum gravity force is a percentage of player thrust (dynamic)
+        // Different planet types have different densities affecting their gravity strength
+        // Lava planets have the highest density (1.0x), others are scaled down from there
+
+        float densityMultiplier = Type switch
+        {
+            PlanetType.Lava => 1.0f,      // Highest density (baseline)
+            PlanetType.Terran => 0.92f,   // High density
+            PlanetType.Ocean => 0.85f,    // Medium-high density
+            PlanetType.Rocky => 0.77f,    // Medium density
+            PlanetType.Ice => 0.69f,      // Low-medium density
+            PlanetType.GasGiant => 0.31f, // Lowest density
+            _ => 0.77f
+        };
+
+        // Well radius is 8-15x the planet's visual radius
+        // Planets are weaker than stars (30-60% of max force at center) and vary by density
+        float wellRadius = Radius * MathHelper.Lerp(8f, 15f, (float)planetRng.NextDouble());
+        float wellStrength = MathHelper.Lerp(0.3f, 0.6f, (float)planetRng.NextDouble()) * densityMultiplier;
+        GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);
     }
 
     public static Texture2D Generate(GraphicsDevice gd, PlanetType type, int seed)

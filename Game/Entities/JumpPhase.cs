@@ -4,7 +4,7 @@ namespace Strange_Universe.Game.Entities;
 public enum JumpPhase
 {
     /// <summary>Normal flight — player has full control.</summary>
-    None,
+    Normal,
     /// <summary>Ship rotates to retrograde and brakes to a standstill.</summary>
     Decelerate,
     /// <summary>Ship rotates to face the destination system.</summary>

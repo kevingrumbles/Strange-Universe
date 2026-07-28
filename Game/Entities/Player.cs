@@ -25,25 +25,21 @@ public class Player
     [JsonIgnore] public JumpPhase JumpPhase            
     { get;
         private set;
-    } = JumpPhase.None;
-    [JsonIgnore] public bool      IsJumping            => JumpPhase != JumpPhase.None;
+    } = JumpPhase.Normal;
+    [JsonIgnore] public bool      IsJumping            => JumpPhase != JumpPhase.Normal;
+    [JsonIgnore] private StarSystem ActiveStarSystem => Launcher.ActiveUniverse.ActiveStarSystem;
 
     private float _jumpAngle;
     private float _jumpAccelTime;   // seconds elapsed since the burn started; drives exponential growth
 
     private const float JumpAccelMultiplier = 8f;   // multiplier on ThrustForce during the jump burn
-    private const float StopSpeedThreshold  = 10f;  // world units/s LengthSquared — treated as "stopped"
+    //private const float StopSpeedThreshold  = 10f;  // world units/s LengthSquared — treated as "stopped"
     private const float BrakeAlignThreshold = 0.3f; // radians — begin braking once within this of retrograde
     private const float JumpAlignThreshold  = 0.04f;// radians — snap to jump heading once within this
 
     // ── Arrival sequence ─────────────────────────────────────────────────────────
-    private Vector2 _arrivalStartPosition;
-    private float _arrivalStartSpeed;
-    private float _arrivalTargetSpeed;
-    private float _arrivalMandevilleRadius;
-
-    private const float ArrivalSpeedMultiplier = 8f;    // Initial speed = MaxSpeed * this
-    private const float ArrivalTargetSpeedMultiplier = 0.9f; // Final speed = MaxSpeed * this
+    //private Vector2 _arrivalStartPosition;
+    //private float _arrivalMandevilleRadius;
 
     public Player(string shipName = "Shuttle")
     {
@@ -52,7 +48,6 @@ public class Player
         Radius = Ship.Radius;
         Physics = new PhysicsBody
         {
-            LinearDamping = Ship.LinearDamping,   // 1.0 = no passive drag
             Mass          = 1f,
         };
     }
@@ -66,29 +61,33 @@ public class Player
     public void Update(float deltaTime, InputState input)
     {
         if (IsJumping)
+        {
             UpdateJumpSequence(deltaTime);
+        }
         else
         {
             HandleManualRotation(deltaTime, input);
             HandleRetrograde(deltaTime, input);
             HandleThrust(deltaTime, input);
+
+            // Apply gravitational forces from celestial bodies
+            // Gravity is not capped by MaxSpeed - it can push ships beyond their normal limits
+            Physics.ApplyForce(ActiveStarSystem.CalculateGravityAtLocation(Transform.Position), deltaTime);
         }
+
         Physics.Integrate(Transform, deltaTime);
     }
 
     /// <summary>
-    /// Begins the automated jump sequence.  If the ship already has significant velocity
-    /// it decelerates first; otherwise it skips straight to the alignment phase.
+    /// Begins the automated jump sequence. 
     /// </summary>
     public void BeginJump(float jumpAngle)
     {
         // Prevent jumping during arrival sequence
-        if (JumpPhase == JumpPhase.Arrival) return;
+        if (JumpPhase != JumpPhase.Normal) return;
 
         _jumpAngle = jumpAngle;
-        JumpPhase = Physics.Velocity.LengthSquared() < StopSpeedThreshold * StopSpeedThreshold
-            ? JumpPhase.Align
-            : JumpPhase.Decelerate;
+        JumpPhase = JumpPhase.Decelerate;
     }
 
     /// <summary>
@@ -103,12 +102,7 @@ public class Player
         Transform.Position = entryPosition;
         Transform.Rotation = (float)Math.Atan2(entryDirection.Y, entryDirection.X);
 
-        _arrivalStartPosition = entryPosition;
-        _arrivalMandevilleRadius = mandevilleRadius;
-        _arrivalStartSpeed = Ship.MaxSpeed * ArrivalSpeedMultiplier;
-        _arrivalTargetSpeed = Ship.MaxSpeed * ArrivalTargetSpeedMultiplier;
-
-        Physics.Velocity = normalizedDirection * _arrivalStartSpeed;
+        Physics.Velocity = normalizedDirection * Ship.MaxSpeed * 8f;
         JumpPhase = JumpPhase.Arrival;
     }
 
@@ -118,95 +112,66 @@ public class Player
         {
             // ── Phase 1: spin to face retrograde and brake to a halt ──────────
             case JumpPhase.Decelerate:
-            {
-                if (IsBelowStopThreshold())
                 {
-                    Physics.Velocity = Vector2.Zero;
-                    JumpPhase = JumpPhase.Align;
+                    if (Physics.Velocity.LengthSquared() < 100f)
+                    {
+                        Physics.Velocity = Vector2.Zero;
+                        JumpPhase = JumpPhase.Align;
+                        break;
+                    }
+
+                    float retroAngle = (float)Math.Atan2(-Physics.Velocity.Y, -Physics.Velocity.X);
+                    RotateTowards(retroAngle, deltaTime);
+
+                    // Start braking once reasonably aligned with retrograde
+                    if (Math.Abs(StaticHelpers.WrapAngle(retroAngle - Transform.Rotation)) <= BrakeAlignThreshold)
+                        Physics.ApplyForce(Transform.Forward * Ship.ThrustForce, deltaTime);
                     break;
                 }
 
-                float retroAngle = CalculateRetrogradeAngle();
-                RotateTowards(retroAngle, deltaTime);
-
-                // Start braking once reasonably aligned with retrograde
-                if (IsAlignedWith(retroAngle, BrakeAlignThreshold))
-                    Physics.ApplyForce(Transform.Forward * Ship.ThrustForce, deltaTime);
-                break;
-            }
-
             // ── Phase 2: rotate to face destination ───────────────────────────
             case JumpPhase.Align:
-            {
-                if (RotateTowards(_jumpAngle, deltaTime, JumpAlignThreshold))
                 {
-                    Transform.Rotation = _jumpAngle;
-                    _jumpAccelTime = 0f;
-                    JumpPhase = JumpPhase.Accelerate;
+                    if (RotateTowards(_jumpAngle, deltaTime, JumpAlignThreshold))
+                    {
+                        Transform.Rotation = _jumpAngle;
+                        _jumpAccelTime = 0f;
+                        JumpPhase = JumpPhase.Accelerate;
+                    }
+                    break;
                 }
-                break;
-            }
 
             // ── Phase 3: full-throttle burn — exponentially growing, no speed cap ─────
             case JumpPhase.Accelerate:
-            {
-                _jumpAccelTime += deltaTime;
-                // Force doubles roughly every 0.5 s (e^(1.4*0.5) ≈ 2)
-                float force = Ship.ThrustForce * JumpAccelMultiplier
-                              * (float)Math.Exp(1.4f * _jumpAccelTime);
-                Physics.ApplyForce(Transform.Forward * force, deltaTime);
+                {
+                    _jumpAccelTime += deltaTime;
+                    // Force doubles roughly every 0.5 s (e^(1.4*0.5) ≈ 2)
+                    float force = Ship.ThrustForce * JumpAccelMultiplier * (float)Math.Exp(1.4f * _jumpAccelTime);
+                    Physics.ApplyForce(Transform.Forward * force, deltaTime);
 
-                // Phase continues until Universe detects we've left the system and calls JumpToSystem
-                break;
-            }
+                    // Phase continues until Universe detects we've left the system and calls JumpToSystem
+                    break;
+                }
 
             // ── Phase 4: arrival — automatic deceleration from system edge to Mandeville Point ─────
             case JumpPhase.Arrival:
-            {
-                UpdateArrivalSequence(deltaTime);
-                break;
-            }
+                {
+                    float distanceFromCenter = Transform.Position.Length();
+
+                    // Check if we've reached the Mandeville Point
+                    if (distanceFromCenter <= ActiveStarSystem.MandevilleRadius)
+                    {
+                        JumpPhase = JumpPhase.Normal;
+                        Physics.Velocity = Vector2.Normalize(Physics.Velocity) * Ship.MaxSpeed;
+                        return;
+                    }
+
+                    // Calculate and apply interpolated speed
+                    float progress = Math.Clamp((ActiveStarSystem.SystemRadius - distanceFromCenter) / (ActiveStarSystem.SystemRadius - ActiveStarSystem.MandevilleRadius), 0f, 1f);
+                    Physics.Velocity = Vector2.Normalize(Physics.Velocity) * MathHelper.Lerp(Ship.MaxSpeed * 8f, Ship.MaxSpeed, progress);
+                    break;
+                }
         }
-    }
-
-    private void UpdateArrivalSequence(float deltaTime)
-    {
-        float distanceFromCenter = Transform.Position.Length();
-
-        // Check if we've reached the Mandeville Point
-        if (distanceFromCenter <= _arrivalMandevilleRadius)
-        {
-            EndArrivalSequence(deltaTime);
-            return;
-        }
-
-        // Calculate and apply interpolated speed
-        float progress = CalculateArrivalProgress(distanceFromCenter);
-        float targetSpeed = MathHelper.Lerp(_arrivalStartSpeed, _arrivalTargetSpeed, progress);
-        SetVelocityWithDampingCompensation(targetSpeed, deltaTime);
-    }
-
-    private void EndArrivalSequence(float deltaTime)
-    {
-        JumpPhase = JumpPhase.None;
-        SetVelocityWithDampingCompensation(_arrivalTargetSpeed, deltaTime);
-    }
-
-    private float CalculateArrivalProgress(float currentDistance)
-    {
-        float startDistance = _arrivalStartPosition.Length();
-        float totalDistance = startDistance - _arrivalMandevilleRadius;
-        float traveledDistance = startDistance - currentDistance;
-        return Math.Clamp(traveledDistance / totalDistance, 0f, 1f);
-    }
-
-    private void SetVelocityWithDampingCompensation(float targetSpeed, float deltaTime)
-    {
-        if (Physics.Velocity.LengthSquared() <= 0) return;
-
-        Vector2 direction = Vector2.Normalize(Physics.Velocity);
-        float dampFactor = (float)Math.Pow(Physics.LinearDamping, deltaTime);
-        Physics.Velocity = direction * (targetSpeed / dampFactor);
     }
 
     // ── Rotation ─────────────────────────────────────────────────────────────
@@ -230,7 +195,7 @@ public class Player
         if (!input.Retrograde || Physics.Velocity.LengthSquared() < 1f)
             return;
 
-        RotateTowards(CalculateRetrogradeAngle(), deltaTime);
+        RotateTowards((float)Math.Atan2(-Physics.Velocity.Y, -Physics.Velocity.X), deltaTime);
     }
 
     // ── Forward thrust (W) ────────────────────────────────────────────────────
@@ -240,6 +205,9 @@ public class Player
     // Soft speed cap: as speed approaches MaxSpeed the thrust component that
     // would increase speed is gradually reduced.  Lateral/decelerating components
     // are never reduced, so turns and braking still feel responsive at top speed.
+    //
+    // NOTE: This cap only applies to player thrust input. External forces like gravity
+    // can push the ship beyond MaxSpeed.
 
     private void HandleThrust(float deltaTime, InputState input)
     {
@@ -279,16 +247,6 @@ public class Player
     }
 
     // ── Helper Methods ────────────────────────────────────────────────────────────
-
-    private bool IsBelowStopThreshold() =>
-        Physics.Velocity.LengthSquared() < StopSpeedThreshold * StopSpeedThreshold;
-
-    private float CalculateRetrogradeAngle() =>
-        (float)Math.Atan2(-Physics.Velocity.Y, -Physics.Velocity.X);
-
-    private bool IsAlignedWith(float targetAngle, float threshold) =>
-        Math.Abs(StaticHelpers.WrapAngle(targetAngle - Transform.Rotation)) <= threshold;
-
     /// <summary>Rotates towards target angle. Returns true if already aligned within threshold.</summary>
     private bool RotateTowards(float targetAngle, float deltaTime, float threshold = float.MaxValue)
     {

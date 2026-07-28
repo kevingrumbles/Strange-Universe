@@ -15,6 +15,7 @@ public class Star
     public float     OrbitAngle   { get; set; }
     public float     OrbitSpeed   { get; set; }
     public Color     MinimapColor { get; set; }
+    public GravityWell GravityWell { get; private set; }
 
     private const int Size = 512;
 
@@ -26,22 +27,28 @@ public class Star
         OrbitRadius = orbitRadius;
         OrbitAngle = orbitAngle;
         OrbitSpeed = orbitSpeed;
+        Random starRng = new Random(StaticHelpers.SeedHash($"{Id}_{Name}"));
 
-        var tex = Generate(minimapColor, StaticHelpers.SeedHash(Id));
+
+        // Create gravity well based on star size
+        float wellRadius = Radius * MathHelper.Lerp(4f, 8f, (float)starRng.NextDouble());
+        // Stars use 80-100% of max gravity force at their center
+        float wellStrength = MathHelper.Lerp(0.8f, 1.0f, (float)starRng.NextDouble());
+        GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);
+
+        var tex = Generate(minimapColor, starRng);
         Launcher.TextureCache.Register(Id, tex);
     }
 
     /// <summary>
     /// Generates a glowing star texture: bright core, coloured corona, soft halo, and ray spikes.
     /// </summary>
-    public static Texture2D Generate(Color starColor, int seed)
+    public static Texture2D Generate(Color starColor, Random rng)
     {
         var colors = new Color[Size * Size];
         float cx = Size * 0.5f;
         float cy = Size * 0.5f;
         float maxR = cx;
-
-        var rng = new Random(seed);
 
         // Generate 8 ray angles
         float[] rayAngles = new float[8];

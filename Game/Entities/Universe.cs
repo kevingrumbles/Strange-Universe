@@ -87,23 +87,17 @@ public class Universe
             JumpToSystem(originSystemId);
             return;
         }
-        ActiveStarSystem.Update(Player, deltaTime, input);
+        ActiveStarSystem.Update(deltaTime, input);
     }
 
     public void Generate()
     {
         ClearRuntime();
         Player.Generate();
-        if (NebulaPool.Count == 0)
-            GenerateNebulaPool();
-    }
-
-    private void GenerateNebulaPool()
-    {
-        for (int i = 0; i < NebulaPoolSize; i++)
+        for (int i = NebulaPool.Count; i < NebulaPoolSize; i++)
         {
-            string id     = $"nebula_pool_{i}";
-            var    nebula = new Nebula($"{Seed}_{id}");
+            string id = $"nebula_pool_{i}";
+            var nebula = new Nebula($"{Seed}_{id}");
             Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
             NebulaPool.Add(nebula);
         }

@@ -14,6 +14,7 @@ namespace StrangeUniverse
     public class Launcher : Microsoft.Xna.Framework.Game
     {
         public static Universe ActiveUniverse = null;
+        public bool debug = true;
 
         // ── Core ──────────────────────────────────────────────────────────────
         public static GraphicsDevice GD;
@@ -25,6 +26,7 @@ namespace StrangeUniverse
 
         // ── State ─────────────────────────────────────────────────────────────
         private GameState _state = GameState.Menu;
+
 
         // ── Menu ──────────────────────────────────────────────────────────────
         // Each entry is either a Universe (existing) or null (Create New).
@@ -442,6 +444,28 @@ namespace StrangeUniverse
 
             //Draw Layer 6
             _renderer.DrawPlayer(_activeUniverse.Player);
+
+            // Debug: Draw gravity well indicators
+            if (debug)
+            {
+                foreach (var star in sys.Stars)
+                {
+                    _renderer.DrawDebugCircle(
+                        star.GravityWell.Center,
+                        star.GravityWell.Radius,
+                        Color.Yellow * 0.3f,
+                        64);
+                }
+
+                foreach (var planet in sys.Planets)
+                {
+                    _renderer.DrawDebugCircle(
+                        planet.GravityWell.Center,
+                        planet.GravityWell.Radius,
+                        Color.Cyan * 0.3f,
+                        48);
+                }
+            }
 
             _spriteBatch.End();
         }
