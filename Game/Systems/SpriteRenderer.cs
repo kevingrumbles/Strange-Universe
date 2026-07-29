@@ -51,28 +51,76 @@ public class SpriteRenderer
 
     public void DrawBackgroundStars(IReadOnlyList<BackgroundStar> stars,
                                      int screenWidth, int screenHeight, Vector2 cameraPos,
-                                     int layer)
+                                     float cameraZoom, int layer)
     {
+        // Background stars render in screen space and maintain constant appearance
+        // regardless of zoom level. They provide atmosphere without cluttering the view.
+
+        // Define the base tile size for background stars (matches typical screen resolution)
+        const float tileWidth = 1920f;
+        const float tileHeight = 1080f;
+
         float parallax = 0.08f;
-        foreach (var star in stars)
+
+        // Apply parallax to camera position for depth effect
+        float parallaxOffsetX = cameraPos.X * parallax;
+        float parallaxOffsetY = cameraPos.Y * parallax;
+
+        // Calculate which tiles to draw based on screen space with parallax
+        // We always tile to cover the screen, not the world
+        int startTileX = (int)Math.Floor(parallaxOffsetX / tileWidth);
+        int endTileX = (int)Math.Ceiling((parallaxOffsetX + screenWidth) / tileWidth);
+        int startTileY = (int)Math.Floor(parallaxOffsetY / tileHeight);
+        int endTileY = (int)Math.Ceiling((parallaxOffsetY + screenHeight) / tileHeight);
+
+        // Draw stars in each tile needed to cover the screen
+        for (int tileX = startTileX; tileX <= endTileX; tileX++)
         {
-            if (star.Layer != layer) continue;
+            for (int tileY = startTileY; tileY <= endTileY; tileY++)
+            {
+                // Calculate tile offset
+                float tileOffsetX = tileX * tileWidth;
+                float tileOffsetY = tileY * tileHeight;
 
-            // Screen-space parallax wrapping
-            float sx = ((star.Position.X - cameraPos.X * parallax) % screenWidth  + screenWidth)  % screenWidth;
-            float sy = ((star.Position.Y - cameraPos.Y * parallax) % screenHeight + screenHeight) % screenHeight;
+                // Mirror tiles for visual variety (checkerboard pattern)
+                bool mirrorX = (tileX % 2) != 0;
+                bool mirrorY = (tileY % 2) != 0;
 
-            // Stars are drawn in screen space — offset by camera's top-left corner in world coords
-            // to cancel the camera transform applied by SpriteBatch
-            Vector2 worldPos = new Vector2(
-                cameraPos.X - screenWidth  / 2f + sx,
-                cameraPos.Y - screenHeight / 2f + sy);
+                foreach (var star in stars)
+                {
+                    if (star.Layer != layer) continue;
 
-            byte bright = (byte)(star.Brightness * 255f);
-            int  size   = (int)Math.Max(1, star.Size);
-            _spriteBatch.Draw(_pixel,
-                new Rectangle((int)worldPos.X, (int)worldPos.Y, size, size),
-                new Color(bright, bright, bright));
+                    // Calculate star position within the tile
+                    float starX = star.Position.X;
+                    float starY = star.Position.Y;
+
+                    // Apply mirroring
+                    if (mirrorX) starX = tileWidth - starX;
+                    if (mirrorY) starY = tileHeight - starY;
+
+                    // Calculate screen-space position with parallax
+                    float screenX = tileOffsetX + starX - parallaxOffsetX;
+                    float screenY = tileOffsetY + starY - parallaxOffsetY;
+
+                    // Convert screen position to world position to work with camera transform
+                    // The camera transform will be applied by SpriteBatch, so we need to
+                    // "undo" it by calculating where in world space this screen pixel maps to
+                    float worldX = cameraPos.X - (screenWidth / 2f / cameraZoom) + (screenX / cameraZoom);
+                    float worldY = cameraPos.Y - (screenHeight / 2f / cameraZoom) + (screenY / cameraZoom);
+
+                    Vector2 worldPos = new Vector2(worldX, worldY);
+
+                    byte bright = (byte)(star.Brightness * 255f);
+
+                    // Keep star size constant in screen space
+                    float worldSize = star.Size / cameraZoom;
+                    int size = (int)Math.Max(1, worldSize);
+
+                    _spriteBatch.Draw(_pixel,
+                        new Rectangle((int)worldPos.X, (int)worldPos.Y, size, size),
+                        new Color(bright, bright, bright));
+                }
+            }
         }
     }
 

@@ -410,14 +410,14 @@ namespace StrangeUniverse
                                transformMatrix: cameraMatrix);
             //Draw Layer 0
             _renderer.DrawBackgroundStars(
-                sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, layer: 0);
+                sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, layer: 0);
 
             //Draw Layer 1
             _renderer.DrawNebula(sys.NebulaId, sys.NebulaCropRect, sys.NebulaEffects, sys.SystemRadius * 2.4f);
 
             //Draw Layer 2
             _renderer.DrawBackgroundStars(
-                sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, layer: 1);
+                sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, layer: 1);
 
             //Draw Layer 3
             foreach (var star in sys.Stars)
