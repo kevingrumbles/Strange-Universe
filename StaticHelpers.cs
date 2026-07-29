@@ -130,7 +130,6 @@ namespace StrangeUniverse
         };
 
         public enum PlanetType { Terran, Rocky, GasGiant, Ice, Lava, Ocean }
-        public static PlanetType[] PlanetTypes = (PlanetType[])Enum.GetValues(typeof(PlanetType));
 
         /// <summary>Wraps an angle to the range [−π, π] for the shortest-path rotation calc.</summary>
         public static float WrapAngle(float angle)

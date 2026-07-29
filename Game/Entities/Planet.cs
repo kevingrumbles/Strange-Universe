@@ -23,7 +23,8 @@ public class Planet
         Random planetRng = new Random(StaticHelpers.SeedHash(Id));
         Name = StaticHelpers.GenerateCelestialName(StaticHelpers.CelestialNameType.Planet, random: planetRng);
 
-        Type = PlanetTypes[planetRng.Next(PlanetTypes.Length)];  
+        int PlanetTypes = ((PlanetType[])Enum.GetValues(typeof(PlanetType))).Length;
+        Type = (PlanetType)planetRng.Next(PlanetTypes);  
         Radius = MathHelper.Lerp(minPlanetRadius, maxPlanetRadius, (float)planetRng.NextDouble());
 
         var tex = Generate(Launcher.GD, Type, StaticHelpers.SeedHash(Id));
