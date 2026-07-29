@@ -77,6 +77,7 @@ public class GalaxyMapRenderer
         DrawBackground(screenW, screenH);
         var positions = ComputeNodeScreenPositions(universe);
         DrawConnections(universe, positions);
+        DrawRouteLines(universe, positions);  // Draw route before nodes so it appears behind
         DrawNodes(universe, positions, hoveredId, totalSeconds);
         DrawLabels(universe, positions);
         DrawJumpTargetHint(universe, screenW, screenH);
@@ -194,6 +195,32 @@ public class GalaxyMapRenderer
         }
     }
 
+    private void DrawRouteLines(Universe universe, Dictionary<string, Vector2> positions)
+    {
+        if (universe.JumpRoute.Count == 0) return;
+
+        // Draw lines connecting the route systems in sequence
+        string currentId = universe.ActiveStarSystem.Node.SystemId;
+        var routeColor = new Color(255, 200, 80); // Bright yellow/orange for the route
+
+        // First line: from current system to first route system
+        if (positions.TryGetValue(currentId, out var currentPos) &&
+            positions.TryGetValue(universe.JumpRoute[0], out var firstRoutePos))
+        {
+            DrawLine(currentPos, firstRoutePos, routeColor, 3f);
+        }
+
+        // Subsequent lines: between consecutive route systems
+        for (int i = 0; i < universe.JumpRoute.Count - 1; i++)
+        {
+            if (positions.TryGetValue(universe.JumpRoute[i], out var fromPos) &&
+                positions.TryGetValue(universe.JumpRoute[i + 1], out var toPos))
+            {
+                DrawLine(fromPos, toPos, routeColor, 3f);
+            }
+        }
+    }
+
     private void DrawNodes(Universe universe,
                            Dictionary<string, Vector2> positions,
                            string hoveredId,
@@ -203,6 +230,13 @@ public class GalaxyMapRenderer
         string selectedId = universe.SelectedJumpTargetSystemId;
         var    connections = universe.ActiveStarSystem.Node.SystemConnectionIds;
 
+        // Get the last system in the route to determine which systems are reachable next
+        string lastRouteSystem = universe.JumpRoute.Count > 0 
+            ? universe.JumpRoute[^1] 
+            : currentId;
+        var lastNode = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == lastRouteSystem);
+        var nextReachable = lastNode?.SystemConnectionIds ?? new HashSet<string>();
+
         foreach (var node in universe.StarSystemNodes)
         {
             if (!positions.TryGetValue(node.SystemId, out var pos)) continue;
@@ -210,7 +244,9 @@ public class GalaxyMapRenderer
             bool isCurrent  = node.SystemId == currentId;
             bool isSelected = node.SystemId == selectedId;
             bool isHovered  = node.SystemId == hoveredId;
-            bool isReachable = connections.Contains(node.SystemId);
+            bool isInRoute = universe.JumpRoute.Contains(node.SystemId);
+            bool isReachable = connections.Contains(node.SystemId) || 
+                             (isInRoute ? false : nextReachable.Contains(node.SystemId));
 
             // Rings (drawn before the filled dot)
             if (isCurrent)
@@ -259,31 +295,45 @@ public class GalaxyMapRenderer
 
     private void DrawJumpTargetHint(Universe universe, int screenW, int screenH)
     {
-        const string label = "JUMP TARGET";
-        string target = universe.SelectedJumpTargetSystemId;
-
-        // Resolve name
-        string targetName = "None";
-        if (target != null)
+        if (universe.JumpRoute.Count == 0)
         {
-            var node = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == target);
-            if (node != null && !node.Discovered) targetName = "Undiscovered";
-            else if (node != null) targetName = node.Name;
+            // No route selected
+            string line1 = "JUMP TARGET";
+            string line2 = "None";
+
+            Vector2 sz1 = _font.MeasureString(line1);
+            Vector2 sz2 = _font.MeasureString(line2);
+            float totalH = sz1.Y + 4 + sz2.Y;
+            float y = screenH - PanelPadding - totalH - 12;
+            float x = _panelX + 16;
+
+            _sb.DrawString(_font, line1, new Vector2(x, y), new Color(100, 130, 160));
+            _sb.DrawString(_font, line2, new Vector2(x, y + sz1.Y + 4), new Color(80, 90, 100));
         }
+        else
+        {
+            // Show route information
+            string line1 = $"JUMP ROUTE ({universe.JumpRoute.Count} systems)";
 
-        string line1 = label;
-        string line2 = targetName;
+            // Show first system name
+            var firstNode = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == universe.JumpRoute[0]);
+            string firstName = "Unknown";
+            if (firstNode != null)
+            {
+                firstName = firstNode.Discovered ? firstNode.Name : "Undiscovered";
+            }
 
-        Vector2 sz1 = _font.MeasureString(line1);
-        Vector2 sz2 = _font.MeasureString(line2);
+            string line2 = $"Next: {firstName}";
 
-        float totalH = sz1.Y + 4 + sz2.Y;
-        float y = screenH - PanelPadding - totalH - 12;
-        float x = _panelX + 16;
+            Vector2 sz1 = _font.MeasureString(line1);
+            Vector2 sz2 = _font.MeasureString(line2);
+            float totalH = sz1.Y + 4 + sz2.Y;
+            float y = screenH - PanelPadding - totalH - 12;
+            float x = _panelX + 16;
 
-        _sb.DrawString(_font, line1, new Vector2(x, y),     new Color(100, 130, 160));
-        _sb.DrawString(_font, line2, new Vector2(x, y + sz1.Y + 4),
-            target != null ? SelectedColor : new Color(80, 90, 100));
+            _sb.DrawString(_font, line1, new Vector2(x, y), new Color(100, 130, 160));
+            _sb.DrawString(_font, line2, new Vector2(x, y + sz1.Y + 4), SelectedColor);
+        }
     }
 
     private void DrawCloseButton(int screenW, int screenH)
@@ -327,6 +377,24 @@ public class GalaxyMapRenderer
             if (e2 >= dy) { err += dy; x0 += sx; }
             if (e2 <= dx) { err += dx; y0 += sy; }
         }
+    }
+
+    private void DrawLine(Vector2 a, Vector2 b, Color color, float thickness)
+    {
+        Vector2 edge = b - a;
+        float length = edge.Length();
+        if (length < 0.1f) return;
+
+        float angle = MathF.Atan2(edge.Y, edge.X);
+
+        _sb.Draw(_pixel,
+            new Rectangle((int)a.X, (int)a.Y, (int)length, (int)thickness),
+            null,
+            color,
+            angle,
+            new Vector2(0, 0.5f),
+            Microsoft.Xna.Framework.Graphics.SpriteEffects.None,
+            0);
     }
 
     /// <summary>Filled square standing in for a circle node.</summary>

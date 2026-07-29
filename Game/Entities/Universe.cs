@@ -59,11 +59,28 @@ public class Universe
     public List<Nebula> NebulaPool { get; } = new();
 
     /// <summary>
-    /// The system the player has selected on the Galaxy Map as the next jump destination.
-    /// Null when no destination is selected or after a successful jump.
+    /// The route the player has selected on the Galaxy Map as a sequence of jump destinations.
+    /// Empty when no route is selected. After each jump, the first system is removed from the list.
     /// </summary>
     [JsonIgnore]
-    public string SelectedJumpTargetSystemId { get; set; } = null;
+    public List<string> JumpRoute { get; set; } = new();
+
+    /// <summary>
+    /// The system the player has selected on the Galaxy Map as the next jump destination.
+    /// Null when no destination is selected or after a successful jump.
+    /// Convenience property that returns the first system in JumpRoute, or null if empty.
+    /// </summary>
+    [JsonIgnore]
+    public string SelectedJumpTargetSystemId
+    {
+        get => JumpRoute.Count > 0 ? JumpRoute[0] : null;
+        set
+        {
+            JumpRoute.Clear();
+            if (value != null)
+                JumpRoute.Add(value);
+        }
+    }
 
     public Universe() { }
     public Universe(string name, string seed = null)
@@ -119,10 +136,17 @@ public class Universe
         if (connections == null || connections.Count == 0) return;
 
         // Lock in target (same resolution logic as JumpToSystem)
-        if (string.IsNullOrEmpty(SelectedJumpTargetSystemId) || !connections.Contains(SelectedJumpTargetSystemId))
-            SelectedJumpTargetSystemId = connections.ToList()[new Random().Next(connections.Count)];
+        string targetId;
+        if (JumpRoute.Count > 0 && connections.Contains(JumpRoute[0]))
+        {
+            targetId = JumpRoute[0];
+        }
+        else
+        {
+            return;
+        }
 
-        StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == SelectedJumpTargetSystemId);
+        StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
         if (targetNode == null) return;
 
         var   dir      = targetNode.GalaxyPosition - ActiveStarSystem.Node.GalaxyPosition;
@@ -133,9 +157,9 @@ public class Universe
     }
 
     /// <summary>
-    /// Jumps the player to the selected jump target (SelectedJumpTargetSystemId).
-    /// Falls back to a random connected system when no target is selected.
-    /// Clears the selected target after a successful jump.
+    /// Jumps the player to the next system in the route (JumpRoute[0]).
+    /// Falls back to a random connected system when no route is selected.
+    /// Removes the first system from the route after a successful jump.
     /// Positions the player at the system edge and initiates the arrival sequence.
     /// </summary>
     /// <param name="originSystemId">The system ID the player is jumping from, used to calculate arrival direction.</param>
@@ -144,10 +168,9 @@ public class Universe
         var connections = ActiveStarSystem.Node.SystemConnectionIds;
         if (connections == null || connections.Count == 0) return;
 
-        // Prefer the player-selected destination; fall back to random.
-        string targetId = (!string.IsNullOrEmpty(SelectedJumpTargetSystemId) &&
-                           connections.Contains(SelectedJumpTargetSystemId))
-            ? SelectedJumpTargetSystemId
+        // Prefer the first system in the route; fall back to random.
+        string targetId = (JumpRoute.Count > 0 && connections.Contains(JumpRoute[0]))
+            ? JumpRoute[0]
             : connections.ToList()[new Random().Next(connections.Count)];
 
         StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
@@ -157,7 +180,10 @@ public class Universe
         StarSystemNode originNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == originSystemId);
 
         Player.CurrentStarSystemID = targetId;
-        SelectedJumpTargetSystemId = null;  // clear after jump
+
+        // Remove the first system from the route after successful jump
+        if (JumpRoute.Count > 0 && JumpRoute[0] == targetId)
+            JumpRoute.RemoveAt(0);
         Generate();
 
         // Calculate arrival direction (from origin to destination)
