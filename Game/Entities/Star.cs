@@ -10,7 +10,7 @@ public class Star
     public string    Id { get; }
     public Transform Transform    { get; } = new();
     public float     Radius       { get; set; }
-    public string    Name         { get; set; } = "Sol";
+    public string    Name         { get; set; }
     public float     OrbitRadius  { get; set; }
     public float     OrbitAngle   { get; set; }
     public float     OrbitSpeed   { get; set; }

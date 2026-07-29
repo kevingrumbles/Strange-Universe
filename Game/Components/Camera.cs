@@ -21,17 +21,9 @@ public class Camera
         ScreenCenter = new Vector2(screenWidth * 0.5f, screenHeight * 0.5f);
     }
 
-    public void Update(Vector2 target, float deltaTime, InputState input, bool snapToTarget = false)
+    public void Update(Vector2 target, float deltaTime, InputState input)
     {
-        // Hard-follow when requested (e.g. during the jump burn) so the camera
-        // never lags behind the exponentially accelerating ship.
-        if (snapToTarget)
-            Position = target;
-        else
-        {
-            float t = 1f - (float)System.Math.Exp(-_settings.SmoothSpeed * deltaTime);
-            Position = Vector2.Lerp(Position, target, t);
-        }
+        Position = target;
 
         // Zoom
         if (input.ZoomIn)

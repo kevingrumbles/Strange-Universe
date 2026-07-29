@@ -99,7 +99,7 @@ public class SpriteRenderer
 
     public void DrawPlayer(Player player) =>
         DrawEntity(player.ShipName, player.Transform.Position,
-                   player.Transform.Rotation + player.SpriteRotationOffset,
+                   player.Transform.Rotation + player.Ship.SpriteRotationOffset,
                    player.Radius * 2.2f);
 
     /// <summary>

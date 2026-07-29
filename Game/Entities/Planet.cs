@@ -17,9 +17,6 @@ public class Planet
     public GravityWell GravityWell { get; private set; }
 
     private const int Size = 256;
-    private static readonly Color[] TerranLow = { new(30, 80, 160), new(25, 75, 155) }; // ocean
-    private static readonly Color[] TerranMid = { new(60, 130, 50), new(80, 110, 40) }; // land
-    private static readonly Color[] TerranHigh = { new(110, 90, 60), new(140, 120, 80) }; // peaks
     public Planet(string planetId, float minPlanetRadius, float maxPlanetRadius, float minOrbit, float maxOrbit, int planetNumber, int totalPlanets)
     {
         Id = planetId;

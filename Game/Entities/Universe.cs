@@ -1,5 +1,6 @@
 using Strange_Universe.Game.Components;
 using StrangeUniverse;
+using StrangeUniverse.Game.Components;
 using StrangeUniverse.Game.Entities;
 using System;
 using System.Collections.Generic;
@@ -92,8 +93,7 @@ public class Universe
 
     public void Generate()
     {
-        ClearRuntime();
-        Player.Generate();
+        _activeStarSystem = null;
         for (int i = NebulaPool.Count; i < NebulaPoolSize; i++)
         {
             string id = $"nebula_pool_{i}";
@@ -101,11 +101,7 @@ public class Universe
             Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
             NebulaPool.Add(nebula);
         }
-    }
-
-    public void ClearRuntime()
-    {
-        _activeStarSystem = null;
+        Player.Generate();
     }
 
     /// <summary>
@@ -116,7 +112,8 @@ public class Universe
     /// </summary>
     public void BeginJump()
     {
-        if (Player.IsJumping) return;
+        if (Player.JumpPhase != JumpPhase.Normal) return;
+        if (ActiveStarSystem.CalculateGravityAtLocation(Player.Transform.Position) != Vector2.Zero) return;
 
         var connections = ActiveStarSystem.Node.SystemConnectionIds;
         if (connections == null || connections.Count == 0) return;
@@ -197,16 +194,5 @@ public class Universe
 
         // Begin arrival sequence
         Player.BeginArrival(entryPosition, entryDirection, ActiveStarSystem.MandevilleRadius);
-    }
-
-    public string GetStarSystemName()
-    {
-        Random universeRng = new Random(StaticHelpers.SeedHash(Seed));
-        string name = "Sol";
-        while (name is null || StarSystemNodes.Contains(StarSystemNodes.Find(s => s.Name == name)))
-        {
-            name = StaticHelpers.GenerateCelestialName(StaticHelpers.CelestialNameType.System, random: universeRng);
-        }
-        return name;
     }
 }

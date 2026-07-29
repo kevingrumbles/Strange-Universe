@@ -12,7 +12,7 @@ public class GravityWell
     /// <summary>
     /// Fraction of player thrust force used as maximum gravity force.
     /// </summary>
-    public const float GravityThrustRatio = 0.95f; 
+    public const float GravityThrustRatio = 1.7f; 
 
     /// <summary>
     /// Center position of the gravity well in world space.
@@ -46,15 +46,6 @@ public class GravityWell
         Center = center;
         Radius = radius;
         Strength = strength;
-    }
-
-    /// <summary>
-    /// Checks if a given position is within the gravity well's area of influence.
-    /// </summary>
-    public bool Contains(Vector2 position)
-    {
-        float distanceSquared = Vector2.DistanceSquared(Center, position);
-        return distanceSquared <= Radius * Radius;
     }
 
     /// <summary>

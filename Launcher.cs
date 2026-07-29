@@ -14,7 +14,7 @@ namespace StrangeUniverse
     public class Launcher : Microsoft.Xna.Framework.Game
     {
         public static Universe ActiveUniverse = null;
-        public bool debug = true;
+        public bool debug = false;
 
         // ── Core ──────────────────────────────────────────────────────────────
         public static GraphicsDevice GD;
@@ -37,16 +37,10 @@ namespace StrangeUniverse
 
         // ── Gameplay ──────────────────────────────────────────────────────────
         private InputHandler _inputHandler = null!;
-        private Camera _camera = null!;
+        public static Camera Camera { get; private set; } = null!;
         public static ProceduralTextureCache TextureCache = null!;
         private SpriteRenderer _renderer = null!;
         private GalaxyMapOverlay _galaxyMap = null!;
-        private Universe _activeUniverse
-        {
-            get { return ActiveUniverse; }
-            set { ActiveUniverse = value; }
-        }
-        private CameraSettings _cameraSettings = null!;
         private List<Universe> _universes = null!;
         private static string _universeFilePath = "Data/universe-settings.json";
 
@@ -85,14 +79,14 @@ namespace StrangeUniverse
 
         protected override void LoadContent()
         {
-            GD = GraphicsDevice;
+            GD = _graphics.GraphicsDevice;
             _inputHandler = new InputHandler();
             TextureCache = new ProceduralTextureCache();
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
+            _spriteBatch = new SpriteBatch(GD);
+            _renderer = new SpriteRenderer(_spriteBatch, GD, TextureCache);
             _font = Content.Load<SpriteFont>("Fonts/DefaultFont");
-            _cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
-            _camera = new Camera(_cameraSettings, _screenWidth, _screenHeight);
+            CameraSettings cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
+            Camera = new Camera(cameraSettings, _screenWidth, _screenHeight);
             ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json");
             _universes = StaticHelpers.LoadExisting(_universeFilePath);
 
@@ -165,7 +159,6 @@ namespace StrangeUniverse
             _newUniverseName = string.Empty;
             _cursorBlink = 0;
             _state = GameState.Naming;
-            IsMouseVisible = true;
             return;
         }
 
@@ -195,9 +188,8 @@ namespace StrangeUniverse
         {
             ClearRuntime();
 
-            _activeUniverse = universe;
-            _activeUniverse.Generate();
-            _camera.Update(_activeUniverse.Player.Transform.Position, 1f, new InputState());
+            ActiveUniverse = universe;
+            ActiveUniverse.Generate();
 
             IsMouseVisible = false;
             _state = GameState.Playing;
@@ -205,14 +197,13 @@ namespace StrangeUniverse
 
         private void ClearRuntime()
         {
-            _activeUniverse?.ClearRuntime();
             TextureCache = new ProceduralTextureCache();
             _inputHandler = new InputHandler();
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
             _galaxyMap?.Dispose();
             _galaxyMap = new GalaxyMapOverlay(_spriteBatch, GraphicsDevice, _font);
-            _activeUniverse = null!;
+            ActiveUniverse = null!;
         }
         private void UpdatePlaying(GameTime gameTime)
         {
@@ -221,7 +212,7 @@ namespace StrangeUniverse
             // Galaxy map intercepts all input while open
             if (_galaxyMap.IsOpen)
             {
-                bool closed = _galaxyMap.Update(_activeUniverse, _screenWidth, _screenHeight,
+                bool closed = _galaxyMap.Update(ActiveUniverse, _screenWidth, _screenHeight,
                                                 gameTime.ElapsedGameTime.TotalSeconds);
                 if (closed) IsMouseVisible = false;
                 _prevKeys = keys;
@@ -230,8 +221,8 @@ namespace StrangeUniverse
 
             if (WasPressed(keys, Keys.Escape))
             {
-                if (_activeUniverse != null)
-                    StaticHelpers.Persist(_activeUniverse, _universeFilePath);
+                if (ActiveUniverse != null)
+                    StaticHelpers.Persist(ActiveUniverse, _universeFilePath);
                 ClearRuntime();
 
                 _state = GameState.Menu;
@@ -247,15 +238,13 @@ namespace StrangeUniverse
                 return;
             }
 
-            if (WasPressed(keys, Keys.J) && !_activeUniverse.Player.IsJumping)
-                _activeUniverse.BeginJump();
+            if (WasPressed(keys, Keys.J))
+                ActiveUniverse.BeginJump();
 
             float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
             var input = _inputHandler.GetState();
 
-            _activeUniverse.Update(deltaTime, input);
-            _camera.Update(_activeUniverse.Player.Transform.Position, deltaTime, input,
-                           snapToTarget: true);
+            ActiveUniverse.Update(deltaTime, input);
 
             _prevKeys = keys;
         }
@@ -406,29 +395,29 @@ namespace StrangeUniverse
         private void DrawPlaying()
         {
             GraphicsDevice.Clear(new Color(4, 4, 12));
-            DrawUniverseLayers(_activeUniverse.ActiveStarSystem);
+            DrawUniverseLayers(ActiveUniverse.ActiveStarSystem);
             DrawHud();
 
             if (_galaxyMap.IsOpen)
-                _galaxyMap.Draw(_activeUniverse, _screenWidth, _screenHeight);
+                _galaxyMap.Draw(ActiveUniverse, _screenWidth, _screenHeight);
         }
         private void DrawUniverseLayers(StarSystem sys)
         {
-            var cameraMatrix = _camera.GetTransformMatrix();
+            var cameraMatrix = Camera.GetTransformMatrix();
             _spriteBatch.Begin(sortMode: SpriteSortMode.Deferred,
                                blendState: BlendState.AlphaBlend,
                                samplerState: SamplerState.LinearClamp,
                                transformMatrix: cameraMatrix);
             //Draw Layer 0
             _renderer.DrawBackgroundStars(
-                sys.BackgroundStars, _screenWidth, _screenHeight, _camera.Position, layer: 0);
+                sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, layer: 0);
 
             //Draw Layer 1
             _renderer.DrawNebula(sys.NebulaId, sys.NebulaCropRect, sys.NebulaEffects, sys.SystemRadius * 2.4f);
 
             //Draw Layer 2
             _renderer.DrawBackgroundStars(
-                sys.BackgroundStars, _screenWidth, _screenHeight, _camera.Position, layer: 1);
+                sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, layer: 1);
 
             //Draw Layer 3
             foreach (var star in sys.Stars)
@@ -443,7 +432,7 @@ namespace StrangeUniverse
                 _renderer.DrawAsteroid(asteroid);
 
             //Draw Layer 6
-            _renderer.DrawPlayer(_activeUniverse.Player);
+            _renderer.DrawPlayer(ActiveUniverse.Player);
 
             // Debug: Draw gravity well indicators
             if (debug)
@@ -475,8 +464,8 @@ namespace StrangeUniverse
             //Draw HUD
             // ── HUD pass (no transform) ────────────────────────────────────────
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawHud(_activeUniverse.Player, _screenWidth, _screenHeight, _activeUniverse.Player.Ship.MaxSpeed);
-            _renderer.DrawMinimap(_activeUniverse, _screenWidth, _screenHeight);
+            _renderer.DrawHud(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.Ship.MaxSpeed);
+            _renderer.DrawMinimap(ActiveUniverse, _screenWidth, _screenHeight);
             _spriteBatch.End();
         }
 

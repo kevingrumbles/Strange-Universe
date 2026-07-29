@@ -14,12 +14,11 @@ public class Player
     public string Name     { get; set; } = "Player";
     public string ShipName { get; set; } = "Shuttle";
     public string CurrentStarSystemID { get; set; }
+    [JsonIgnore] private Camera _camera = Launcher.Camera;
     [JsonIgnore] public ShipStats Ship  { get; set; } = new();
     public Transform   Transform           { get; set; } = new();
     [JsonIgnore] public PhysicsBody Physics             { get; }
-    [JsonIgnore] public string      TextureId           { get; set; } = string.Empty;
     [JsonIgnore] public float       Radius              { get; set; }
-    [JsonIgnore] public float       SpriteRotationOffset => Ship.SpriteRotationOffset;
 
     // ── Jump sequence ──────────────────────────────────────────────────────────────────
     [JsonIgnore] public JumpPhase JumpPhase            
@@ -31,11 +30,6 @@ public class Player
 
     private float _jumpAngle;
     private float _jumpAccelTime;   // seconds elapsed since the burn started; drives exponential growth
-
-    private const float JumpAccelMultiplier = 8f;   // multiplier on ThrustForce during the jump burn
-    //private const float StopSpeedThreshold  = 10f;  // world units/s LengthSquared — treated as "stopped"
-    private const float BrakeAlignThreshold = 0.3f; // radians — begin braking once within this of retrograde
-    private const float JumpAlignThreshold  = 0.04f;// radians — snap to jump heading once within this
 
     // ── Arrival sequence ─────────────────────────────────────────────────────────
     //private Vector2 _arrivalStartPosition;
@@ -76,6 +70,7 @@ public class Player
         }
 
         Physics.Integrate(Transform, deltaTime);
+        _camera.Update(Transform.Position, deltaTime, input);
     }
 
     /// <summary>
@@ -83,9 +78,6 @@ public class Player
     /// </summary>
     public void BeginJump(float jumpAngle)
     {
-        // Prevent jumping during arrival sequence
-        if (JumpPhase != JumpPhase.Normal) return;
-
         _jumpAngle = jumpAngle;
         JumpPhase = JumpPhase.Decelerate;
     }
@@ -124,7 +116,7 @@ public class Player
                     RotateTowards(retroAngle, deltaTime);
 
                     // Start braking once reasonably aligned with retrograde
-                    if (Math.Abs(StaticHelpers.WrapAngle(retroAngle - Transform.Rotation)) <= BrakeAlignThreshold)
+                    if (Math.Abs(StaticHelpers.WrapAngle(retroAngle - Transform.Rotation)) <= 0.3f)
                         Physics.ApplyForce(Transform.Forward * Ship.ThrustForce, deltaTime);
                     break;
                 }
@@ -132,7 +124,7 @@ public class Player
             // ── Phase 2: rotate to face destination ───────────────────────────
             case JumpPhase.Align:
                 {
-                    if (RotateTowards(_jumpAngle, deltaTime, JumpAlignThreshold))
+                    if (RotateTowards(_jumpAngle, deltaTime, 0.04f))
                     {
                         Transform.Rotation = _jumpAngle;
                         _jumpAccelTime = 0f;
@@ -146,7 +138,7 @@ public class Player
                 {
                     _jumpAccelTime += deltaTime;
                     // Force doubles roughly every 0.5 s (e^(1.4*0.5) ≈ 2)
-                    float force = Ship.ThrustForce * JumpAccelMultiplier * (float)Math.Exp(1.4f * _jumpAccelTime);
+                    float force = Ship.ThrustForce * 8f * (float)Math.Exp(1.4f * _jumpAccelTime);
                     Physics.ApplyForce(Transform.Forward * force, deltaTime);
 
                     // Phase continues until Universe detects we've left the system and calls JumpToSystem

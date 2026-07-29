@@ -250,6 +250,21 @@ namespace StrangeUniverse
             Planet
         }
 
+        public static string GetStarSystemName(string seed, OriginFaction faction = OriginFaction.Human)
+        {
+            Random universeRng = new Random(StaticHelpers.SeedHash(seed));
+            string name = "Sol";
+            var nodes = Launcher.ActiveUniverse?.StarSystemNodes;   
+            if (nodes?.Count > 0)
+            {
+                while (name is null || nodes.Contains(nodes.Find(s => s.Name == name)))
+                {
+                    name = StaticHelpers.GenerateCelestialName(StaticHelpers.CelestialNameType.System, faction, universeRng);
+                }
+            }
+            return name;
+        }
+
         public static string GenerateCelestialName(CelestialNameType type, OriginFaction faction = OriginFaction.Human, Random random = null)
         {
             random ??= Random.Shared;

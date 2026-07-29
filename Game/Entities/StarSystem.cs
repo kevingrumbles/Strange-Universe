@@ -31,8 +31,8 @@ public class StarSystemNode
     public StarSystemNode() { }
     public StarSystemNode(Vector2 position, StarSystemNode backConnection = null)
     {
-        Name = Universe.GetStarSystemName();
-        SystemId = $"{Universe.Seed}_{Guid.NewGuid().ToString()}";
+        Name = StaticHelpers.GetStarSystemName(Universe.Seed);
+        SystemId = $"{Universe.Seed}_{Name}";
         GalaxyPosition = position;
 
         if (backConnection != null)
@@ -165,7 +165,7 @@ public class StarSystem
         _physics.Update(Asteroids, deltaTime);
 
         // Skip collision while jumping — the ship passes through all objects
-        if (!ActivePlayer.IsJumping)
+        if (ActivePlayer.JumpPhase == JumpPhase.Normal)
             _collision.Resolve(ActivePlayer, Planets, Asteroids);
     }
 
