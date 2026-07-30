@@ -167,6 +167,45 @@ namespace StrangeUniverse
         new[] { 5, 0, 6 }}; // Purple   + Crimson + Cyan
 
         /// <summary>
+        /// Remaps UV coordinates to a periodic domain using sine/cosine so noise functions
+        /// wrap seamlessly at u=0/1 and v=0/1 boundaries. Returns (x, y) in noise space.
+        /// </summary>
+        private static (float x, float y) MakePeriodicUV(float u, float v)
+        {
+            // Map [0,1] to angle [0, 2π], then to circle coordinates
+            // This creates a seamless wrap because the circle has no edges
+            float angleU = u * MathHelper.TwoPi;
+            float angleV = v * MathHelper.TwoPi;
+
+            // Project to 2D using two circles offset in 4D space
+            // This avoids the singularity at the poles of a single circle
+            float x = (float)Math.Cos(angleU) + (float)Math.Cos(angleV);
+            float y = (float)Math.Sin(angleU) + (float)Math.Sin(angleV);
+
+            return (x, y);
+        }
+
+        /// <summary>
+        /// Tileable version of FBm that wraps seamlessly at u=0/1 and v=0/1.
+        /// </summary>
+        private static float TileableFbm(float u, float v, int seed,
+                                          int octaves = 5, float persistence = 0.5f, float lacunarity = 2f)
+        {
+            var (x, y) = MakePeriodicUV(u, v);
+            return ProceduralHelpers.Fbm(x, y, seed, octaves, persistence, lacunarity);
+        }
+
+        /// <summary>
+        /// Tileable version of RidgedFbm that wraps seamlessly at u=0/1 and v=0/1.
+        /// </summary>
+        private static float TileableRidgedFbm(float u, float v, int seed,
+                                                int octaves = 4, float persistence = 0.5f, float lacunarity = 2f)
+        {
+            var (x, y) = MakePeriodicUV(u, v);
+            return ProceduralHelpers.RidgedFbm(x, y, seed, octaves, persistence, lacunarity);
+        }
+
+        /// <summary>
         /// Computes one cloud layer's density at (u, v) using a domain-warped FBm
         /// mixed with ridged noise.  Returns [0, 1]: 0 = dark void, 1 = dense core.
         /// Each unique <paramref name="seed"/> produces an entirely different shape.
@@ -196,6 +235,39 @@ namespace StrangeUniverse
             float remapped = Math.Max(0f, total - Threshold) / (1f - Threshold);
 
             // Power curve: widens the contrast gap between thin wisps and dense cores
+            return (float)Math.Pow(remapped, 1.6f);
+        }
+
+        /// <summary>
+        /// Tileable version of NebulaLayerDensity that wraps seamlessly at u=0/1 and v=0/1.
+        /// Used for infinite scrolling nebula backgrounds.
+        /// </summary>
+        public static float TileableNebulaLayerDensity(float u, float v, int seed)
+        {
+            // Domain warp using tileable FBm
+            float q0 = TileableFbm(u, v, seed, 3, 0.50f, 2.0f);
+            float q1 = TileableFbm(u, v, seed + 1000, 3, 0.50f, 2.0f);
+
+            // Wrap the warped coordinates to stay in [0,1]
+            float wu = (u + q0 * 0.44f);
+            float wv = (v + q1 * 0.44f);
+            wu = wu - (float)Math.Floor(wu); // Wrap to [0,1]
+            wv = wv - (float)Math.Floor(wv);
+
+            // Primary cloud mass using tileable FBm
+            float densBase = ProceduralHelpers.Remap01(
+                TileableFbm(wu, wv, seed + 2000, 4, 0.50f, 2.05f));
+
+            // Ridged layer using tileable ridged FBm
+            float densRidged = TileableRidgedFbm(wu, wv, seed + 4000, 3);
+
+            float total = densBase * 0.65f + densRidged * 0.35f;
+
+            // Threshold removes thin uniform haze
+            const float Threshold = 0.41f;
+            float remapped = Math.Max(0f, total - Threshold) / (1f - Threshold);
+
+            // Power curve for contrast
             return (float)Math.Pow(remapped, 1.6f);
         }
 

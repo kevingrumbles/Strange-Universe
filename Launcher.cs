@@ -413,7 +413,7 @@ namespace StrangeUniverse
                 sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, layer: 0);
 
             //Draw Layer 1
-            _renderer.DrawNebula(sys.NebulaId, sys.NebulaCropRect, sys.NebulaEffects, sys.SystemRadius * 2.4f);
+            _renderer.DrawNebula(sys.NebulaId, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, debug);
 
             //Draw Layer 2
             _renderer.DrawBackgroundStars(

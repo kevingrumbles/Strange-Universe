@@ -6,21 +6,28 @@ using System.Threading.Tasks;
 namespace StrangeUniverse.Game.Entities;
 
 /// <summary>
-/// Generates a world-space nebula texture from three independently domain-warped
+/// Generates a seamless tileable nebula texture from three independently domain-warped
 /// color layers that blend additively.  Where two layers overlap their hues mix
 /// like colored light (red+blue=purple, blue+green=cyan, orange+blue=white, etc.),
 /// producing genuine color variety across the cloud.
-/// Generated once at startup and rendered as a single world-space quad.
+/// Generated once at startup and used for infinite scrolling background.
 /// </summary>
 public class Nebula
 {
     public string Id { get; }
     public Texture2D Texture { get; private set; }
-    public const int Size = 1024;
+
+    // Configuration constants
+    public const int Size = 4096;              // Large texture for varied scrolling
+    public const float BaseOpacity = 0.70f;    // Base alpha multiplier
+    public const float EdgeFadeWidth = 0.08f;  // Fade width at tile edges (0.08 = 8% on each side)
+    public const float ParallaxFactor = 0.05f; // Parallax scroll rate (slower than stars)
 
     // Large prime stride so each layer's seed range is well separated,
     // producing completely uncorrelated warp and density fields per layer.
     private const int LayerStride = 7919;
+    public float Density = 1.0f;         // Overall density multiplier (higher = more visible nebula)
+    public float Brightness = 0.80f;      // Color brightness multiplier
 
     public Nebula(string id)
     {
@@ -32,6 +39,8 @@ public class Nebula
         int    baseSeed = StaticHelpers.SeedHash(Id);
         var rng    = new Random(baseSeed);
         var pixels = new Color[Size * Size];
+        Density = rng.NextWeightedFloat(.80f, 3.0f);
+        Brightness = rng.NextWeightedFloat(0.40f, 1.0f);
 
         // Pick 3 strongly-contrasting hues for this nebula
         int[]  triplet = StaticHelpers.NebulaTriplets[rng.Next(StaticHelpers.NebulaTriplets.Length)];
@@ -47,38 +56,37 @@ public class Nebula
         // Each row is independent — safe to parallelise across all CPU cores.
         Parallel.For(0, Size, py =>
         {
-            float v = py / (float)(Size - 1);   // [0, 1]
+            float v = py / (float)Size;   // [0, 1] - wraps at edges
 
             for (int px = 0; px < Size; px++)
             {
-                float u = px / (float)(Size - 1);   // [0, 1]
+                float u = px / (float)Size;   // [0, 1] - wraps at edges
 
-                // ── Radial edge fade ─────────────────────────────────────────
-                // Fades the nebula to transparent near the texture border so
-                // there are never hard rectangular edges visible in the world.
-                float cx   = u - 0.5f;
-                float cy   = v - 0.5f;
-                float dist = (float)Math.Sqrt(cx * cx + cy * cy) / 0.5f;
-                float edge = Math.Max(0f, 1f - (float)Math.Pow(dist * 0.88f, 3.5f));
-                if (edge < 0.01f) continue;
+                // Calculate edge fade - fade to transparent near texture borders
+                // This creates a smooth blend between tiles, hiding seams
+                float edgeFadeU = CalculateEdgeFade(u);
+                float edgeFadeV = CalculateEdgeFade(v);
+                float edgeFade = edgeFadeU * edgeFadeV;
 
-                // ── Three independent cloud layers ───────────────────────────
-                // Each layer is domain-warped with its own seed so its swirl
-                // pattern is unique.  Their RGB contributions accumulate
-                // additively — exactly like mixing coloured gas emission.
-                // Distinct regions glow their own hue; overlaps produce mixed
-                // secondary colours (crimson+blue=purple, blue+cyan=teal, etc.)
-                float d0 = StaticHelpers.NebulaLayerDensity(u, v, baseSeed + LayerStride * 0) * edge;
-                float d1 = StaticHelpers.NebulaLayerDensity(u, v, baseSeed + LayerStride * 1) * edge;
-                float d2 = StaticHelpers.NebulaLayerDensity(u, v, baseSeed + LayerStride * 2) * edge;
+                // Three independent tileable cloud layers
+                // Each layer uses tileable noise so the texture wraps seamlessly
+                float d0 = StaticHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 0) * Density;
+                float d1 = StaticHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 1) * Density;
+                float d2 = StaticHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 2) * Density;
 
                 float maxDens = Math.Max(d0, Math.Max(d1, d2));
                 if (maxDens < 0.01f) continue;
 
-                // Additive colour accumulation
-                float r = d0 * r0f + d1 * r1f + d2 * r2f;
-                float g = d0 * g0f + d1 * g1f + d2 * g2f;
-                float b = d0 * b0f + d1 * b1f + d2 * b2f;
+                // Apply edge fade to density
+                d0 *= edgeFade;
+                d1 *= edgeFade;
+                d2 *= edgeFade;
+                maxDens *= edgeFade;
+
+                // Additive colour accumulation with brightness multiplier
+                float r = (d0 * r0f + d1 * r1f + d2 * r2f) * Brightness;
+                float g = (d0 * g0f + d1 * g1f + d2 * g2f) * Brightness;
+                float b = (d0 * b0f + d1 * b1f + d2 * b2f) * Brightness;
 
                 // Luminance cap: prevents heavily-overlapping regions from
                 // washing out to near-white while preserving the hue direction.
@@ -91,8 +99,8 @@ public class Nebula
                     b *= inv;
                 }
 
-                // Max alpha ~180 so background stars bleed through visibly
-                byte alpha = (byte)(maxDens * 180f);
+                // Alpha based on density, using BaseOpacity constant
+                byte alpha = (byte)(maxDens * 255f * BaseOpacity);
 
                 pixels[py * Size + px] = new Color(
                     (byte)Math.Min(255, (int)(r * 255f)),
@@ -105,5 +113,21 @@ public class Nebula
         var tex = new Texture2D(Launcher.GD, Size, Size);
         tex.SetData(pixels);
         Texture = tex;
+    }
+
+    /// <summary>
+    /// Calculates a smooth fade from 1.0 at the center to 0.0 at the edges.
+    /// Uses smoothstep for a natural falloff that hides tile seams.
+    /// </summary>
+    private static float CalculateEdgeFade(float t)
+    {
+        // Distance from nearest edge (0.0 at edges, 0.5 at center)
+        float distFromEdge = Math.Min(t, 1.0f - t);
+
+        // Normalize to fade range using the configurable EdgeFadeWidth constant
+        float fade = Math.Clamp(distFromEdge / EdgeFadeWidth, 0f, 1f);
+
+        // Apply smoothstep for smooth transition
+        return fade * fade * (3f - 2f * fade);
     }
 }

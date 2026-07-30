@@ -30,23 +30,59 @@ public class SpriteRenderer
     // ── World-space pass (SpriteBatch already began with camera matrix) ──────
 
     /// <summary>
-    /// Draws the nebula as a single large rectangle in world space using a cropped
-    /// region of one of the universe's shared pool textures, with optional H/V flips
-    /// for visual variety between star systems.
+    /// Draws an infinite scrolling nebula background using a seamless tileable texture.
+    /// The nebula appears endless in all directions with parallax scrolling.
     /// </summary>
-    public void DrawNebula(string nebulaId, Rectangle sourceRect, SpriteEffects effects, float worldSize)
+    public void DrawNebula(string nebulaId, int screenWidth, int screenHeight, 
+                          Vector2 cameraPos, float cameraZoom, bool debugMode = false)
     {
         if (!_cache.TryGet(nebulaId, out var tex) || tex is null) return;
 
-        int half = (int)(worldSize * 0.5f);
-        _spriteBatch.Draw(tex,
-            new Rectangle(-half, -half, (int)worldSize, (int)worldSize),
-            sourceRect,
-            Color.White,
-            0f,
-            Vector2.Zero,
-            effects,
-            0f);
+        int textureSize = tex.Width; // Should be 4096 from Nebula.Size
+
+        // Apply parallax (slower movement than camera for depth)
+        const float parallax = StrangeUniverse.Game.Entities.Nebula.ParallaxFactor;
+        float parallaxOffsetX = cameraPos.X * parallax;
+        float parallaxOffsetY = cameraPos.Y * parallax;
+
+        // Calculate how large the texture should appear in screen space
+        float screenTextureSize = textureSize * 2.0f; // Each tile covers this many screen pixels
+
+        // Calculate which tiles we need to draw to cover the screen
+        int startTileX = (int)Math.Floor(parallaxOffsetX / screenTextureSize);
+        int endTileX = (int)Math.Ceiling((parallaxOffsetX + screenWidth) / screenTextureSize);
+        int startTileY = (int)Math.Floor(parallaxOffsetY / screenTextureSize);
+        int endTileY = (int)Math.Ceiling((parallaxOffsetY + screenHeight) / screenTextureSize);
+
+        // Draw tiles to cover the screen
+        for (int tileX = startTileX; tileX <= endTileX; tileX++)
+        {
+            for (int tileY = startTileY; tileY <= endTileY; tileY++)
+            {
+                // Calculate screen-space position for this tile
+                float screenX = tileX * screenTextureSize - parallaxOffsetX;
+                float screenY = tileY * screenTextureSize - parallaxOffsetY;
+
+                // Convert screen position to world position for camera transform
+                // The camera transform will be applied by SpriteBatch, so we need to
+                // "undo" it by calculating where in world space this screen pixel maps to
+                float worldX = cameraPos.X - (screenWidth / 2f / cameraZoom) + (screenX / cameraZoom);
+                float worldY = cameraPos.Y - (screenHeight / 2f / cameraZoom) + (screenY / cameraZoom);
+
+                // World size for this tile (compensate for zoom)
+                float worldTileSize = screenTextureSize / cameraZoom;
+
+                _spriteBatch.Draw(tex,
+                    new Rectangle((int)worldX, (int)worldY, 
+                                 (int)worldTileSize, (int)worldTileSize),
+                    null, // Use entire texture
+                    Color.White,
+                    0f,
+                    Vector2.Zero,
+                    SpriteEffects.None,
+                    0f);
+            }
+        }
     }
 
     public void DrawBackgroundStars(IReadOnlyList<BackgroundStar> stars,

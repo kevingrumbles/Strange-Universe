@@ -75,8 +75,6 @@ public class StarSystem
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
     [JsonIgnore] public Player ActivePlayer { get { return Launcher.ActiveUniverse.Player;  }  }
     [JsonIgnore] public string        NebulaId        { get; private set; }
-    [JsonIgnore] public Rectangle     NebulaCropRect  { get; private set; }
-    [JsonIgnore] public SpriteEffects NebulaEffects   { get; private set; }
 
     private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();
@@ -404,20 +402,13 @@ public class StarSystem
     {
         Random nebulaRandom = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Nebula"));
 
+        // Select a nebula from the pool deterministically
         var pool = Node.Universe.NebulaPool;
         int poolIndex = nebulaRandom.Next(pool.Count);
         Nebula chosen = pool[poolIndex];
         NebulaId = chosen.Id;
 
-        // Pick a random 512x512 crop within the 1024x1024 texture
-        const int CropSize   = 512;
-        const int MaxOrigin  = Nebula.Size - CropSize;   // 512
-        int cropX = nebulaRandom.Next(0, MaxOrigin + 1);
-        int cropY = nebulaRandom.Next(0, MaxOrigin + 1);
-        NebulaCropRect = new Rectangle(cropX, cropY, CropSize, CropSize);
-
-        // SpriteEffects 0-3: None / FlipH / FlipV / FlipH|FlipV
-        NebulaEffects = (SpriteEffects)nebulaRandom.Next(4);
+        // No crop or effects needed - we use the full tileable texture
     }
 
     /// <summary>
