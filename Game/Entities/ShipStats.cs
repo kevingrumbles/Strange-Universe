@@ -22,6 +22,11 @@ public class ShipStats
     /// Use -1.5708 (≈ -π/2) if the sprite points upward; 0 if it already points right (+X).
     /// </summary>
     public float SpriteRotationOffset { get; set; }
+    /// <summary>
+    /// Scale multiplier applied to the sprite when rendering.
+    /// Default is 1.0. Values > 1.0 make the sprite larger, < 1.0 make it smaller.
+    /// </summary>
+    public float SpriteScale { get; set; } = 1.0f;
     public ShipStats GetShipStats(string name)
     {
         return Presets.Find(s => s.ShipName == name) ?? throw new KeyNotFoundException($"ShipStats preset '{name}' not found.");

@@ -58,6 +58,10 @@ namespace StrangeUniverse
                 PreferredBackBufferHeight = 720,
                 SynchronizeWithVerticalRetrace = true,
             };
+            _graphics.IsFullScreen = true;
+            _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+            _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+            _graphics.ApplyChanges();
             Content.RootDirectory = "Content";
             IsMouseVisible = true;
             IsFixedTimeStep = true;
@@ -67,8 +71,8 @@ namespace StrangeUniverse
 
         protected override void Initialize()
         {
-            _screenWidth = GraphicsDevice.Viewport.Width;
-            _screenHeight = GraphicsDevice.Viewport.Height;
+            _screenWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+            _screenHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
             base.Initialize();
         }
 

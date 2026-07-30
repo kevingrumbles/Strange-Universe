@@ -184,7 +184,7 @@ public class SpriteRenderer
     public void DrawPlayer(Player player) =>
         DrawEntity(player.ShipName, player.Transform.Position,
                    player.Transform.Rotation + player.Ship.SpriteRotationOffset,
-                   player.Radius * 2.2f);
+                   player.Radius * 2.2f * player.Ship.SpriteScale);
 
     /// <summary>
     /// Draws a circle outline (ring) for debug visualization.

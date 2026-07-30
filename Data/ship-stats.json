@@ -8,7 +8,8 @@
     "Radius": 14.0,
     "SoftCapStart": 0.75,
     // -1.5708 = sprite points up; 0 = sprite already points right
-    "SpriteRotationOffset": 1.5708,
-    "SpriteName": "Art/Shuttle_sprite.png"
+    "SpriteRotationOffset": -1.5708,
+    "SpriteName": "Art/Shuttle_sprite.png",
+    "SpriteScale": 1.5
   }
 ]
