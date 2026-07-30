@@ -407,8 +407,6 @@ public class StarSystem
         int poolIndex = nebulaRandom.Next(pool.Count);
         Nebula chosen = pool[poolIndex];
         NebulaId = chosen.Id;
-
-        // No crop or effects needed - we use the full tileable texture
     }
 
     /// <summary>

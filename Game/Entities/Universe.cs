@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using MgVector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace Strange_Universe.Game.Entities;
@@ -52,7 +53,7 @@ public class Universe
 
     public List<StarSystemNode> StarSystemNodes { get; set; } = new();
 
-    private const int NebulaPoolSize = 3;
+    private const int NebulaPoolSize = 6;
 
     /// <summary>Shared nebula textures generated once per universe launch. Each StarSystem samples a crop of one of these.</summary>
     [JsonIgnore]
@@ -111,14 +112,43 @@ public class Universe
     public void Generate()
     {
         _activeStarSystem = null;
-        for (int i = NebulaPool.Count; i < NebulaPoolSize; i++)
+        GenerateNebulaPool();
+        Player.Generate();
+    }
+
+    public void GenerateNebulaPool()
+    {
+        // Generate first nebula synchronously so game can start
+        if (NebulaPool.Count < NebulaPoolSize)
         {
-            string id = $"nebula_pool_{i}";
+            string id = $"nebula_pool_{NebulaPool.Count}";
             var nebula = new Nebula($"{Seed}_{id}");
             Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
             NebulaPool.Add(nebula);
         }
-        Player.Generate();
+
+        // Generate remaining nebulae asynchronously in the background
+        _ = GenerateRemainingNebulaPoolAsync();
+    }
+
+    private async Task GenerateRemainingNebulaPoolAsync()
+    {
+        // Generate remaining nebulae one at a time on background thread
+        for (int i = NebulaPool.Count; i < NebulaPoolSize; i++)
+        {
+            int index = i; // Capture for closure
+
+            // Generate nebula on background thread
+            var nebula = await Task.Run(() =>
+            {
+                string id = $"nebula_pool_{index}";
+                return new Nebula($"{Seed}_{id}");
+            });
+
+            // Register texture and add to pool on the main thread
+            Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
+            NebulaPool.Add(nebula);
+        }
     }
 
     /// <summary>
