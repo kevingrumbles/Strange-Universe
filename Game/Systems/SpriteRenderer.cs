@@ -17,11 +17,13 @@ public class SpriteRenderer
     private readonly SpriteBatch           _spriteBatch;
     private readonly ProceduralTextureCache _cache;
     private readonly Texture2D             _pixel;      // 1×1 white texture for dots
+    private readonly SpriteFont            _font;       // Font for HUD text
 
-    public SpriteRenderer(SpriteBatch spriteBatch, GraphicsDevice gd, ProceduralTextureCache cache)
+    public SpriteRenderer(SpriteBatch spriteBatch, GraphicsDevice gd, ProceduralTextureCache cache, SpriteFont font)
     {
         _spriteBatch = spriteBatch;
         _cache       = cache;
+        _font        = font;
 
         _pixel = new Texture2D(gd, 1, 1);
         _pixel.SetData(new[] { Color.White });
@@ -230,7 +232,7 @@ public class SpriteRenderer
 
     // ── HUD pass (no camera transform) ───────────────────────────────────────
 
-    public void DrawHud(Player player, int screenWidth, int screenHeight, float maxSpeed)
+    public void DrawSpeedBar(Player player, int screenWidth, int screenHeight, float maxSpeed)
     {
         // Speed bar in bottom-left
         float speed     = player.Physics.Velocity.Length();
@@ -248,9 +250,9 @@ public class SpriteRenderer
             fillColor * 0.8f);
     }
 
-    // ── Minimap ───────────────────────────────────────────────────────────────
+    // ── HUD ───────────────────────────────────────────────────────────────
 
-    public void DrawMinimap(Universe universe, int screenWidth, int screenHeight)
+    public void DrawHud(Universe universe, int screenWidth, int screenHeight)
     {
         const int MapSize = 180;
         const int Margin  = 14;
@@ -258,6 +260,7 @@ public class SpriteRenderer
 
         int   mapLeft   = screenWidth - MapSize - Margin;
         int   mapTop    = Margin;
+        int   hudPanelHeight = screenHeight - (Margin * 2); // Extend to bottom with same margin
         float halfMap   = MapSize * 0.5f;
         float scale     = halfMap / universe.ActiveStarSystem.SystemRadius;   // world unit → minimap pixel
 
@@ -278,10 +281,15 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(x, y, size, size), color);
         }
 
-        // ── Background ───────────────────────────────────────────────────────
+        // ── HUD Panel Background ─────────────────────────────────────────────
+        _spriteBatch.Draw(_pixel,
+            new Rectangle(mapLeft, mapTop, MapSize, hudPanelHeight),
+            new Color(0, 5, 18) * 0.84f);
+
+        // ── Minimap Background (darker inset within panel) ──────────────────
         _spriteBatch.Draw(_pixel,
             new Rectangle(mapLeft, mapTop, MapSize, MapSize),
-            new Color(0, 5, 18) * 0.84f);
+            new Color(0, 5, 18) * 0.95f);
 
         // ── Asteroids (drawn first — smallest, dimmest) ───────────────────
         foreach (var asteroid in universe.ActiveStarSystem.Asteroids)
@@ -308,11 +316,55 @@ public class SpriteRenderer
         Vector2 pip = playerMap + universe.Player.Transform.Forward * 5f;
         Dot(pip, 2, Color.White);
 
-        // ── Border (drawn last to cleanly cap any dot bleed) ─────────────
+        // ── Minimap Border (drawn to separate minimap from HUD info) ────
         Color border = Color.White * 0.30f;
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    MapSize, Border),  border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop + MapSize - Border, MapSize, Border),  border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    Border,  MapSize), border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border, mapTop,              Border,  MapSize), border);
+
+        // ── HUD Panel Border (outer border for entire panel) ────────────
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop,                             MapSize, Border),           border);
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop + hudPanelHeight - Border,   MapSize, Border),           border);
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop,                             Border,  hudPanelHeight),   border);
+        _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border,   mapTop,                             Border,  hudPanelHeight),   border);
+
+        // ── Jump Target Display ──────────────────────────────────────────
+        // Display jump target system name below the minimap
+        if (universe.JumpRoute.Count > 0)
+        {
+            string targetSystemId = universe.JumpRoute[0];
+            var targetNode = universe.StarSystemNodes.Find(n => n.SystemId == targetSystemId);
+
+            if (targetNode != null)
+            {
+                string displayName = targetNode.DisplayName ?? "Undiscovered";
+
+                // Check if player is in a gravity well
+                bool inGravityWell = universe.ActiveStarSystem.CalculateGravityAtLocation(universe.Player.Transform.Position) != Vector2.Zero;
+
+                // Set text color based on gravity well status
+                Color textColor = inGravityWell 
+                    ? new Color(80, 80, 80)      // Grey when in gravity well
+                    : new Color(220, 220, 220);  // Bright when jump available
+
+                // Draw system name centered below minimap
+                Vector2 nameSize = _font.MeasureString(displayName);
+                Vector2 namePos = new Vector2(
+                    mapLeft + (MapSize - nameSize.X) * 0.5f,
+                    mapTop + MapSize + 15);
+                _spriteBatch.DrawString(_font, displayName, namePos, textColor);
+            }
+        }
+        else
+        {
+            // No jump target set - display "Nav System Off"
+            string noTarget = "Nav System Off";
+            Vector2 textSize = _font.MeasureString(noTarget);
+            Vector2 textPos = new Vector2(
+                mapLeft + (MapSize - textSize.X) * 0.5f,
+                mapTop + MapSize + 15);
+            _spriteBatch.DrawString(_font, noTarget, textPos, new Color(100, 100, 100));
+        }
     }
 }

@@ -87,8 +87,8 @@ namespace StrangeUniverse
             _inputHandler = new InputHandler();
             TextureCache = new ProceduralTextureCache();
             _spriteBatch = new SpriteBatch(GD);
-            _renderer = new SpriteRenderer(_spriteBatch, GD, TextureCache);
             _font = Content.Load<SpriteFont>("Fonts/DefaultFont");
+            _renderer = new SpriteRenderer(_spriteBatch, GD, TextureCache, _font);
             CameraSettings cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
             Camera = new Camera(cameraSettings, _screenWidth, _screenHeight);
             ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json");
@@ -204,7 +204,7 @@ namespace StrangeUniverse
             TextureCache = new ProceduralTextureCache();
             _inputHandler = new InputHandler();
             _spriteBatch = new SpriteBatch(GraphicsDevice);
-            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache);
+            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache, _font);
             _galaxyMap?.Dispose();
             _galaxyMap = new GalaxyMapOverlay(_spriteBatch, GraphicsDevice, _font);
             ActiveUniverse = null!;
@@ -400,7 +400,7 @@ namespace StrangeUniverse
         {
             GraphicsDevice.Clear(new Color(4, 4, 12));
             DrawUniverseLayers(ActiveUniverse.ActiveStarSystem);
-            DrawHud();
+            DrawOverlay();
 
             if (_galaxyMap.IsOpen)
                 _galaxyMap.Draw(ActiveUniverse, _screenWidth, _screenHeight);
@@ -463,13 +463,11 @@ namespace StrangeUniverse
             _spriteBatch.End();
         }
 
-        private void DrawHud()
+        private void DrawOverlay()
         {
-            //Draw HUD
-            // ── HUD pass (no transform) ────────────────────────────────────────
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawHud(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.Ship.MaxSpeed);
-            _renderer.DrawMinimap(ActiveUniverse, _screenWidth, _screenHeight);
+            _renderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.Ship.MaxSpeed);
+            _renderer.DrawHud(ActiveUniverse, _screenWidth, _screenHeight);
             _spriteBatch.End();
         }
 

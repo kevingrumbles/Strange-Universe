@@ -19,6 +19,13 @@ public class StarSystemNode
     public string Name { get; set; }
     public Vector2 GalaxyPosition { get; set; }
     public bool Discovered { get; set; } = false;
+    [JsonIgnore] public string DisplayName
+    {
+        get
+        {
+            return Discovered ? Name : "Undiscovered";
+        }
+    }
 
     [JsonIgnore]
     public Universe Universe

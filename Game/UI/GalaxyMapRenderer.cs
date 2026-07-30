@@ -317,13 +317,10 @@ public class GalaxyMapRenderer
 
             // Show first system name
             var firstNode = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == universe.JumpRoute[0]);
-            string firstName = "Unknown";
-            if (firstNode != null)
-            {
-                firstName = firstNode.Discovered ? firstNode.Name : "Undiscovered";
-            }
+            
+            
 
-            string line2 = $"Next: {firstName}";
+            string line2 = $"Next: {firstNode?.DisplayName ?? "Undiscovered"}";
 
             Vector2 sz1 = _font.MeasureString(line1);
             Vector2 sz2 = _font.MeasureString(line2);
