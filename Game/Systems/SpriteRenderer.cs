@@ -184,9 +184,9 @@ public class SpriteRenderer
         DrawEntity(asteroid.TextureId, asteroid.Transform.Position, asteroid.Transform.Rotation, asteroid.Radius);
 
     public void DrawPlayer(Player player) =>
-        DrawEntity(player.ShipName, player.Transform.Position,
-                   player.Transform.Rotation + player.Ship.SpriteRotationOffset,
-                   player.Radius * 2.2f * player.Ship.SpriteScale);
+            DrawEntity(player.ShipName, player.Transform.Position,
+                       player.Transform.Rotation + player.Ship.SpriteRotationOffset,
+                       player.Radius * 2.2f * player.Ship.SpriteScale);
 
     /// <summary>
     /// Draws a circle outline (ring) for debug visualization.
@@ -309,12 +309,12 @@ public class SpriteRenderer
         }
 
         // ── Player ────────────────────────────────────────────────────────
-        Vector2 playerMap = WorldToMap(universe.Player.Transform.Position);
-        Dot(playerMap, 4, new Color(55, 215, 255));                // cyan body
+            Vector2 playerMap = WorldToMap(universe.Player.Transform.Position);
+            Dot(playerMap, 4, new Color(55, 215, 255));                // cyan body
 
-        // Heading pip — white dot ahead of the player indicating facing direction
-        Vector2 pip = playerMap + universe.Player.Transform.Forward * 5f;
-        Dot(pip, 2, Color.White);
+            // Heading pip — white dot ahead of the player indicating facing direction
+            Vector2 pip = playerMap + universe.Player.Transform.Forward * 5f;
+            Dot(pip, 2, Color.White);
 
         // ── Minimap Border (drawn to separate minimap from HUD info) ────
         Color border = Color.White * 0.30f;
@@ -329,8 +329,69 @@ public class SpriteRenderer
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop,                             Border,  hudPanelHeight),   border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border,   mapTop,                             Border,  hudPanelHeight),   border);
 
-        // ── Jump Target Display ──────────────────────────────────────────
-        // Display jump target system name below the minimap
+        // ── HUD Content Layout ──────────────────────────────────────────────
+        int currentY = mapTop + MapSize + 12;
+        const int SectionSpacing = 15;
+        const int BarHeight = 12;
+        const int BarSpacing = 8;
+        const int ContentMargin = 10;
+        const int DividerMargin = 8;
+        const float FontScale = 0.6f; // Reduce font size to 60%
+
+        // Helper to draw a horizontal divider line
+        void DrawDivider(int y)
+        {
+            int dividerWidth = MapSize - (DividerMargin * 2);
+            int dividerX = mapLeft + DividerMargin;
+            _spriteBatch.Draw(_pixel, new Rectangle(dividerX, y, dividerWidth, 1), new Color(60, 80, 100, 150));
+        }
+
+        // Helper to draw a status bar
+        void DrawBar(string label, float currentValue, float maxValue, Color barColor, int y)
+        {
+            int barWidth = MapSize - (ContentMargin * 2);
+            int barX = mapLeft + ContentMargin;
+
+            // Draw label with scaled font
+            _spriteBatch.DrawString(_font, label, new Vector2(barX, y), new Color(150, 150, 150), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+
+            // Draw bar background (dark)
+            int barY = y + 14;
+            _spriteBatch.Draw(_pixel, new Rectangle(barX, barY, barWidth, BarHeight), new Color(20, 20, 30));
+
+            // Draw bar fill
+            float fillPercent = Math.Clamp(currentValue / maxValue, 0f, 1f);
+            int fillWidth = (int)(barWidth * fillPercent);
+            if (fillWidth > 0)
+            {
+                _spriteBatch.Draw(_pixel, new Rectangle(barX, barY, fillWidth, BarHeight), barColor);
+            }
+
+            // Draw bar border
+            _spriteBatch.Draw(_pixel, new Rectangle(barX, barY, barWidth, 1), border);
+            _spriteBatch.Draw(_pixel, new Rectangle(barX, barY + BarHeight - 1, barWidth, 1), border);
+            _spriteBatch.Draw(_pixel, new Rectangle(barX, barY, 1, BarHeight), border);
+            _spriteBatch.Draw(_pixel, new Rectangle(barX + barWidth - 1, barY, 1, BarHeight), border);
+        }
+
+        // ── Player Status Bars ───────────────────────────────────────────────
+        // Shields (placeholder: 75%)
+        DrawBar("SHIELDS", universe.Player.CurrentShieldPercentage, 100f, new Color(100, 150, 255), currentY);
+        currentY += 14 + BarHeight + BarSpacing;
+
+        // Hull/HP (placeholder: 100%)
+        DrawBar("HULL", universe.Player.CurrentHullPercentage, 100f, new Color(100, 255, 100), currentY);
+        currentY += 14 + BarHeight + BarSpacing;
+
+        // Fuel (placeholder: 60%)
+        DrawBar("FUEL", universe.Player.CurrentFuelPercentage, 100f, new Color(255, 200, 50), currentY);
+        currentY += 14 + BarHeight + SectionSpacing;
+
+        // ── Section Divider ──────────────────────────────────────────────────
+        DrawDivider(currentY);
+        currentY += SectionSpacing;
+
+        // ── Jump Target Display (no label) ───────────────────────────────────
         if (universe.JumpRoute.Count > 0)
         {
             string targetSystemId = universe.JumpRoute[0];
@@ -338,7 +399,7 @@ public class SpriteRenderer
 
             if (targetNode != null)
             {
-                string displayName = targetNode.DisplayName ?? "Undiscovered";
+                string displayName = targetNode.DisplayName;
 
                 // Check if player is in a gravity well
                 bool inGravityWell = universe.ActiveStarSystem.CalculateGravityAtLocation(universe.Player.Transform.Position) != Vector2.Zero;
@@ -348,23 +409,70 @@ public class SpriteRenderer
                     ? new Color(80, 80, 80)      // Grey when in gravity well
                     : new Color(220, 220, 220);  // Bright when jump available
 
-                // Draw system name centered below minimap
-                Vector2 nameSize = _font.MeasureString(displayName);
+                // Draw system name centered
+                Vector2 nameSize = _font.MeasureString(displayName) * FontScale;
                 Vector2 namePos = new Vector2(
                     mapLeft + (MapSize - nameSize.X) * 0.5f,
-                    mapTop + MapSize + 15);
-                _spriteBatch.DrawString(_font, displayName, namePos, textColor);
+                    currentY);
+                _spriteBatch.DrawString(_font, displayName, namePos, textColor, 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+                currentY += (int)nameSize.Y + SectionSpacing;
             }
         }
         else
         {
-            // No jump target set - display "Nav System Off"
+            // No jump target set
             string noTarget = "Nav System Off";
-            Vector2 textSize = _font.MeasureString(noTarget);
+            Vector2 textSize = _font.MeasureString(noTarget) * FontScale;
             Vector2 textPos = new Vector2(
                 mapLeft + (MapSize - textSize.X) * 0.5f,
-                mapTop + MapSize + 15);
-            _spriteBatch.DrawString(_font, noTarget, textPos, new Color(100, 100, 100));
+                currentY);
+            _spriteBatch.DrawString(_font, noTarget, textPos, new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+            currentY += (int)textSize.Y + SectionSpacing;
+        }
+
+        // ── Section Divider ──────────────────────────────────────────────────
+        DrawDivider(currentY);
+        currentY += SectionSpacing;
+
+        // ── Secondary Weapon Display (no label) ──────────────────────────────
+        string weaponText = "No Secondary Weapon";
+        Vector2 weaponSize = _font.MeasureString(weaponText) * FontScale;
+        _spriteBatch.DrawString(_font, weaponText, 
+            new Vector2(mapLeft + ContentMargin, currentY), 
+            new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+        currentY += (int)weaponSize.Y + SectionSpacing;
+
+        // ── Section Divider ──────────────────────────────────────────────────
+        DrawDivider(currentY);
+        currentY += SectionSpacing;
+
+        // ── Selection Display (no label) ─────────────────────────────────────
+        string selectionText = "Nothing Selected";
+        Vector2 selectionSize = _font.MeasureString(selectionText) * FontScale;
+        _spriteBatch.DrawString(_font, selectionText, 
+            new Vector2(mapLeft + ContentMargin, currentY), 
+            new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+        currentY += (int)selectionSize.Y + SectionSpacing;
+
+        // ── Section Divider ──────────────────────────────────────────────────
+        DrawDivider(currentY);
+        currentY += SectionSpacing;
+
+        // ── Player Stats Display (no label) ──────────────────────────────────
+        string[] stats = new[]
+        {
+            "Speed: 450 m/s",
+            "Mass: 12.5 t",
+            "Thrust: 260 N"
+        };
+
+        foreach (string stat in stats)
+        {
+            _spriteBatch.DrawString(_font, stat, 
+                new Vector2(mapLeft + ContentMargin, currentY), 
+                new Color(180, 180, 180), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+            Vector2 statSize = _font.MeasureString(stat) * FontScale;
+            currentY += (int)statSize.Y + 4;
         }
     }
 }

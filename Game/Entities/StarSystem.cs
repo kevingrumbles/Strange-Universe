@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using StrangeUniverse;
+using StrangeUniverse.Game.Components;
 using StrangeUniverse.Game.Entities;
 using StrangeUniverse.Game.Systems;
 using System;
@@ -23,7 +24,7 @@ public class StarSystemNode
     {
         get
         {
-            return Discovered ? Name : "Undiscovered";
+            return (Name is null || !Discovered) ? "Undiscovered" : Name;
         }
     }
 
@@ -440,4 +441,33 @@ public class StarSystem
 
         return totalForce;
     }
+
+    /// <summary>
+    /// Generates a safe entry position and orientation just outside the Mandeville radius.
+    /// The returned transform is positioned at the edge of the safe zone, facing toward
+    /// the system center, suitable for a slow entry approach.
+    /// </summary>
+    /// <param name="arrivalAngle">Optional angle in radians for arrival direction. If null, uses a random angle.</param>
+    /// <returns>A Transform configured for system entry with Position facing inward and Rotation aimed at center</returns>
+    public Transform GetSafeEntryTransform(float? arrivalAngle = null)
+    {
+        // Use provided angle or generate a random one
+        float angle = arrivalAngle ?? (float)(new Random().NextDouble() * Math.PI * 2);
+
+        // Calculate position just outside Mandeville radius (5% margin for safety)
+        Vector2 outwardDirection = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
+        Vector2 entryPosition = outwardDirection * (MandevilleRadius * 0.9f);
+
+        // Calculate rotation to face system center (opposite of outward direction)
+        Vector2 inwardDirection = -outwardDirection;
+        float rotation = (float)Math.Atan2(inwardDirection.Y, inwardDirection.X);
+
+        return new Transform
+        {
+            Position = entryPosition,
+            Rotation = rotation,
+            Scale = 1f
+        };
+    }
 }
+

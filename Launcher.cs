@@ -58,7 +58,7 @@ namespace StrangeUniverse
                 PreferredBackBufferHeight = 720,
                 SynchronizeWithVerticalRetrace = true,
             };
-            _graphics.IsFullScreen = true;
+            _graphics.IsFullScreen = false;
             _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
             _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
             _graphics.ApplyChanges();
@@ -468,6 +468,24 @@ namespace StrangeUniverse
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
             _renderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.Ship.MaxSpeed);
             _renderer.DrawHud(ActiveUniverse, _screenWidth, _screenHeight);
+
+            // Draw timed message if active with fade out
+            if (ActiveUniverse.TimedMessageRemaining > 0f && !string.IsNullOrEmpty(ActiveUniverse.TimedMessage))
+            {
+                // Calculate alpha based on remaining time (fade out during last second)
+                float alpha = ActiveUniverse.TimedMessageRemaining < 1f 
+                    ? ActiveUniverse.TimedMessageRemaining 
+                    : 1f;
+
+                Vector2 messageSize = _font.MeasureString(ActiveUniverse.TimedMessage);
+                Vector2 messagePosition = new Vector2(
+                    (_screenWidth - messageSize.X) / 2f,
+                    _screenHeight - messageSize.Y - 40f);
+
+                Color messageColor = new Color(255, 140, 0) * alpha;
+                _spriteBatch.DrawString(_font, ActiveUniverse.TimedMessage, messagePosition, messageColor);
+            }
+
             _spriteBatch.End();
         }
 

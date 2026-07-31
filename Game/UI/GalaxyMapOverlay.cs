@@ -76,6 +76,18 @@ public class GalaxyMapOverlay
             closeClicked = true;
         }
 
+        // Clear route button click
+        if (universe.JumpRoute.Count > 0)
+        {
+            var clearRouteRect = _renderer.GetClearRouteButtonRect(screenW, screenH);
+            if (_prevMouse.LeftButton == ButtonState.Pressed &&
+                mouse.LeftButton      == ButtonState.Released &&
+                clearRouteRect.Contains(mouse.X, mouse.Y))
+            {
+                universe.JumpRoute.Clear();
+            }
+        }
+
         _prevKeys  = keys;
         _prevMouse = mouse;
 

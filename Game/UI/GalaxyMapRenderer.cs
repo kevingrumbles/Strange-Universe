@@ -94,6 +94,16 @@ public class GalaxyMapRenderer
                       CloseMargin,
                       CloseBoxSize, CloseBoxSize);
 
+    /// <summary>Returns the screen rect of the clear route button.</summary>
+    public Rectangle GetClearRouteButtonRect(int screenW, int screenH)
+    {
+        const int buttonWidth = 100;
+        const int buttonHeight = 28;
+        int x = screenW - PanelPadding - buttonWidth - 16;
+        int y = screenH - PanelPadding - buttonHeight - 12;
+        return new Rectangle(x, y, buttonWidth, buttonHeight);
+    }
+
     // ── Layout helpers ────────────────────────────────────────────────────
 
     private void ComputeLayout(Universe universe, int screenW, int screenH)
@@ -287,7 +297,7 @@ public class GalaxyMapRenderer
             bool isCurrent = node.SystemId == currentId;
             Color col      = isCurrent ? CurrentLabelC : LabelColor;
 
-            _sb.DrawString(_font, node.Name,
+            _sb.DrawString(_font, node.DisplayName,
                 new Vector2(pos.X + LabelOffsetX, pos.Y + LabelOffsetY),
                 col, 0f, Vector2.Zero, LabelScale, SpriteEffects.None, 0f);
         }
@@ -317,10 +327,10 @@ public class GalaxyMapRenderer
 
             // Show first system name
             var firstNode = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == universe.JumpRoute[0]);
-            
-            
 
-            string line2 = $"Next: {firstNode?.DisplayName ?? "Undiscovered"}";
+
+
+            string line2 = $"Next: {firstNode.DisplayName}";
 
             Vector2 sz1 = _font.MeasureString(line1);
             Vector2 sz2 = _font.MeasureString(line2);
@@ -330,7 +340,37 @@ public class GalaxyMapRenderer
 
             _sb.DrawString(_font, line1, new Vector2(x, y), new Color(100, 130, 160));
             _sb.DrawString(_font, line2, new Vector2(x, y + sz1.Y + 4), SelectedColor);
+
+            // Draw Clear Route button
+            DrawClearRouteButton(screenW, screenH);
         }
+    }
+
+    private void DrawClearRouteButton(int screenW, int screenH)
+    {
+        var rect = GetClearRouteButtonRect(screenW, screenH);
+
+        // Button background
+        _sb.Draw(_pixel, rect, new Color(40, 30, 30));
+
+        // Border
+        const int b = 1;
+        Color borderColor = new Color(180, 80, 60);
+        _sb.Draw(_pixel, new Rectangle(rect.X, rect.Y, rect.Width, b), borderColor);
+        _sb.Draw(_pixel, new Rectangle(rect.X, rect.Bottom - b, rect.Width, b), borderColor);
+        _sb.Draw(_pixel, new Rectangle(rect.X, rect.Y, b, rect.Height), borderColor);
+        _sb.Draw(_pixel, new Rectangle(rect.Right - b, rect.Y, b, rect.Height), borderColor);
+
+        // Button text
+        const string text = "Clear Route";
+        Vector2 textSize = _font.MeasureString(text);
+        float scale = 0.6f;
+        Vector2 scaledSize = textSize * scale;
+        _sb.DrawString(_font, text,
+            new Vector2(rect.X + (rect.Width - scaledSize.X) / 2f,
+                        rect.Y + (rect.Height - scaledSize.Y) / 2f),
+            new Color(220, 120, 100),
+            0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
     }
 
     private void DrawCloseButton(int screenW, int screenH)

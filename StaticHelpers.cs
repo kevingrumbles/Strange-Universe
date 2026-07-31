@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace StrangeUniverse
 {
@@ -108,6 +109,7 @@ namespace StrangeUniverse
         {
             WriteIndented = true,
             IncludeFields = true,
+            NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals
         };
 
         public static readonly Color[] StarColors = new[]

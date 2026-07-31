@@ -14,18 +14,24 @@ public class Player
     public string Name     { get; set; } = "Player";
     public string ShipName { get; set; } = "Shuttle";
     public string CurrentStarSystemID { get; set; }
+    public int? CurrentHullStrength { get; set; } = null;
+    public int? CurrentShieldStrength { get; set; } = null;
+    public int? CurrentFuelLevel { get; set; } = null;
+    [JsonIgnore] public int MaxHullStrength { get => CalculateMaxHull(); }
+    [JsonIgnore] public int MaxShieldStrength { get => CalculateMaxShield(); }
+    [JsonIgnore] public int MaxFuelLevel { get => CalculateMaxFuel(); }
+    [JsonIgnore] public float CurrentHullPercentage { get => (float)CurrentHullStrength / MaxHullStrength * 100f; }
+    [JsonIgnore] public float CurrentShieldPercentage { get => (float)CurrentShieldStrength / MaxShieldStrength * 100f; }
+    [JsonIgnore] public float CurrentFuelPercentage { get => (float)CurrentFuelLevel / MaxFuelLevel * 100f; }
     [JsonIgnore] private Camera _camera = Launcher.Camera;
     [JsonIgnore] public ShipStats Ship  { get; set; } = new();
     public Transform   Transform           { get; set; } = new();
     [JsonIgnore] public PhysicsBody Physics             { get; }
     [JsonIgnore] public float       Radius              { get; set; }
+    [JsonIgnore] public bool UseSafeEntryLocation { get; set; } = false;
 
     // ── Jump sequence ──────────────────────────────────────────────────────────────────
-    [JsonIgnore] public JumpPhase JumpPhase            
-    { get;
-        private set;
-    } = JumpPhase.Normal;
-    [JsonIgnore] public bool      IsJumping            => JumpPhase != JumpPhase.Normal;
+    [JsonIgnore] public JumpPhase JumpPhase { get; private set; } = JumpPhase.Normal;
     [JsonIgnore] private StarSystem ActiveStarSystem => Launcher.ActiveUniverse.ActiveStarSystem;
 
     private float _jumpAngle;
@@ -37,7 +43,6 @@ public class Player
 
     public Player(string shipName = "Shuttle")
     {
-        //const string id = "player_ship";
         Ship = Ship.GetShipStats(shipName);
         Radius = Ship.Radius;
         Physics = new PhysicsBody
@@ -54,7 +59,13 @@ public class Player
 
     public void Update(float deltaTime, InputState input)
     {
-        if (IsJumping)
+        if (UseSafeEntryLocation)
+        {
+            Transform = ActiveStarSystem.GetSafeEntryTransform();
+            UseSafeEntryLocation = false;
+        }
+
+        if (JumpPhase != JumpPhase.Normal)
         {
             UpdateJumpSequence(deltaTime);
         }
@@ -88,7 +99,7 @@ public class Player
     /// decelerating as they travel toward the Mandeville Point.
     /// </summary>
     public void BeginArrival(Vector2 entryPosition, Vector2 entryDirection, float mandevilleRadius)
-    {
+        {
         Vector2 normalizedDirection = Vector2.Normalize(entryDirection);
 
         Transform.Position = entryPosition;
@@ -164,6 +175,20 @@ public class Player
                     break;
                 }
         }
+    }
+    private int CalculateMaxHull()
+    {
+        return Ship.MaxHull;
+    }
+
+    private int CalculateMaxShield()
+    {
+        return Ship.MaxShield;
+    }
+
+    private int CalculateMaxFuel()
+    {
+        return Ship.MaxFuel;
     }
 
     // ── Rotation ─────────────────────────────────────────────────────────────

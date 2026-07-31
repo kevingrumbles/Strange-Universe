@@ -27,6 +27,9 @@ public class ShipStats
     /// Default is 1.0. Values > 1.0 make the sprite larger, < 1.0 make it smaller.
     /// </summary>
     public float SpriteScale { get; set; } = 1.0f;
+    public int MaxHull { get; set; }
+    public int MaxShield { get; set; }
+    public int MaxFuel { get; set; }
     public ShipStats GetShipStats(string name)
     {
         return Presets.Find(s => s.ShipName == name) ?? throw new KeyNotFoundException($"ShipStats preset '{name}' not found.");

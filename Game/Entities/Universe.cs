@@ -67,6 +67,18 @@ public class Universe
     public List<string> JumpRoute { get; set; } = new();
 
     /// <summary>
+    /// Timed message displayed at the bottom center of the screen.
+    /// </summary>
+    [JsonIgnore]
+    public string TimedMessage { get; private set; } = string.Empty;
+
+    /// <summary>
+    /// Remaining time in seconds for the timed message display.
+    /// </summary>
+    [JsonIgnore]
+    public float TimedMessageRemaining { get; private set; } = 0f;
+
+    /// <summary>
     /// The system the player has selected on the Galaxy Map as the next jump destination.
     /// Null when no destination is selected or after a successful jump.
     /// Convenience property that returns the first system in JumpRoute, or null if empty.
@@ -93,10 +105,22 @@ public class Universe
         Name = name;
         Seed = seed ?? id.ToString();
         Player = new Player();
+        Player.CurrentFuelLevel = Player.MaxFuelLevel;
+        Player.CurrentHullStrength = Player.MaxHullStrength;
+        Player.CurrentShieldStrength = Player.MaxShieldStrength;
+        Player.UseSafeEntryLocation = true;
     }
 
     public void Update(float deltaTime, InputState input)
     {
+        // Update timed message
+        if (TimedMessageRemaining > 0f)
+        {
+            TimedMessageRemaining -= deltaTime;
+            if (TimedMessageRemaining < 0f)
+                TimedMessageRemaining = 0f;
+        }
+
         // Check if player has completed jump acceleration and left the system
         if (Player.JumpPhase == JumpPhase.Accelerate && 
             Player.Transform.Position.LengthSquared() >= ActiveStarSystem.SystemRadius * ActiveStarSystem.SystemRadius)
@@ -160,21 +184,20 @@ public class Universe
     public void BeginJump()
     {
         if (Player.JumpPhase != JumpPhase.Normal) return;
-        if (ActiveStarSystem.CalculateGravityAtLocation(Player.Transform.Position) != Vector2.Zero) return;
+        if (ActiveStarSystem.CalculateGravityAtLocation(Player.Transform.Position) != Vector2.Zero){ Launcher.ActiveUniverse.ShowTimedMessage("Cannot jump while in a gravity well!"); return; }
+        if (Player.CurrentFuelLevel <= 0) { Launcher.ActiveUniverse.ShowTimedMessage("Not enough fuel to jump!"); return; }
+        if (JumpRoute is null || JumpRoute.Count == 0) { Launcher.ActiveUniverse.ShowTimedMessage("No jump target selected!"); return; }
 
         var connections = ActiveStarSystem.Node.SystemConnectionIds;
         if (connections == null || connections.Count == 0) return;
 
         // Lock in target (same resolution logic as JumpToSystem)
         string targetId;
-        if (JumpRoute.Count > 0 && connections.Contains(JumpRoute[0]))
+        if (connections.Contains(JumpRoute[0]))
         {
             targetId = JumpRoute[0];
         }
-        else
-        {
-            return;
-        }
+        else return;
 
         StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
         if (targetNode == null) return;
@@ -197,11 +220,11 @@ public class Universe
     {
         var connections = ActiveStarSystem.Node.SystemConnectionIds;
         if (connections == null || connections.Count == 0) return;
+        if (JumpRoute is null || JumpRoute.Count == 0) return;
 
         // Prefer the first system in the route; fall back to random.
-        string targetId = (JumpRoute.Count > 0 && connections.Contains(JumpRoute[0]))
-            ? JumpRoute[0]
-            : connections.ToList()[new Random().Next(connections.Count)];
+        string targetId = JumpRoute[0];
+
 
         StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
         if (targetNode == null) return;   // safety: unknown connection, do nothing
@@ -210,6 +233,7 @@ public class Universe
         StarSystemNode originNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == originSystemId);
 
         Player.CurrentStarSystemID = targetId;
+        Player.CurrentFuelLevel--;
 
         // Remove the first system from the route after successful jump
         if (JumpRoute.Count > 0 && JumpRoute[0] == targetId)
@@ -250,5 +274,16 @@ public class Universe
 
         // Begin arrival sequence
         Player.BeginArrival(entryPosition, entryDirection, ActiveStarSystem.MandevilleRadius);
+    }
+
+    /// <summary>
+    /// Displays a message at the bottom center of the screen in orange text for the specified duration.
+    /// </summary>
+    /// <param name="message">The text to display</param>
+    /// <param name="durationSeconds">Number of seconds to display the message</param>
+    public void ShowTimedMessage(string message, int durationSeconds = 3)
+    {
+        TimedMessage = message;
+        TimedMessageRemaining = durationSeconds;
     }
 }
