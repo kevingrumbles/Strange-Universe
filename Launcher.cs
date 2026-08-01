@@ -438,6 +438,10 @@ namespace StrangeUniverse
             //Draw Layer 6
             _renderer.DrawPlayer(ActiveUniverse.Player);
 
+            // Draw NPCs
+            foreach (var npc in sys.NPCs)
+                _renderer.DrawNPC(npc);
+
             // Debug: Draw gravity well indicators
             if (debug)
             {
@@ -466,7 +470,7 @@ namespace StrangeUniverse
         private void DrawOverlay()
         {
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.Ship.MaxSpeed);
+            _renderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.ShipStats.MaxSpeed);
             _renderer.DrawHud(ActiveUniverse, _screenWidth, _screenHeight);
 
             // Draw timed message if active with fade out

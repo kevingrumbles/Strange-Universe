@@ -185,8 +185,13 @@ public class SpriteRenderer
 
     public void DrawPlayer(Player player) =>
             DrawEntity(player.ShipName, player.Transform.Position,
-                       player.Transform.Rotation + player.Ship.SpriteRotationOffset,
-                       player.Radius * 2.2f * player.Ship.SpriteScale);
+                       player.Transform.Rotation + player.ShipStats.SpriteRotationOffset,
+                       player.Radius * 2.2f * player.ShipStats.SpriteScale);
+
+    public void DrawNPC(NPC npc) =>
+            DrawEntity(npc.ShipStats.ShipName, npc.Transform.Position,
+                       npc.Transform.Rotation + npc.ShipStats.SpriteRotationOffset,
+                       npc.Radius * 2.2f * npc.ShipStats.SpriteScale);
 
     /// <summary>
     /// Draws a circle outline (ring) for debug visualization.
@@ -315,6 +320,13 @@ public class SpriteRenderer
             // Heading pip — white dot ahead of the player indicating facing direction
             Vector2 pip = playerMap + universe.Player.Transform.Forward * 5f;
             Dot(pip, 2, Color.White);
+
+        // ── NPCs ──────────────────────────────────────────────────────────
+        foreach (var npc in universe.ActiveStarSystem.NPCs)
+        {
+            Vector2 npcMap = WorldToMap(npc.Transform.Position);
+            Dot(npcMap, 3, new Color(255, 180, 80));  // orange body for NPCs
+        }
 
         // ── Minimap Border (drawn to separate minimap from HUD info) ────
         Color border = Color.White * 0.30f;

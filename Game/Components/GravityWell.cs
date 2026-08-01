@@ -33,7 +33,7 @@ public class GravityWell
     public float Strength {
         get
         {
-            return _strength * Launcher.ActiveUniverse.Player.Ship.ThrustForce * GravityWell.GravityThrustRatio;
+            return _strength * Launcher.ActiveUniverse.Player.ShipStats.ThrustForce * GravityWell.GravityThrustRatio;
         }
         private set
         {

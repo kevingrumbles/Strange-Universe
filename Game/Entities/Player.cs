@@ -8,10 +8,10 @@ using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
-/// <summary>The player-controlled ship.  Pure game logic — no MonoGame rendering types.</summary>
-public class Player
+/// <summary>The player-controlled ship. Inherits shared ship functionality from Ship base class.</summary>
+public class Player : Ship
 {
-    public string Name     { get; set; } = "Player";
+    public string Name { get; set; } = "Player";
     public string ShipName { get; set; } = "Shuttle";
     public string CurrentStarSystemID { get; set; }
     public int? CurrentHullStrength { get; set; } = null;
@@ -24,10 +24,6 @@ public class Player
     [JsonIgnore] public float CurrentShieldPercentage { get => (float)CurrentShieldStrength / MaxShieldStrength * 100f; }
     [JsonIgnore] public float CurrentFuelPercentage { get => (float)CurrentFuelLevel / MaxFuelLevel * 100f; }
     [JsonIgnore] private Camera _camera = Launcher.Camera;
-    [JsonIgnore] public ShipStats Ship  { get; set; } = new();
-    public Transform   Transform           { get; set; } = new();
-    [JsonIgnore] public PhysicsBody Physics             { get; }
-    [JsonIgnore] public float       Radius              { get; set; }
     [JsonIgnore] public bool UseSafeEntryLocation { get; set; } = false;
 
     // ── Jump sequence ──────────────────────────────────────────────────────────────────
@@ -37,24 +33,8 @@ public class Player
     private float _jumpAngle;
     private float _jumpAccelTime;   // seconds elapsed since the burn started; drives exponential growth
 
-    // ── Arrival sequence ─────────────────────────────────────────────────────────
-    //private Vector2 _arrivalStartPosition;
-    //private float _arrivalMandevilleRadius;
-
-    public Player(string shipName = "Shuttle")
+    public Player(string shipName = "Shuttle") : base(shipName)
     {
-        Ship = Ship.GetShipStats(shipName);
-        Radius = Ship.Radius;
-        Physics = new PhysicsBody
-        {
-            Mass          = 1f,
-        };
-    }
-
-    public void Generate()
-    {
-        var tex = ArtLoader.TryLoad(Launcher.GD, Ship.SpriteName);
-        Launcher.TextureCache.Register(Ship.ShipName, tex);
     }
 
     public void Update(float deltaTime, InputState input)
@@ -105,7 +85,7 @@ public class Player
         Transform.Position = entryPosition;
         Transform.Rotation = (float)Math.Atan2(entryDirection.Y, entryDirection.X);
 
-        Physics.Velocity = normalizedDirection * Ship.MaxSpeed * 8f;
+        Physics.Velocity = normalizedDirection * ShipStats.MaxSpeed * 8f;
         JumpPhase = JumpPhase.Arrival;
     }
 
@@ -128,7 +108,7 @@ public class Player
 
                     // Start braking once reasonably aligned with retrograde
                     if (Math.Abs(StaticHelpers.WrapAngle(retroAngle - Transform.Rotation)) <= 0.3f)
-                        Physics.ApplyForce(Transform.Forward * Ship.ThrustForce, deltaTime);
+                        Physics.ApplyForce(Transform.Forward * ShipStats.ThrustForce, deltaTime);
                     break;
                 }
 
@@ -149,7 +129,7 @@ public class Player
                 {
                     _jumpAccelTime += deltaTime;
                     // Force doubles roughly every 0.5 s (e^(1.4*0.5) ≈ 2)
-                    float force = Ship.ThrustForce * 8f * (float)Math.Exp(1.4f * _jumpAccelTime);
+                    float force = ShipStats.ThrustForce * 8f * (float)Math.Exp(1.4f * _jumpAccelTime);
                     Physics.ApplyForce(Transform.Forward * force, deltaTime);
 
                     // Phase continues until Universe detects we've left the system and calls JumpToSystem
@@ -165,30 +145,30 @@ public class Player
                     if (distanceFromCenter <= ActiveStarSystem.MandevilleRadius)
                     {
                         JumpPhase = JumpPhase.Normal;
-                        Physics.Velocity = Vector2.Normalize(Physics.Velocity) * Ship.MaxSpeed;
+                        Physics.Velocity = Vector2.Normalize(Physics.Velocity) * ShipStats.MaxSpeed;
                         return;
                     }
 
                     // Calculate and apply interpolated speed
                     float progress = Math.Clamp((ActiveStarSystem.SystemRadius - distanceFromCenter) / (ActiveStarSystem.SystemRadius - ActiveStarSystem.MandevilleRadius), 0f, 1f);
-                    Physics.Velocity = Vector2.Normalize(Physics.Velocity) * MathHelper.Lerp(Ship.MaxSpeed * 8f, Ship.MaxSpeed, progress);
+                    Physics.Velocity = Vector2.Normalize(Physics.Velocity) * MathHelper.Lerp(ShipStats.MaxSpeed * 8f, ShipStats.MaxSpeed, progress);
                     break;
                 }
         }
     }
     private int CalculateMaxHull()
     {
-        return Ship.MaxHull;
+        return ShipStats.MaxHull;
     }
 
     private int CalculateMaxShield()
     {
-        return Ship.MaxShield;
+        return ShipStats.MaxShield;
     }
 
     private int CalculateMaxFuel()
     {
-        return Ship.MaxFuel;
+        return ShipStats.MaxFuel;
     }
 
     // ── Rotation ─────────────────────────────────────────────────────────────
@@ -198,9 +178,9 @@ public class Player
     private void HandleManualRotation(float deltaTime, InputState input)
     {
         if (input.RotateLeft)
-            Transform.Rotation -= Ship.RotationSpeed * deltaTime;
+            Transform.Rotation -= ShipStats.RotationSpeed * deltaTime;
         if (input.RotateRight)
-            Transform.Rotation += Ship.RotationSpeed * deltaTime;
+            Transform.Rotation += ShipStats.RotationSpeed * deltaTime;
     }
 
     // ── Maneuvering thrusters (S) ─────────────────────────────────────────────
@@ -216,68 +196,15 @@ public class Player
     }
 
     // ── Forward thrust (W) ────────────────────────────────────────────────────
-    // Adds acceleration in the current facing direction.
-    // Momentum is additive — thrust never redirects existing velocity instantly.
-    //
-    // Soft speed cap: as speed approaches MaxSpeed the thrust component that
-    // would increase speed is gradually reduced.  Lateral/decelerating components
-    // are never reduced, so turns and braking still feel responsive at top speed.
-    //
-    // NOTE: This cap only applies to player thrust input. External forces like gravity
-    // can push the ship beyond MaxSpeed.
+    // Adds acceleration in the current facing direction using base Ship.ApplyThrust.
 
     private void HandleThrust(float deltaTime, InputState input)
     {
         if (!input.Thrust) return;
-
-        Vector2 thrustForce  = Transform.Forward * Ship.ThrustForce;
-        float   currentSpeed = Physics.Velocity.Length();
-
-        if (currentSpeed > 0f)
-        {
-            Vector2 velDir      = Physics.Velocity / currentSpeed;
-            float   parallelMag = Vector2.Dot(thrustForce, velDir);
-
-            // Only reduce thrust that would push speed higher (positive parallel component)
-            if (parallelMag > 0f)
-            {
-                float softStart = Ship.MaxSpeed * Ship.SoftCapStart;
-
-                if (currentSpeed >= Ship.MaxSpeed)
-                {
-                    // At or above max: strip the forward component entirely.
-                    // The ship can still turn — lateral thrust is unaffected.
-                    thrustForce -= velDir * parallelMag;
-                }
-                else if (currentSpeed > softStart)
-                {
-                    // Soft zone: linearly fade the forward component to zero.
-                    float t = (currentSpeed - softStart) / (Ship.MaxSpeed - softStart);
-                    thrustForce -= velDir * (parallelMag * t);
-                }
-                // Below softStart: full thrust, no reduction
-            }
-            // Negative parallel (decelerating) and lateral components: never reduced
-        }
-
-        Physics.ApplyForce(thrustForce, deltaTime);
+        ApplyThrust(deltaTime);
     }
 
     // ── Helper Methods ────────────────────────────────────────────────────────────
-    /// <summary>Rotates towards target angle. Returns true if already aligned within threshold.</summary>
-    private bool RotateTowards(float targetAngle, float deltaTime, float threshold = float.MaxValue)
-    {
-        float diff = StaticHelpers.WrapAngle(targetAngle - Transform.Rotation);
-        float maxDelta = Ship.RotationSpeed * deltaTime;
-
-        if (Math.Abs(diff) <= Math.Min(maxDelta, threshold))
-        {
-            Transform.Rotation = targetAngle;
-            return true;
-        }
-
-        Transform.Rotation += Math.Sign(diff) * maxDelta;
-        return false;
-    }
+    // Uses base RotateTowards method from Ship class
 }
 

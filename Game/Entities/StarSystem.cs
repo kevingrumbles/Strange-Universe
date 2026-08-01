@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Systems;
 using StrangeUniverse;
 using StrangeUniverse.Game.Components;
 using StrangeUniverse.Game.Entities;
@@ -81,6 +82,7 @@ public class StarSystem
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
+    [JsonIgnore] public List<NPC>            NPCs            { get; }      = new();
     [JsonIgnore] public Player ActivePlayer { get { return Launcher.ActiveUniverse.Player;  }  }
     [JsonIgnore] public string        NebulaId        { get; private set; }
 
@@ -157,6 +159,8 @@ public class StarSystem
         GenerateAsteroids();
         Debug.WriteLine($"Generating Background Stars: {sw.ElapsedMilliseconds} ms");
         GenerateBackgroundStars();
+        Debug.WriteLine($"Generating NPCs: {sw.ElapsedMilliseconds} ms");
+        GenerateNPCs();
         Debug.WriteLine($"Generating Nebula: {sw.ElapsedMilliseconds} ms");
         GenerateNebula();
         Debug.WriteLine($"Generating Connections: {sw.ElapsedMilliseconds} ms");
@@ -167,12 +171,32 @@ public class StarSystem
     public void Update(float deltaTime, InputState input)
     {
         ActivePlayer.Update(deltaTime, input);
+
+        // Update NPCs
+        foreach (var npc in NPCs)
+        {
+            NpcController.UpdateAI(npc, deltaTime);
+            npc.Update(deltaTime, this);
+        }
+
         UpdateStarOrbits(deltaTime);
         _physics.Update(Asteroids, deltaTime);
 
-        // Skip collision while jumping — the ship passes through all objects
+        // Collision detection (skip while player is jumping)
         if (ActivePlayer.JumpPhase == JumpPhase.Normal)
+        {
+            // Player collisions with static objects
             _collision.Resolve(ActivePlayer, Planets, Asteroids);
+
+            // NPC collisions with static objects
+            foreach (var npc in NPCs)
+            {
+                _collision.ResolveNPC(npc, Planets, Asteroids);
+            }
+
+            // Ship-to-ship collisions (player vs NPCs and NPC vs NPC)
+            _collision.ResolveShipToShip(ActivePlayer, NPCs);
+        }
     }
 
     private void UpdateStarOrbits(float deltaTime)
@@ -403,6 +427,46 @@ public class StarSystem
                 // Randomly placed in front of (layer 1) or behind (layer 0) the nebula
                 Layer      = backgroundStarsRng.NextDouble() < 0.5 ? 1 : 0,
             });
+        }
+    }
+
+    private void GenerateNPCs()
+    {
+        Random npcRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_NPCs"));
+
+        // Generate a small number of NPCs (2-5 per system)
+        int npcCount = npcRng.Next(25, 35);
+
+        for (int i = 0; i < npcCount; i++)
+        {
+            string npcId = $"{Node.SystemId}_NPC_{i}";
+            string npcName = $"Trader-{i + 1}";
+
+            var npc = new NPC(npcId, npcName, "Shuttle");
+
+            // Spawn at random position within inner system (not too far out)
+            float spawnDistance = npcRng.NextWeightedFloat(MandevilleRadius * 1.2f, SystemRadius * 0.5f);
+            float spawnAngle = (float)(npcRng.NextDouble() * Math.PI * 2);
+
+            npc.Transform.Position = new Vector2(
+                (float)Math.Cos(spawnAngle) * spawnDistance,
+                (float)Math.Sin(spawnAngle) * spawnDistance);
+
+            // Random initial heading
+            npc.Transform.Rotation = (float)(npcRng.NextDouble() * Math.PI * 2);
+
+            // Random initial velocity (drifting)
+            float initialSpeed = npcRng.NextWeightedFloat(50f, 200f);
+            float velocityAngle = (float)(npcRng.NextDouble() * Math.PI * 2);
+            npc.Physics.Velocity = new Vector2(
+                (float)Math.Cos(velocityAngle) * initialSpeed,
+                (float)Math.Sin(velocityAngle) * initialSpeed);
+
+            // Random AI timer offset so they don't all make decisions simultaneously
+            npc.AiTimer = (float)(npcRng.NextDouble() * 5f);
+
+            npc.Generate();
+            NPCs.Add(npc);
         }
     }
 
