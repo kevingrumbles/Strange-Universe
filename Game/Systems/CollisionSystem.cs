@@ -16,28 +16,28 @@ public class CollisionSystem
     public void Resolve(Player player, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
     {
         foreach (var planet in planets)
-            ResolveShipStatic(player, planet.Transform.Position, planet.Radius);
+            ResolveShipStatic(player, planet.Position, planet.Radius);
 
         foreach (var asteroid in asteroids)
-            ResolveShipStatic(player, asteroid.Transform.Position, asteroid.Radius);
+            ResolveShipStatic(player, asteroid.Position, asteroid.Radius);
     }
 
     /// <summary>
     /// Resolves collisions for an NPC against static objects (planets, asteroids).
     /// </summary>
-    public void ResolveNPC(NPC npc, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
+    public void ResolveNPC(Nonplayer npc, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
     {
         foreach (var planet in planets)
-            ResolveShipStatic(npc, planet.Transform.Position, planet.Radius);
+            ResolveShipStatic(npc, planet.Position, planet.Radius);
 
         foreach (var asteroid in asteroids)
-            ResolveShipStatic(npc, asteroid.Transform.Position, asteroid.Radius);
+            ResolveShipStatic(npc, asteroid.Position, asteroid.Radius);
     }
 
     /// <summary>
     /// Resolves ship-to-ship collisions between all ships (player and NPCs).
     /// </summary>
-    public void ResolveShipToShip(Player player, IReadOnlyList<NPC> npcs)
+    public void ResolveShipToShip(Player player, IReadOnlyList<Nonplayer> npcs)
     {
         // Player vs NPCs
         foreach (var npc in npcs)
@@ -60,7 +60,7 @@ public class CollisionSystem
     /// </summary>
     private static void ResolveShipStatic(Ship ship, Vector2 otherPos, float otherRadius)
     {
-        Vector2 diff    = ship.Transform.Position - otherPos;
+        Vector2 diff    = ship.Position - otherPos;
         float   distSq  = diff.LengthSquared();
         float   minDist = ship.Radius + otherRadius;
 
@@ -72,12 +72,12 @@ public class CollisionSystem
         float   overlap = minDist - dist;
 
         // Push ship out of overlap
-        ship.Transform.Position += normal * overlap;
+        ship.Position += normal * overlap;
 
         // Cancel velocity component moving into the object
-        float dot = Vector2.Dot(ship.Physics.Velocity, normal);
+        float dot = Vector2.Dot(ship.Velocity, normal);
         if (dot < 0f)
-            ship.Physics.Velocity -= normal * (dot * (1f + Restitution));
+            ship.Velocity -= normal * (dot * (1f + Restitution));
     }
 
     /// <summary>
@@ -86,7 +86,7 @@ public class CollisionSystem
     /// </summary>
     private static void ResolveShipToShip(Ship shipA, Ship shipB)
     {
-        Vector2 diff    = shipA.Transform.Position - shipB.Transform.Position;
+        Vector2 diff    = shipA.Position - shipB.Position;
         float   distSq  = diff.LengthSquared();
         float   minDist = shipA.Radius + shipB.Radius;
 
@@ -99,11 +99,11 @@ public class CollisionSystem
 
         // Push both ships apart equally (each gets half the overlap correction)
         Vector2 correction = normal * (overlap * 0.5f);
-        shipA.Transform.Position += correction;
-        shipB.Transform.Position -= correction;
+        shipA.Position += correction;
+        shipB.Position -= correction;
 
         // Calculate relative velocity
-        Vector2 relativeVelocity = shipA.Physics.Velocity - shipB.Physics.Velocity;
+        Vector2 relativeVelocity = shipA.Velocity - shipB.Velocity;
         float velocityAlongNormal = Vector2.Dot(relativeVelocity, normal);
 
         // Only resolve if ships are moving toward each other
@@ -114,7 +114,7 @@ public class CollisionSystem
         float impulse = -(1f + Restitution) * velocityAlongNormal / 2f;
         Vector2 impulseVector = normal * impulse;
 
-        shipA.Physics.Velocity += impulseVector;
-        shipB.Physics.Velocity -= impulseVector;
+        shipA.Velocity += impulseVector;
+        shipB.Velocity -= impulseVector;
     }
 }

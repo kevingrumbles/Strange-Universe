@@ -1,15 +1,47 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe;
+using Strange_Universe.Game.Entities;
 using StrangeUniverse.Game.Components;
 using System;
+using System.Text.Json.Serialization;
 using static StrangeUniverse.StaticHelpers;
 
 namespace StrangeUniverse.Game.Entities;
 
 public class Planet
 {
-    public Transform Transform    { get; } = new();
+    private Transform Transform    { get; } = new();
+    /// <summary>Current ship position in world space.</summary>
+    [JsonIgnore]
+    public Vector2 Position
+    {
+        get => Transform.Position;
+        set => Transform.Position = value;
+    }
+
+    /// <summary>Current ship heading (rotation in radians).</summary>
+    [JsonIgnore]
+    public float Rotation
+    {
+        get => Transform.Rotation;
+        set => Transform.Rotation = value;
+    }
+
+    [JsonIgnore]
+    public float Scale
+    {
+        get => Transform.Scale;
+        set => Transform.Scale = value;
+    }
+
+    /// <summary>Forward direction vector based on current rotation.</summary>
+    [JsonIgnore]
+    public Vector2 Forward
+    {
+        get => Transform.Forward;
+    }
+
     public float     Radius       { get; set; }
     public string    Name         { get; set; } = string.Empty;
     public PlanetType Type { get; set;  }

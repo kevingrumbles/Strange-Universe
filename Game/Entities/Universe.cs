@@ -17,7 +17,7 @@ namespace Strange_Universe.Game.Entities;
 /// update of whichever one is currently active.
 /// Persisted to <c>universe-settings.json</c> with only identity fields.
 /// </summary>
-public class Universe
+public class Universe : IDisposable
 {
     public Guid   Id   { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = "New Universe";
@@ -104,7 +104,7 @@ public class Universe
         Id = id;
         Name = name;
         Seed = seed ?? id.ToString();
-        Player = new Player();
+        Player = new Player("Shuttle");
         Player.CurrentFuelLevel = Player.MaxFuelLevel;
         Player.CurrentHullStrength = Player.MaxHullStrength;
         Player.CurrentShieldStrength = Player.MaxShieldStrength;
@@ -121,15 +121,6 @@ public class Universe
                 TimedMessageRemaining = 0f;
         }
 
-        // Check if player has completed jump acceleration and left the system
-        if (Player.JumpPhase == JumpPhase.Accelerate && 
-            Player.Transform.Position.LengthSquared() >= ActiveStarSystem.SystemRadius * ActiveStarSystem.SystemRadius)
-        {
-            Player.Physics.Velocity = default;  // reset velocity before transition
-            string originSystemId = Player.CurrentStarSystemID;  // Capture origin before jump
-            JumpToSystem(originSystemId);
-            return;
-        }
         ActiveStarSystem.Update(deltaTime, input);
     }
 
@@ -176,107 +167,6 @@ public class Universe
     }
 
     /// <summary>
-    /// Resolves the jump target, computes the world-space heading toward it, and
-    /// hands control to <see cref="Player.BeginJump"/> to run the automated sequence.
-    /// The actual system transition fires once the sequence completes.
-    /// Falls back to a random connected system when no target is selected.
-    /// </summary>
-    public void BeginJump()
-    {
-        if (Player.JumpPhase != JumpPhase.Normal) return;
-        if (ActiveStarSystem.CalculateGravityAtLocation(Player.Transform.Position) != Vector2.Zero){ Launcher.ActiveUniverse.ShowTimedMessage("Cannot jump while in a gravity well!"); return; }
-        if (Player.CurrentFuelLevel <= 0) { Launcher.ActiveUniverse.ShowTimedMessage("Not enough fuel to jump!"); return; }
-        if (JumpRoute is null || JumpRoute.Count == 0) { Launcher.ActiveUniverse.ShowTimedMessage("No jump target selected!"); return; }
-
-        var connections = ActiveStarSystem.Node.SystemConnectionIds;
-        if (connections == null || connections.Count == 0) return;
-
-        // Lock in target (same resolution logic as JumpToSystem)
-        string targetId;
-        if (connections.Contains(JumpRoute[0]))
-        {
-            targetId = JumpRoute[0];
-        }
-        else return;
-
-        StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
-        if (targetNode == null) return;
-
-        var   dir      = targetNode.GalaxyPosition - ActiveStarSystem.Node.GalaxyPosition;
-        if (dir.LengthSquared() == 0f) return;
-
-        float jumpAngle = MathF.Atan2(dir.Y, dir.X);
-        Player.BeginJump(jumpAngle);
-    }
-
-    /// <summary>
-    /// Jumps the player to the next system in the route (JumpRoute[0]).
-    /// Falls back to a random connected system when no route is selected.
-    /// Removes the first system from the route after a successful jump.
-    /// Positions the player at the system edge and initiates the arrival sequence.
-    /// </summary>
-    /// <param name="originSystemId">The system ID the player is jumping from, used to calculate arrival direction.</param>
-    public void JumpToSystem(string originSystemId)
-    {
-        var connections = ActiveStarSystem.Node.SystemConnectionIds;
-        if (connections == null || connections.Count == 0) return;
-        if (JumpRoute is null || JumpRoute.Count == 0) return;
-
-        // Prefer the first system in the route; fall back to random.
-        string targetId = JumpRoute[0];
-
-
-        StarSystemNode targetNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == targetId);
-        if (targetNode == null) return;   // safety: unknown connection, do nothing
-
-        // Get origin system node for arrival direction calculation
-        StarSystemNode originNode = StarSystemNodes.FirstOrDefault(n => n.SystemId == originSystemId);
-
-        Player.CurrentStarSystemID = targetId;
-        Player.CurrentFuelLevel--;
-
-        // Remove the first system from the route after successful jump
-        if (JumpRoute.Count > 0 && JumpRoute[0] == targetId)
-            JumpRoute.RemoveAt(0);
-        Generate();
-
-        // Calculate arrival direction (from origin to destination)
-        MgVector2 arrivalDirection;
-        if (originNode != null)
-        {
-            // Direction from origin to destination in galaxy space (MonoGame Vector2)
-            var galaxyDirection = targetNode.GalaxyPosition - originNode.GalaxyPosition;
-            if (galaxyDirection.LengthSquared() > 0f)
-            {
-                // Normalize and invert direction so player enters from the side facing the origin
-                var normalizedGalaxy = MgVector2.Normalize(galaxyDirection);
-                arrivalDirection = -normalizedGalaxy;
-            }
-            else
-            {
-                // Fallback: random direction if positions are identical
-                float randomAngle = (float)(new Random().NextDouble() * Math.PI * 2);
-                arrivalDirection = new MgVector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle));
-            }
-        }
-        else
-        {
-            // Fallback: random direction if origin system not found
-            float randomAngle = (float)(new Random().NextDouble() * Math.PI * 2);
-            arrivalDirection = new MgVector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle));
-        }
-
-        // Calculate entry position at system edge
-        MgVector2 entryPosition = arrivalDirection * ActiveStarSystem.SystemRadius;
-
-        // Calculate direction toward system center (inverse of arrival direction)
-        MgVector2 entryDirection = -arrivalDirection;
-
-        // Begin arrival sequence
-        Player.BeginArrival(entryPosition, entryDirection, ActiveStarSystem.MandevilleRadius);
-    }
-
-    /// <summary>
     /// Displays a message at the bottom center of the screen in orange text for the specified duration.
     /// </summary>
     /// <param name="message">The text to display</param>
@@ -285,5 +175,15 @@ public class Universe
     {
         TimedMessage = message;
         TimedMessageRemaining = durationSeconds;
+    }
+
+    public void Dispose()
+    {
+        // Dispose all nebula textures owned by this universe
+        foreach (var nebula in NebulaPool)
+        {
+            nebula?.Dispose();
+        }
+        NebulaPool.Clear();
     }
 }

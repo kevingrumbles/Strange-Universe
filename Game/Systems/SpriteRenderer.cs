@@ -175,22 +175,22 @@ public class SpriteRenderer
     }
 
     public void DrawStar(Star star) =>
-        DrawEntity(star.Id, star.Transform.Position, 0f, star.Radius);
+        DrawEntity(star.Id, star.Position, 0f, star.Radius);
 
     public void DrawPlanet(Planet planet) =>
-        DrawEntity(planet.Id, planet.Transform.Position, planet.Transform.Rotation, planet.Radius);
+        DrawEntity(planet.Id, planet.Position, planet.Rotation, planet.Radius);
 
     public void DrawAsteroid(Asteroid asteroid) =>
-        DrawEntity(asteroid.TextureId, asteroid.Transform.Position, asteroid.Transform.Rotation, asteroid.Radius);
+        DrawEntity(asteroid.TextureId, asteroid.Position, asteroid.Rotation, asteroid.Radius);
 
     public void DrawPlayer(Player player) =>
-            DrawEntity(player.ShipName, player.Transform.Position,
-                       player.Transform.Rotation + player.ShipStats.SpriteRotationOffset,
+            DrawEntity(player.ShipName, player.Position,
+                       player.Rotation + player.ShipStats.SpriteRotationOffset,
                        player.Radius * 2.2f * player.ShipStats.SpriteScale);
 
-    public void DrawNPC(NPC npc) =>
-            DrawEntity(npc.ShipStats.ShipName, npc.Transform.Position,
-                       npc.Transform.Rotation + npc.ShipStats.SpriteRotationOffset,
+    public void DrawNPC(Nonplayer npc) =>
+            DrawEntity(npc.ShipName, npc.Position,
+                       npc.Rotation + npc.ShipStats.SpriteRotationOffset,
                        npc.Radius * 2.2f * npc.ShipStats.SpriteScale);
 
     /// <summary>
@@ -240,7 +240,7 @@ public class SpriteRenderer
     public void DrawSpeedBar(Player player, int screenWidth, int screenHeight, float maxSpeed)
     {
         // Speed bar in bottom-left
-        float speed     = player.Physics.Velocity.Length();
+        float speed     = player.Speed;
         float barW      = 140;
         float barH      = 8;
         float barX      = 14;
@@ -298,33 +298,33 @@ public class SpriteRenderer
 
         // ── Asteroids (drawn first — smallest, dimmest) ───────────────────
         foreach (var asteroid in universe.ActiveStarSystem.Asteroids)
-            Dot(WorldToMap(asteroid.Transform.Position), 1, new Color(85, 85, 90, 170));
+            Dot(WorldToMap(asteroid.Position), 1, new Color(85, 85, 90, 170));
 
         // ── Planets ───────────────────────────────────────────────────────
         foreach (var planet in universe.ActiveStarSystem.Planets)
-            Dot(WorldToMap(planet.Transform.Position), 4, StaticHelpers.PlanetMinimapColor(planet.Type));
+            Dot(WorldToMap(planet.Position), 4, StaticHelpers.PlanetMinimapColor(planet.Type));
 
         // Stars
         foreach (var star in universe.ActiveStarSystem.Stars)
         {
-            Vector2 starMap = WorldToMap(star.Transform.Position);
+            Vector2 starMap = WorldToMap(star.Position);
             Dot(starMap, 10, star.MinimapColor * 0.55f);   // soft outer glow
             Dot(starMap,  6, star.MinimapColor);            // coloured body
             Dot(starMap,  3, Color.White * 0.90f);          // bright core
         }
 
         // ── Player ────────────────────────────────────────────────────────
-            Vector2 playerMap = WorldToMap(universe.Player.Transform.Position);
+            Vector2 playerMap = WorldToMap(universe.Player.Position);
             Dot(playerMap, 4, new Color(55, 215, 255));                // cyan body
 
             // Heading pip — white dot ahead of the player indicating facing direction
-            Vector2 pip = playerMap + universe.Player.Transform.Forward * 5f;
+            Vector2 pip = playerMap + universe.Player.Forward * 5f;
             Dot(pip, 2, Color.White);
 
         // ── NPCs ──────────────────────────────────────────────────────────
         foreach (var npc in universe.ActiveStarSystem.NPCs)
         {
-            Vector2 npcMap = WorldToMap(npc.Transform.Position);
+            Vector2 npcMap = WorldToMap(npc.Position);
             Dot(npcMap, 3, new Color(255, 180, 80));  // orange body for NPCs
         }
 
@@ -413,13 +413,10 @@ public class SpriteRenderer
             {
                 string displayName = targetNode.DisplayName;
 
-                // Check if player is in a gravity well
-                bool inGravityWell = universe.ActiveStarSystem.CalculateGravityAtLocation(universe.Player.Transform.Position) != Vector2.Zero;
-
                 // Set text color based on gravity well status
-                Color textColor = inGravityWell 
-                    ? new Color(80, 80, 80)      // Grey when in gravity well
-                    : new Color(220, 220, 220);  // Bright when jump available
+                Color textColor = universe.Player.CanJump()
+                    ? new Color(220, 220, 220)  // Bright when jump available
+                    : new Color(80, 80, 80);    // Grey when in gravity well
 
                 // Draw system name centered
                 Vector2 nameSize = _font.MeasureString(displayName) * FontScale;

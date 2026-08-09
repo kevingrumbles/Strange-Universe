@@ -4,7 +4,7 @@ using Strange_Universe.Game.Entities;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strange_Universe.Game.UI;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// Handles mouse hit-detection and selection logic for the Galaxy Map.
@@ -30,7 +30,7 @@ public class GalaxyMapInput
         var mouse = Mouse.GetState();
         var mousePos = new Vector2(mouse.X, mouse.Y);
 
-        string currentId = universe.ActiveStarSystem.Node.SystemId;
+        string currentId = universe.ActiveStarSystem.SystemId;
 
         // Determine which systems are reachable for the next selection
         // Start from current system if route is empty, otherwise from the last system in route

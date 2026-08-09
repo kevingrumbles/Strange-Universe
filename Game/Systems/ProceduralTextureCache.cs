@@ -23,7 +23,7 @@ public sealed class ProceduralTextureCache : IDisposable
             ? tex
             : throw new KeyNotFoundException($"Texture '{id}' not found in cache.");
 
-    public bool TryGet(string id, out Texture2D? texture) =>
+    public bool TryGet(string id, out Texture2D texture) =>
         _textures.TryGetValue(id, out texture);
 
     public void Dispose()

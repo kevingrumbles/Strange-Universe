@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strange_Universe.Game.UI;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// Handles all drawing for the Galaxy Map overlay.
@@ -180,8 +180,8 @@ public class GalaxyMapRenderer
 
     private void DrawConnections(Universe universe, Dictionary<string, Vector2> positions)
     {
-        string currentId  = universe.ActiveStarSystem.Node.SystemId;
-        var    connections = universe.ActiveStarSystem.Node.SystemConnectionIds;
+        string currentId  = universe.ActiveStarSystem.SystemId;
+        var    connections = universe.ActiveStarSystem.SystemConnectionIds;
         var    drawn       = new HashSet<string>();
 
         foreach (var node in universe.StarSystemNodes)
@@ -210,7 +210,7 @@ public class GalaxyMapRenderer
         if (universe.JumpRoute.Count == 0) return;
 
         // Draw lines connecting the route systems in sequence
-        string currentId = universe.ActiveStarSystem.Node.SystemId;
+        string currentId = universe.ActiveStarSystem.SystemId;
         var routeColor = new Color(255, 200, 80); // Bright yellow/orange for the route
 
         // First line: from current system to first route system
@@ -238,7 +238,7 @@ public class GalaxyMapRenderer
     {
         string currentId  = universe.Player.CurrentStarSystemID;
         string selectedId = universe.SelectedJumpTargetSystemId;
-        var    connections = universe.ActiveStarSystem.Node.SystemConnectionIds;
+        var    connections = universe.ActiveStarSystem.SystemConnectionIds;
 
         // Get the last system in the route to determine which systems are reachable next
         string lastRouteSystem = universe.JumpRoute.Count > 0 

@@ -21,7 +21,7 @@ public class PhysicsBody
     /// No speed clamp is applied here — callers handle soft limiting at the force-application layer.
     /// </summary>
     public void Integrate(Transform transform, float deltaTime)
-    { 
+    {
         transform.Position += Velocity * deltaTime;
         transform.Rotation += AngularVelocity * deltaTime;
     }

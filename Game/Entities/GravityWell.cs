@@ -1,7 +1,8 @@
 using Microsoft.Xna.Framework;
+using StrangeUniverse;
 using System;
 
-namespace StrangeUniverse.Game.Components;
+namespace Strange_Universe.Game.Entities;
 
 /// <summary>
 /// Represents a gravitational field around a celestial body.

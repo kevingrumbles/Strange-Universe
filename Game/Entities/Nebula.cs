@@ -12,7 +12,7 @@ namespace StrangeUniverse.Game.Entities;
 /// producing genuine color variety across the cloud.
 /// Generated once at startup and used for infinite scrolling background.
 /// </summary>
-public class Nebula
+public class Nebula : IDisposable
 {
     public string Id { get; }
     public Texture2D Texture { get; private set; }
@@ -129,5 +129,11 @@ public class Nebula
 
         // Apply smoothstep for smooth transition
         return fade * fade * (3f - 2f * fade);
+    }
+
+    public void Dispose()
+    {
+        Texture?.Dispose();
+        Texture = null!;
     }
 }

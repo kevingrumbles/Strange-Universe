@@ -41,11 +41,6 @@ namespace StrangeUniverse
             {
                 uint hash = 2166136261u;
 
-                if (s is null)
-                {
-                    string test = "";
-                }
-
                 foreach (char c in s ?? string.Empty)
                     hash = (hash ^ c) * 16777619u;
 
@@ -67,7 +62,7 @@ namespace StrangeUniverse
 
             return (min ?? 0) + normalized * ((max ?? 1) - (min ?? 0));
         }
-        public static T? LoadFile<T>(string path) where T : class
+        public static T LoadFile<T>(string path) where T : class
         {
             if (!File.Exists(path)) return null;
             try
@@ -321,6 +316,14 @@ namespace StrangeUniverse
             Star,
             System,
             Planet
+        }
+
+        public enum Direction
+        {
+            Up,
+            Down,
+            Left,
+            Right
         }
 
         public static string GetStarSystemName(string seed, OriginFaction faction = OriginFaction.Human)

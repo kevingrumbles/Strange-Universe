@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Game.Systems;
 using Strange_Universe.Game.UI;
 using System.Collections.Generic;
@@ -201,56 +202,53 @@ namespace StrangeUniverse
 
         private void ClearRuntime()
         {
+            // Dispose old resources
+            ActiveUniverse?.Dispose();
+            TextureCache?.Dispose();
+            _spriteBatch?.Dispose();
+            _galaxyMap?.Dispose();
+
+            // Create new resources
             TextureCache = new ProceduralTextureCache();
             _inputHandler = new InputHandler();
             _spriteBatch = new SpriteBatch(GraphicsDevice);
             _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache, _font);
-            _galaxyMap?.Dispose();
             _galaxyMap = new GalaxyMapOverlay(_spriteBatch, GraphicsDevice, _font);
             ActiveUniverse = null!;
         }
         private void UpdatePlaying(GameTime gameTime)
         {
-            var keys = Keyboard.GetState();
+            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
+            var input = _inputHandler.GetState();
 
             // Galaxy map intercepts all input while open
             if (_galaxyMap.IsOpen)
             {
-                bool closed = _galaxyMap.Update(ActiveUniverse, _screenWidth, _screenHeight,
-                                                gameTime.ElapsedGameTime.TotalSeconds);
+                bool closed = _galaxyMap.Update(ActiveUniverse, _screenWidth, _screenHeight, deltaTime);
                 if (closed) IsMouseVisible = false;
-                _prevKeys = keys;
                 return;
             }
 
-            if (WasPressed(keys, Keys.Escape))
+            if (input.Exit)
             {
                 if (ActiveUniverse != null)
                     StaticHelpers.Persist(ActiveUniverse, _universeFilePath);
                 ClearRuntime();
 
+                // Update _prevKeys to current state so Escape doesn't trigger again in menu
+                _prevKeys = Keyboard.GetState();
                 _state = GameState.Menu;
-                _prevKeys = keys;
                 return;
             }
 
-            if (WasPressed(keys, Keys.M))
+            if (input.OpenMap)
             {
                 _galaxyMap.Open();
                 IsMouseVisible = true;
-                _prevKeys = keys;
                 return;
             }
 
-            if (WasPressed(keys, Keys.J))
-                ActiveUniverse.BeginJump();
-
-            float deltaTime = (float)gameTime.ElapsedGameTime.TotalSeconds;
-            var input = _inputHandler.GetState();
-
             ActiveUniverse.Update(deltaTime, input);
-
-            _prevKeys = keys;
         }
 
         // ── Draw ──────────────────────────────────────────────────────────────
@@ -470,7 +468,7 @@ namespace StrangeUniverse
         private void DrawOverlay()
         {
             _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.ShipStats.MaxSpeed);
+            _renderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.MaxSpeed);
             _renderer.DrawHud(ActiveUniverse, _screenWidth, _screenHeight);
 
             // Draw timed message if active with fade out

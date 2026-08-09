@@ -15,7 +15,7 @@ public static class ArtLoader
     /// and returns it as a <see cref="Texture2D"/> managed by the caller.
     /// Returns <c>null</c> if the file does not exist.
     /// </summary>
-    public static Texture2D? TryLoad(GraphicsDevice gd, string relativePath)
+    public static Texture2D TryLoad(GraphicsDevice gd, string relativePath)
     {
         if (!File.Exists(relativePath))
         {

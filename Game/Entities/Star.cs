@@ -1,14 +1,46 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Strange_Universe.Game.Entities;
 using StrangeUniverse.Game.Components;
 using System;
+using System.Text.Json.Serialization;
 
 namespace StrangeUniverse.Game.Entities;
 
 public class Star
 {
     public string    Id { get; }
-    public Transform Transform    { get; } = new();
+    private Transform Transform    { get; } = new();
+    /// <summary>Current ship position in world space.</summary>
+    [JsonIgnore]
+    public Vector2 Position
+    {
+        get => Transform.Position;
+        set => Transform.Position = value;
+    }
+
+    /// <summary>Current ship heading (rotation in radians).</summary>
+    [JsonIgnore]
+    public float Rotation
+    {
+        get => Transform.Rotation;
+        set => Transform.Rotation = value;
+    }
+
+    [JsonIgnore]
+    public float Scale
+    {
+        get => Transform.Scale;
+        set => Transform.Scale = value;
+    }
+
+    /// <summary>Forward direction vector based on current rotation.</summary>
+    [JsonIgnore]
+    public Vector2 Forward
+    {
+        get => Transform.Forward;
+    }
+
     public float     Radius       { get; set; }
     public string    Name         { get; set; }
     public float     OrbitRadius  { get; set; }
@@ -31,7 +63,7 @@ public class Star
 
 
         // Create gravity well based on star size
-        float wellRadius = Radius * MathHelper.Lerp(4f, 8f, (float)starRng.NextDouble());
+        float wellRadius = Radius * MathHelper.Lerp(3f, 6f, (float)starRng.NextDouble());
         // Stars use 80-100% of max gravity force at their center
         float wellStrength = MathHelper.Lerp(0.8f, 1.0f, (float)starRng.NextDouble());
         GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);

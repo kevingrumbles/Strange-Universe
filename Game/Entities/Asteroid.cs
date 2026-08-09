@@ -3,13 +3,54 @@ using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe;
 using StrangeUniverse.Game.Components;
 using System;
+using System.Text.Json.Serialization;
 
 namespace StrangeUniverse.Game.Entities;
 
 public class Asteroid
 {
-    public Transform   Transform { get; } = new();
-    public PhysicsBody Physics   { get; } = new();
+    /// <summary>Current ship position in world space.</summary>
+    [JsonIgnore]
+    public Vector2 Position
+    {
+        get => Transform.Position;
+        set => Transform.Position = value;
+    }
+
+    /// <summary>Current ship heading (rotation in radians).</summary>
+    [JsonIgnore]
+    public float Rotation
+    {
+        get => Transform.Rotation;
+        set => Transform.Rotation = value;
+    }
+
+    [JsonIgnore]
+    public float Scale
+    {
+        get => Transform.Scale;
+        set => Transform.Scale = value;
+    }
+
+    /// <summary>Forward direction vector based on current rotation.</summary>
+    [JsonIgnore]
+    public Vector2 Forward
+    {
+        get => Transform.Forward;
+    }
+    /// <summary>Current velocity vector.</summary>
+    public Vector2 Velocity
+    {
+        get => Physics.Velocity;
+        set => Physics.Velocity = value;
+    }
+    public float AngularVelocity
+    {
+        get => Physics.AngularVelocity;
+        set => Physics.AngularVelocity = value;
+    }
+    private Transform   Transform { get; } = new();
+    private PhysicsBody Physics   { get; } = new();
     public float       Radius    { get; set; }
     public string      TextureId { get; set; } = string.Empty;
     private const int  Size = 128;
@@ -18,15 +59,15 @@ public class Asteroid
     {
         Radius = radius;
         TextureId = textureId;
-        Transform.Position = new Vector2((float)Math.Cos(angle) * orbit, (float)Math.Sin(angle) * orbit);
-        Transform.Rotation = (float)(asteroidsRng.NextDouble() * MathHelper.TwoPi);
+        Position = new Vector2((float)Math.Cos(angle) * orbit, (float)Math.Sin(angle) * orbit);
+        Rotation = (float)(asteroidsRng.NextDouble() * MathHelper.TwoPi);
 
         float speed = MathHelper.Lerp(8f, 30f, (float)asteroidsRng.NextDouble());
         float perpAngle = angle + MathHelper.PiOver2;
-        Physics.Velocity = new Vector2(
+        Velocity = new Vector2(
             (float)Math.Cos(perpAngle) * speed,
             (float)Math.Sin(perpAngle) * speed);
-        Physics.AngularVelocity = MathHelper.Lerp(-0.4f, 0.4f, (float)asteroidsRng.NextDouble());
+        AngularVelocity = MathHelper.Lerp(-0.4f, 0.4f, (float)asteroidsRng.NextDouble());
     }
     public void Update(float deltaTime)
     {

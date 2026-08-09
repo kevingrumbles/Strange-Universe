@@ -30,6 +30,7 @@ public class ShipStats
     public int MaxHull { get; set; }
     public int MaxShield { get; set; }
     public int MaxFuel { get; set; }
+    public float Mass { get; set; } = 1.0f;
     public ShipStats GetShipStats(string name)
     {
         return Presets.Find(s => s.ShipName == name) ?? throw new KeyNotFoundException($"ShipStats preset '{name}' not found.");

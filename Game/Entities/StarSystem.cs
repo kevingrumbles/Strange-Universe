@@ -1,7 +1,6 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
-using Strange_Universe.Game.Systems;
 using StrangeUniverse;
 using StrangeUniverse.Game.Components;
 using StrangeUniverse.Game.Entities;
@@ -56,7 +55,16 @@ public class StarSystem
 {
     // ── Identity / seed ──────────────────────────────────────────────────────
     /// <summary>Deterministic seed derived from the parent Universe seed.</summary>
-    public StarSystemNode Node { get; set; }
+    [JsonIgnore] public string SystemId { get { return Node.SystemId;  }  }
+    [JsonIgnore] public HashSet<string> SystemConnectionIds { get { return Node.SystemConnectionIds; } }
+    [JsonIgnore] public string Name { get { return Node.Name; } }
+    [JsonIgnore] public Vector2 GalaxyPosition { get { return Node.GalaxyPosition; } }
+    [JsonIgnore] public StarSystemNode Node { get; set; }
+    [JsonIgnore] public Player ActivePlayer { get { return Launcher.ActiveUniverse.Player; } }
+    [JsonIgnore] public Universe Universe { get { return Launcher.ActiveUniverse; } }
+    [JsonIgnore] public string DisplayName { get { return Node.DisplayName; } }
+    [JsonIgnore] public bool Discovered { get { return Node.Discovered; } }
+
 
     // ── Generation configuration ─────────────────────────────────────────────
     [JsonIgnore] public int    PlanetCount             { get; set; }
@@ -82,8 +90,7 @@ public class StarSystem
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
-    [JsonIgnore] public List<NPC>            NPCs            { get; }      = new();
-    [JsonIgnore] public Player ActivePlayer { get { return Launcher.ActiveUniverse.Player;  }  }
+    [JsonIgnore] public List<Nonplayer>            NPCs            { get; }      = new();
     [JsonIgnore] public string        NebulaId        { get; private set; }
 
     private readonly PhysicsSystem   _physics   = new();
@@ -159,8 +166,6 @@ public class StarSystem
         GenerateAsteroids();
         Debug.WriteLine($"Generating Background Stars: {sw.ElapsedMilliseconds} ms");
         GenerateBackgroundStars();
-        Debug.WriteLine($"Generating NPCs: {sw.ElapsedMilliseconds} ms");
-        GenerateNPCs();
         Debug.WriteLine($"Generating Nebula: {sw.ElapsedMilliseconds} ms");
         GenerateNebula();
         Debug.WriteLine($"Generating Connections: {sw.ElapsedMilliseconds} ms");
@@ -172,31 +177,29 @@ public class StarSystem
     {
         ActivePlayer.Update(deltaTime, input);
 
-        // Update NPCs
+        // Update NPCs using AI pipeline (Behavior -> Ship autopilot -> Ship physics)
         foreach (var npc in NPCs)
         {
-            NpcController.UpdateAI(npc, deltaTime);
-            npc.Update(deltaTime, this);
+            npc.Update(deltaTime);
         }
+
+        // Remove NPCs that have left the system (e.g., merchants after jumping)
+        NPCs.RemoveAll(npc => npc.Remove);
 
         UpdateStarOrbits(deltaTime);
         _physics.Update(Asteroids, deltaTime);
 
-        // Collision detection (skip while player is jumping)
-        if (ActivePlayer.JumpPhase == JumpPhase.Normal)
+        // Player collisions with static objects
+        _collision.Resolve(ActivePlayer, Planets, Asteroids);
+
+        // NPC collisions with static objects
+        foreach (var npc in NPCs)
         {
-            // Player collisions with static objects
-            _collision.Resolve(ActivePlayer, Planets, Asteroids);
-
-            // NPC collisions with static objects
-            foreach (var npc in NPCs)
-            {
-                _collision.ResolveNPC(npc, Planets, Asteroids);
-            }
-
-            // Ship-to-ship collisions (player vs NPCs and NPC vs NPC)
-            _collision.ResolveShipToShip(ActivePlayer, NPCs);
+            _collision.ResolveNPC(npc, Planets, Asteroids);
         }
+
+        // Ship-to-ship collisions (player vs NPCs and NPC vs NPC)
+        _collision.ResolveShipToShip(ActivePlayer, NPCs);
     }
 
     private void UpdateStarOrbits(float deltaTime)
@@ -205,12 +208,12 @@ public class StarSystem
         foreach (var star in Stars)
         {
             star.OrbitAngle += star.OrbitSpeed * deltaTime;
-            star.Transform.Position = new Vector2(
+            star.Position = new Vector2(
                 MathF.Cos(star.OrbitAngle) * star.OrbitRadius,
                 MathF.Sin(star.OrbitAngle) * star.OrbitRadius);
 
             // Update gravity well center as star moves
-            star.GravityWell.Center = star.Transform.Position;
+            star.GravityWell.Center = star.Position;
         }
     }
 
@@ -223,7 +226,7 @@ public class StarSystem
         // Remove directions already occupied by existing connections.
         foreach (string id in Node.SystemConnectionIds)
         {
-            StarSystemNode? connected =
+            StarSystemNode connected =
                 Node.Universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == id);
 
             if (connected == null)
@@ -310,7 +313,7 @@ public class StarSystem
                                    new Vector2(dir.X * distance,
                                                dir.Y * distance);
 
-                StarSystemNode? node = Node.Universe.StarSystemNodes
+                StarSystemNode node = Node.Universe.StarSystemNodes
                     .FirstOrDefault(n => n.GalaxyPosition == location);
 
                 if (node == null)
@@ -347,7 +350,7 @@ public class StarSystem
             
             float initialAngle = MathHelper.TwoPi * i / StarCount;
             Star newStar = new Star(starId, StarRadius, name, starColor, StarOrbitRadius, initialAngle, StarOrbitSpeed);
-            newStar.Transform.Position = StarCount == 1
+            newStar.Position = StarCount == 1
                 ? Vector2.Zero
                 : new Vector2(
                     MathF.Cos(initialAngle) * StarOrbitRadius,
@@ -430,46 +433,6 @@ public class StarSystem
         }
     }
 
-    private void GenerateNPCs()
-    {
-        Random npcRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_NPCs"));
-
-        // Generate a small number of NPCs (2-5 per system)
-        int npcCount = npcRng.Next(25, 35);
-
-        for (int i = 0; i < npcCount; i++)
-        {
-            string npcId = $"{Node.SystemId}_NPC_{i}";
-            string npcName = $"Trader-{i + 1}";
-
-            var npc = new NPC(npcId, npcName, "Shuttle");
-
-            // Spawn at random position within inner system (not too far out)
-            float spawnDistance = npcRng.NextWeightedFloat(MandevilleRadius * 1.2f, SystemRadius * 0.5f);
-            float spawnAngle = (float)(npcRng.NextDouble() * Math.PI * 2);
-
-            npc.Transform.Position = new Vector2(
-                (float)Math.Cos(spawnAngle) * spawnDistance,
-                (float)Math.Sin(spawnAngle) * spawnDistance);
-
-            // Random initial heading
-            npc.Transform.Rotation = (float)(npcRng.NextDouble() * Math.PI * 2);
-
-            // Random initial velocity (drifting)
-            float initialSpeed = npcRng.NextWeightedFloat(50f, 200f);
-            float velocityAngle = (float)(npcRng.NextDouble() * Math.PI * 2);
-            npc.Physics.Velocity = new Vector2(
-                (float)Math.Cos(velocityAngle) * initialSpeed,
-                (float)Math.Sin(velocityAngle) * initialSpeed);
-
-            // Random AI timer offset so they don't all make decisions simultaneously
-            npc.AiTimer = (float)(npcRng.NextDouble() * 5f);
-
-            npc.Generate();
-            NPCs.Add(npc);
-        }
-    }
-
     private void GenerateNebula()
     {
         Random nebulaRandom = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Nebula"));
@@ -504,6 +467,35 @@ public class StarSystem
         }
 
         return totalForce;
+    }
+
+    /// <summary>
+    /// Calculates an entry position at the edge of the system radius based on incoming direction from a galaxy position.
+    /// Adds random variance to the angle and distance for more natural-looking arrivals.
+    /// </summary>
+    /// <param name="fromGalaxyPosition">The galaxy position the ship is arriving from (typically the previous system)</param>
+    /// <returns>A position at the system edge in the direction of arrival with variance applied</returns>
+    public Vector2 GetSystemEdgeEntryPosition(Vector2 fromGalaxyPosition)
+    {
+        Random rand = new Random();
+
+        // Calculate the direction vector from the source to this system
+        Vector2 galaxyVector = GalaxyPosition - fromGalaxyPosition;
+        float baseAngle = (float)Math.Atan2(galaxyVector.Y, galaxyVector.X);
+
+        // Add angular variance (±15 degrees = ±0.26 radians)
+        float angleVariance = (float)((rand.NextDouble() - 0.5) * 0.52); // -0.26 to +0.26 radians
+        float entryAngle = baseAngle + angleVariance;
+
+        // Calculate entry direction
+        Vector2 entryDirection = new Vector2((float)Math.Cos(entryAngle), (float)Math.Sin(entryAngle));
+
+        // Add distance variance (±5% of system radius)
+        float distanceVariance = (float)((rand.NextDouble() - 0.5) * 0.1); // -0.05 to +0.05
+        float entryDistance = SystemRadius * (1f + distanceVariance);
+
+        // Calculate and return entry position
+        return entryDirection * entryDistance;
     }
 
     /// <summary>

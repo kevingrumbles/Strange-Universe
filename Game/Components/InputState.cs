@@ -8,4 +8,7 @@ public class InputState
     public bool Retrograde  { get; set; }
     public bool ZoomIn      { get; set; }
     public bool ZoomOut     { get; set; }
+    public bool OpenMap     { get; set; }
+    public bool Jump        { get; set; }
+    public bool Exit        { get; set; }
 }
