@@ -24,6 +24,7 @@ public abstract class Ship
     public int? CurrentHullStrength { get; set; } = null;
     public int? CurrentShieldStrength { get; set; } = null;
     public int? CurrentFuelLevel { get; set; } = null;
+    public List<EquipmentStats> Equipment { get; set; } = new();
     [JsonIgnore] public bool HasActiveNavTask => ActiveNavTask is not null;
     [JsonIgnore] private NavTask ActiveNavTask { get; set; } = null;
     [JsonIgnore] private Queue<NavTask> NavTaskQueue { get; set; } = new Queue<NavTask>();

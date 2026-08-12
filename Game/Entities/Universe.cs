@@ -109,6 +109,7 @@ public class Universe : IDisposable
         Player.CurrentFuelLevel = Player.MaxFuelLevel;
         Player.CurrentHullStrength = Player.MaxHullStrength;
         Player.CurrentShieldStrength = Player.MaxShieldStrength;
+        Player.Equipment.Add(new EquipmentStats().GetEquipmentStats("Light Laser"));
         Player.EnqueueNavTask(new SpawnTask(Player));
     }
 

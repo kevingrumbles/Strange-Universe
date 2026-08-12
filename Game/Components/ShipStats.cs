@@ -12,20 +12,14 @@ public class ShipStats
     public float ThrustForce    { get; set; }
     public float RotationSpeed  { get; set; }
     public float MaxSpeed       { get; set; }
-    /// <summary>1.0 = true vacuum (no passive friction). Do not set below 1.0 for ships.</summary>
     public float LinearDamping  { get; set; }
     public float Radius         { get; set; }
-    /// <summary>Fraction of MaxSpeed at which the forward thrust soft-cap begins (0-1).</summary>
     public float SoftCapStart   { get; set; }
     /// <summary>
     /// Radians added to the sprite's rotation before drawing.
     /// Use -1.5708 (≈ -π/2) if the sprite points upward; 0 if it already points right (+X).
     /// </summary>
     public float SpriteRotationOffset { get; set; }
-    /// <summary>
-    /// Scale multiplier applied to the sprite when rendering.
-    /// Default is 1.0. Values > 1.0 make the sprite larger, < 1.0 make it smaller.
-    /// </summary>
     public float SpriteScale { get; set; } = 1.0f;
     public int MaxHull { get; set; }
     public int MaxShield { get; set; }

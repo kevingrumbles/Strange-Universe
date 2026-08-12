@@ -94,6 +94,7 @@ namespace StrangeUniverse
             CameraSettings cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
             Camera = new Camera(cameraSettings, _screenWidth, _screenHeight);
             ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json");
+            EquipmentStats.Presets = StaticHelpers.LoadFile<List<EquipmentStats>>("Data/equipment-stats.json");
             _universes = StaticHelpers.LoadExisting(_universeFilePath);
 
             _menuIndex = 0;

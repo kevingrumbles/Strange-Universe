@@ -98,6 +98,7 @@ namespace StrangeUniverse
             ReadCommentHandling = JsonCommentHandling.Skip,
             PropertyNameCaseInsensitive = true,
             IncludeFields = true,
+            Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true) }
         };
 
         public static readonly JsonSerializerOptions _writeOptions = new()

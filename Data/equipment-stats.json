@@ -1,0 +1,161 @@
+[
+  {
+    "EquipmentName": "Light Laser",
+    "EquipmentType": "FixedProjectile",
+    "Damage": 15.0,
+    "Speed": 2000.0,
+    "Range": 1500.0,
+    "FireRate": 3.0,
+    "EnergyCost": 10.0,
+    "Mass": 50.0
+  },
+  {
+    "EquipmentName": "Heavy Laser",
+    "EquipmentType": "FixedProjectile",
+    "Damage": 35.0,
+    "Speed": 1800.0,
+    "Range": 2000.0,
+    "FireRate": 1.5,
+    "EnergyCost": 25.0,
+    "Mass": 120.0
+  },
+  {
+    "EquipmentName": "Pulse Cannon",
+    "EquipmentType": "TurretProjectile",
+    "Damage": 20.0,
+    "Speed": 1500.0,
+    "Range": 1200.0,
+    "FireRate": 4.0,
+    "EnergyCost": 12.0,
+    "Mass": 80.0
+  },
+  {
+    "EquipmentName": "Gatling Gun",
+    "EquipmentType": "FixedProjectile",
+    "Damage": 8.0,
+    "Speed": 2500.0,
+    "Range": 1000.0,
+    "FireRate": 10.0,
+    "EnergyCost": 5.0,
+    "Mass": 60.0
+  },
+  {
+    "EquipmentName": "Plasma Beam",
+    "EquipmentType": "FixedBeam",
+    "Damage": 50.0,
+    "Range": 2500.0,
+    "EnergyCost": 40.0,
+    "Mass": 150.0
+  },
+  {
+    "EquipmentName": "Mining Beam",
+    "EquipmentType": "TurretBeam",
+    "Damage": 5.0,
+    "Range": 800.0,
+    "EnergyCost": 15.0,
+    "Mass": 90.0
+  },
+  {
+    "EquipmentName": "Light Missile",
+    "EquipmentType": "FixedMissile",
+    "Damage": 80.0,
+    "Speed": 500.0,
+    "Range": 3000.0,
+    "FireRate": 0.5,
+    "EnergyCost": 30.0,
+    "Mass": 100.0
+  },
+  {
+    "EquipmentName": "Heavy Torpedo",
+    "EquipmentType": "TurretMissile",
+    "Damage": 200.0,
+    "Speed": 300.0,
+    "Range": 5000.0,
+    "FireRate": 0.25,
+    "EnergyCost": 60.0,
+    "Mass": 250.0
+  },
+  {
+    "EquipmentName": "Basic Shield Generator",
+    "EquipmentType": "Shield",
+    "ShieldStrength": 500.0,
+    "ShieldRechargeRate": 25.0,
+    "ShieldRechargeDelay": 5.0,
+    "EnergyCost": 20.0,
+    "Mass": 200.0
+  },
+  {
+    "EquipmentName": "Advanced Shield Generator",
+    "EquipmentType": "Shield",
+    "ShieldStrength": 1200.0,
+    "ShieldRechargeRate": 50.0,
+    "ShieldRechargeDelay": 3.0,
+    "EnergyCost": 40.0,
+    "Mass": 400.0
+  },
+  {
+    "EquipmentName": "Military Shield Generator",
+    "EquipmentType": "Shield",
+    "ShieldStrength": 2500.0,
+    "ShieldRechargeRate": 80.0,
+    "ShieldRechargeDelay": 2.0,
+    "EnergyCost": 70.0,
+    "Mass": 600.0
+  },
+  {
+    "EquipmentName": "Light Hull Plating",
+    "EquipmentType": "Hull",
+    "HullStrength": 300.0,
+    "Mass": 150.0
+  },
+  {
+    "EquipmentName": "Reinforced Hull",
+    "EquipmentType": "Hull",
+    "HullStrength": 800.0,
+    "Mass": 400.0
+  },
+  {
+    "EquipmentName": "Military Armor",
+    "EquipmentType": "Hull",
+    "HullStrength": 1500.0,
+    "Mass": 800.0
+  },
+  {
+    "EquipmentName": "Standard Engine",
+    "EquipmentType": "Engine",
+    "EngineThrust": 1000.0,
+    "FuelLevel": 100.0,
+    "Mass": 300.0
+  },
+  {
+    "EquipmentName": "High-Performance Engine",
+    "EquipmentType": "Engine",
+    "EngineThrust": 2000.0,
+    "FuelLevel": 80.0,
+    "Mass": 450.0
+  },
+  {
+    "EquipmentName": "Efficient Engine",
+    "EquipmentType": "Engine",
+    "EngineThrust": 1200.0,
+    "FuelLevel": 150.0,
+    "Mass": 350.0
+  },
+  {
+    "EquipmentName": "Cargo Expander",
+    "EquipmentType": "Utility",
+    "Mass": 100.0
+  },
+  {
+    "EquipmentName": "Sensor Array",
+    "EquipmentType": "Utility",
+    "EnergyCost": 5.0,
+    "Mass": 75.0
+  },
+  {
+    "EquipmentName": "Auto-Repair Module",
+    "EquipmentType": "Utility",
+    "EnergyCost": 15.0,
+    "Mass": 150.0
+  }
+]
