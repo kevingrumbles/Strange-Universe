@@ -1,4 +1,5 @@
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.NavSystem;
 using StrangeUniverse;
 using StrangeUniverse.Game.Components;
 using StrangeUniverse.Game.Entities;
@@ -108,7 +109,7 @@ public class Universe : IDisposable
         Player.CurrentFuelLevel = Player.MaxFuelLevel;
         Player.CurrentHullStrength = Player.MaxHullStrength;
         Player.CurrentShieldStrength = Player.MaxShieldStrength;
-        Player.UseSafeEntryLocation = true;
+        Player.EnqueueNavTask(new SpawnTask(Player));
     }
 
     public void Update(float deltaTime, InputState input)

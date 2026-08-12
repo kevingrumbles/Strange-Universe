@@ -27,5 +27,13 @@ namespace Strange_Universe.Game.NavSystem
         SystemTranslation,
         ArriveInSystem,
         Complete,
+        Invalid,
+        Spawning,
+        Patrolling,
+        ApproachPosition,
+        HoldPosition,
+        Guarding,
+        Attacking,
+        Alerting,
     }
 }

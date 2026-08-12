@@ -3,7 +3,6 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
-using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Game.Systems;
 using Strange_Universe.Game.UI;
 using System.Collections.Generic;
@@ -16,6 +15,8 @@ namespace StrangeUniverse
     {
         public static Universe ActiveUniverse = null;
         public bool debug = false;
+        public const bool PlanetColision = false;
+
 
         // ── Core ──────────────────────────────────────────────────────────────
         public static GraphicsDevice GD;
@@ -437,7 +438,7 @@ namespace StrangeUniverse
             _renderer.DrawPlayer(ActiveUniverse.Player);
 
             // Draw NPCs
-            foreach (var npc in sys.NPCs)
+            foreach (var npc in sys.Npcs)
                 _renderer.DrawNPC(npc);
 
             // Debug: Draw gravity well indicators

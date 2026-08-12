@@ -15,8 +15,11 @@ public class CollisionSystem
     /// </summary>
     public void Resolve(Player player, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
     {
-        foreach (var planet in planets)
-            ResolveShipStatic(player, planet.Position, planet.Radius);
+        if (Launcher.PlanetColision)
+        {
+            foreach (var planet in planets)
+                ResolveShipStatic(player, planet.Position, planet.Radius);
+        }
 
         foreach (var asteroid in asteroids)
             ResolveShipStatic(player, asteroid.Position, asteroid.Radius);
@@ -27,8 +30,11 @@ public class CollisionSystem
     /// </summary>
     public void ResolveNPC(Nonplayer npc, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
     {
-        foreach (var planet in planets)
-            ResolveShipStatic(npc, planet.Position, planet.Radius);
+        if (Launcher.PlanetColision)
+        {
+            foreach (var planet in planets)
+                ResolveShipStatic(npc, planet.Position, planet.Radius);
+        }
 
         foreach (var asteroid in asteroids)
             ResolveShipStatic(npc, asteroid.Position, asteroid.Radius);

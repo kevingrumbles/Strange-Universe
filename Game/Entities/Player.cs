@@ -1,12 +1,8 @@
-using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
-using Strange_Universe.Game.Systems;
 using StrangeUniverse;
-using StrangeUniverse.Game.Components;
 using System;
 using System.Linq;
-using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -14,21 +10,12 @@ namespace Strange_Universe.Game.Entities;
 public class Player : Ship
 {
     public string CurrentStarSystemID { get; set; }
-    [JsonIgnore] public bool UseSafeEntryLocation { get; set; } = false;
 
     public Player(string shipName) : base(shipName)
     {
     }
     public void Update(float deltaTime, InputState input)
     {
-        if (UseSafeEntryLocation)
-        {
-            Transform transform = StarSystem.GetSafeEntryTransform();
-            this.Position = transform.Position;
-
-            UseSafeEntryLocation = false;
-        }
-
         HandleManualRotation(deltaTime, input);
         HandleRetrograde(deltaTime, input);
         HandleThrust(deltaTime, input);
@@ -44,7 +31,7 @@ public class Player : Ship
 
     private void HandleManualRotation(float deltaTime, InputState input)
     {
-        if (ActiveNavTask != null) return;
+        if (HasActiveNavTask) return;
         if (input.RotateLeft)  ApplyRotation(StaticHelpers.Direction.Left, deltaTime);
         if (input.RotateRight) ApplyRotation(StaticHelpers.Direction.Right, deltaTime);
     }
@@ -55,7 +42,7 @@ public class Player : Ship
 
     private void HandleRetrograde(float deltaTime, InputState input)
     {
-        if (ActiveNavTask != null) return;
+        if (HasActiveNavTask) return;
         if (!input.Retrograde || Velocity.LengthSquared() < 1f)
             return;
 
@@ -67,7 +54,7 @@ public class Player : Ship
 
     private void HandleThrust(float deltaTime, InputState input)
     {
-        if (ActiveNavTask != null) return;
+        if (HasActiveNavTask) return;
         if (!input.Thrust) return;
         ApplyThrust(deltaTime);
     }
@@ -77,13 +64,13 @@ public class Player : Ship
 
     private void HandleJump(float deltaTime, InputState input)
     {
-        if (ActiveNavTask != null) return;
+        if (HasActiveNavTask) return;
 
         if (input.Jump && StarSystem.Universe.JumpRoute?.Count > 0 && CanJump())
         {
             if (CurrentFuelLevel > 0)
             {
-                ActiveNavTask = new JumpTask(this, StarSystem.Universe.JumpRoute.FirstOrDefault());
+                EnqueueNavTask(new JumpTask(this,StarSystem.GalaxyPosition, StarSystem.Universe.JumpRoute.FirstOrDefault()));
             }
             else
             {

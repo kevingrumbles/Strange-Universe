@@ -24,7 +24,9 @@ public abstract class Ship
     public int? CurrentHullStrength { get; set; } = null;
     public int? CurrentShieldStrength { get; set; } = null;
     public int? CurrentFuelLevel { get; set; } = null;
-    [JsonIgnore] public NavTask ActiveNavTask { get; set; } = null;
+    [JsonIgnore] public bool HasActiveNavTask => ActiveNavTask is not null;
+    [JsonIgnore] private NavTask ActiveNavTask { get; set; } = null;
+    [JsonIgnore] private Queue<NavTask> NavTaskQueue { get; set; } = new Queue<NavTask>();
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public string Name { get; set; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.CalculateGravityAtLocation(Transform.Position);
@@ -177,24 +179,37 @@ public abstract class Ship
     /// </summary>
     public void Update(float deltaTime)
     {
-        if (ActiveNavTask != null)
+        if (ActiveNavTask is not null)
         {
             ActiveNavTask.Update(deltaTime);
-            if (ActiveNavTask.CurrentState == TaskState.Complete)
+            switch (ActiveNavTask.CurrentState)
             {
-                if (ActiveNavTask is JumpTask jumpTask && StarSystem.SystemId == jumpTask._targetSystemId)
-                {
-                    Launcher.ActiveUniverse.JumpRoute.Remove(jumpTask._targetSystemId);
-                    CurrentFuelLevel--;
-                }
-                ActiveNavTask = null;
+                case TaskState.Complete:
+                    if (ActiveNavTask is JumpTask jumpTask && StarSystem.SystemId == jumpTask._targetSystemId)
+                    {
+                        Launcher.ActiveUniverse.JumpRoute.Remove(jumpTask._targetSystemId);
+                        CurrentFuelLevel--;
+                    }
+                    ActiveNavTask = null;
+                    break;
+                case TaskState.Invalid:
+                    ActiveNavTask = null;
+                    break;
             }
+        }
+        if (ActiveNavTask is null && NavTaskQueue.Count > 0)
+        {
+            ActiveNavTask = NavTaskQueue.Dequeue();
         }
 
         // Apply gravitational forces from celestial bodies
         // Gravity is not capped by MaxSpeed - it can push ships beyond their normal limits
         Physics.ApplyForce(StarSystem.CalculateGravityAtLocation(Transform.Position), deltaTime);
         Physics.Integrate(Transform, deltaTime);
+    }
+    public void EnqueueNavTask(NavTask task)
+    {
+        NavTaskQueue.Enqueue(task);
     }
 
     #region Ship Stats Calculations
@@ -247,7 +262,7 @@ public abstract class Ship
         List<Ship> nearby = new List<Ship>();
 
         // Add NPCs
-        foreach (var npc in StarSystem.NPCs)
+        foreach (var npc in StarSystem.Npcs)
         {
             if (npc != this && DistanceTo(npc.Transform.Position) <= range)
             {

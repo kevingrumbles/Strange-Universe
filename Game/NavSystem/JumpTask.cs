@@ -13,13 +13,17 @@ namespace Strange_Universe.Game.NavSystem
     public class JumpTask : NavTask
     {
         public readonly string _targetSystemId;
-        private readonly Vector2 _originGalaxyPosition;
+        private readonly Vector2? _originGalaxyPosition;
 
-        public JumpTask(Ship owner, string targetSystemId) : base(owner)
+        public JumpTask(Ship owner, Vector2? originGalaxyPosition = null, string targetSystemId = null, TaskState? currentState = null) : base(owner)
         {
             _targetSystemId = targetSystemId;
-            _originGalaxyPosition = owner.StarSystem.GalaxyPosition;
-            CurrentState = TaskState.MoveToMandeville;
+            _originGalaxyPosition = originGalaxyPosition;
+            CurrentState = currentState ?? TaskState.MoveToMandeville;
+            if (Owner is Player && (_targetSystemId == null || Launcher.ActiveUniverse.StarSystemNodes.FirstOrDefault(n => n.SystemId == _targetSystemId) == null))
+            {
+                CurrentState = TaskState.Invalid;
+            }
         }
 
         public override void Update(float deltaTime)
@@ -163,8 +167,11 @@ namespace Strange_Universe.Game.NavSystem
                 case TaskState.SystemTranslation:
                     // GOAL: Set arrival location and generate new system
                     // Update the player's current system ID so the StarSystem reference is correct
-                    ((Player)Owner).CurrentStarSystemID = _targetSystemId;
-                    Launcher.ActiveUniverse.Generate(); 
+                    if (Owner is Player)
+                    {
+                        ((Player)Owner).CurrentStarSystemID = _targetSystemId;
+                        Launcher.ActiveUniverse.Generate();
+                    }
 
                     // Set ship position at system edge entry point
                     Owner.Position = Owner.StarSystem.GetSystemEdgeEntryPosition(_originGalaxyPosition);
@@ -173,7 +180,7 @@ namespace Strange_Universe.Game.NavSystem
                     Vector2 inwardDirection = Vector2.Normalize(-Owner.Position);
 
                     // Keep the high velocity from the Jump state, but ensure it's pointing inward
-                    Owner.Velocity = inwardDirection * Owner.Speed;
+                    Owner.Velocity = inwardDirection * (Owner.ShipStats.MaxSpeed * 8f);
 
                     // Transition to the arrival deceleration phase
                     CurrentState = TaskState.ArriveInSystem;
@@ -270,6 +277,7 @@ namespace Strange_Universe.Game.NavSystem
                     break;
 
                 case TaskState.Complete:
+                case TaskState.Invalid:
                     // Task is complete, remain in this state
                     break;
             }

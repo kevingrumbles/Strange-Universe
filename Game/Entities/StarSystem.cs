@@ -1,6 +1,8 @@
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.EventSystem;
+using Strange_Universe.Game.NavSystem;
 using StrangeUniverse;
 using StrangeUniverse.Game.Components;
 using StrangeUniverse.Game.Entities;
@@ -53,8 +55,6 @@ public class StarSystemNode
 /// <summary>Owns all game entities and drives the frame update.</summary>
 public class StarSystem
 {
-    // ── Identity / seed ──────────────────────────────────────────────────────
-    /// <summary>Deterministic seed derived from the parent Universe seed.</summary>
     [JsonIgnore] public string SystemId { get { return Node.SystemId;  }  }
     [JsonIgnore] public HashSet<string> SystemConnectionIds { get { return Node.SystemConnectionIds; } }
     [JsonIgnore] public string Name { get { return Node.Name; } }
@@ -64,9 +64,6 @@ public class StarSystem
     [JsonIgnore] public Universe Universe { get { return Launcher.ActiveUniverse; } }
     [JsonIgnore] public string DisplayName { get { return Node.DisplayName; } }
     [JsonIgnore] public bool Discovered { get { return Node.Discovered; } }
-
-
-    // ── Generation configuration ─────────────────────────────────────────────
     [JsonIgnore] public int    PlanetCount             { get; set; }
     [JsonIgnore] public int    AsteroidCount           { get; set; }
     [JsonIgnore] public int    StarCount               { get; set; }
@@ -84,19 +81,21 @@ public class StarSystem
     [JsonIgnore] public float  MaxAsteroidRadius       { get; set; }
     [JsonIgnore] public int SystemConnectionCount { get; set; } = 1;
     [JsonIgnore] public int InnerPlanetCount { get; set; }
-
-    // ── Entities ─────────────────────────────────────────────────────────────
     [JsonIgnore] public List<Star>           Stars            { get; set; } = new();
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
-    [JsonIgnore] public List<Nonplayer>            NPCs            { get; }      = new();
+    [JsonIgnore] public List<Nonplayer>            Npcs            { get; }      = new();
     [JsonIgnore] public string        NebulaId        { get; private set; }
 
+    private readonly EventController _eventController;
     private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();
 
-    public StarSystem() { }
+    public StarSystem() 
+    {
+
+    }
     public StarSystem(StarSystemNode node)
     {
         var sw = Stopwatch.StartNew();
@@ -104,11 +103,12 @@ public class StarSystem
         Node = node;
         Node.Discovered = true;
 
-        Random systemRng = new Random(StaticHelpers.SeedHash(Node.SystemId));
-        PlanetCount = systemRng.Next(0, 7);
-        AsteroidCount = systemRng.Next(0, 120);
-        StarCount = systemRng.Next(1, 3);
-        StarRadius = systemRng.NextWeightedFloat(250f, 500f);
+        _eventController = new EventController(this);
+        Random _systemRandom = new Random(StaticHelpers.SeedHash(Node.SystemId));
+        PlanetCount = _systemRandom.Next(0, 7);
+        AsteroidCount = _systemRandom.Next(0, 120);
+        StarCount = _systemRandom.Next(1, 3);
+        StarRadius = _systemRandom.NextWeightedFloat(250f, 500f);
         switch (StarCount)
         {
             case 1: 
@@ -116,23 +116,23 @@ public class StarSystem
                 StarOrbitSpeed = 0f;
                 break;
             case 2: 
-                StarOrbitRadius = systemRng.NextWeightedFloat(2000f, 4000f);
-                StarOrbitSpeed  = systemRng.NextWeightedFloat(0.0001f, 0.0003f);
+                StarOrbitRadius = _systemRandom.NextWeightedFloat(2000f, 4000f);
+                StarOrbitSpeed  = _systemRandom.NextWeightedFloat(0.0001f, 0.0003f);
                 break;
             case 3: 
-                StarOrbitRadius = systemRng.NextWeightedFloat(3000f, 7000f);
-                StarOrbitSpeed  = systemRng.NextWeightedFloat(0.00005f, 0.0002f);
+                StarOrbitRadius = _systemRandom.NextWeightedFloat(3000f, 7000f);
+                StarOrbitSpeed  = _systemRandom.NextWeightedFloat(0.00005f, 0.0002f);
                 break;
         }
         
-        MinPlanetRadius = systemRng.NextWeightedFloat(90f, 120f);
-        MaxPlanetRadius = systemRng.NextWeightedFloat(150, 300f);
-        MinAsteroidRadius = systemRng.NextWeightedFloat(15f, 30f);
-        MaxAsteroidRadius = systemRng.NextWeightedFloat(40f, 50f);
-        SystemConnectionCount = systemRng.Next(1, 4);
-        if (SystemConnectionCount == 1) SystemConnectionCount = systemRng.Next(1, 4);
-        InnerPlanetCount =systemRng.Next(PlanetCount);
-        BackgroundStarCount = systemRng.Next(400, 800);
+        MinPlanetRadius = _systemRandom.NextWeightedFloat(90f, 120f);
+        MaxPlanetRadius = _systemRandom.NextWeightedFloat(150, 300f);
+        MinAsteroidRadius = _systemRandom.NextWeightedFloat(15f, 30f);
+        MaxAsteroidRadius = _systemRandom.NextWeightedFloat(40f, 50f);
+        SystemConnectionCount = _systemRandom.Next(1, 4);
+        if (SystemConnectionCount == 1) SystemConnectionCount = _systemRandom.Next(1, 4);
+        InnerPlanetCount =_systemRandom.Next(PlanetCount);
+        BackgroundStarCount = _systemRandom.Next(400, 800);
 
         if (Node.Name == "Sol")
         {
@@ -150,13 +150,13 @@ public class StarSystem
         float starCoreRadius = StarOrbitRadius + StarRadius;
         // SystemRadius is always large enough to contain the star core plus a meaningful planetary region.
         float starCoreFootprint = StarOrbitRadius * 2f;
-        SystemRadius = systemRng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
+        SystemRadius = _systemRandom.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
         MandevilleRadius = SystemRadius * 0.75f;
 
         AsteroidBeltInnerRadius = Math.Max(
-            systemRng.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),
+            _systemRandom.NextWeightedFloat(SystemRadius * 0.2f, SystemRadius * 0.4f),
             starCoreRadius * 2.5f);
-        AsteroidBeltOuterRadius = systemRng.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
+        AsteroidBeltOuterRadius = _systemRandom.NextWeightedFloat(AsteroidBeltInnerRadius * 1.2f, SystemRadius * 0.6f);
         Debug.WriteLine($"properties loaded: {sw.ElapsedMilliseconds} ms");
         Debug.WriteLine($"Generating Stars: {sw.ElapsedMilliseconds} ms");
         GenerateStars();
@@ -178,13 +178,15 @@ public class StarSystem
         ActivePlayer.Update(deltaTime, input);
 
         // Update NPCs using AI pipeline (Behavior -> Ship autopilot -> Ship physics)
-        foreach (var npc in NPCs)
+        foreach (var npc in Npcs)
         {
             npc.Update(deltaTime);
         }
 
         // Remove NPCs that have left the system (e.g., merchants after jumping)
-        NPCs.RemoveAll(npc => npc.Remove);
+        Npcs.RemoveAll(npc => npc.Remove);
+
+        _eventController.Update(deltaTime);
 
         UpdateStarOrbits(deltaTime);
         _physics.Update(Asteroids, deltaTime);
@@ -193,13 +195,13 @@ public class StarSystem
         _collision.Resolve(ActivePlayer, Planets, Asteroids);
 
         // NPC collisions with static objects
-        foreach (var npc in NPCs)
+        foreach (var npc in Npcs)
         {
             _collision.ResolveNPC(npc, Planets, Asteroids);
         }
 
         // Ship-to-ship collisions (player vs NPCs and NPC vs NPC)
-        _collision.ResolveShipToShip(ActivePlayer, NPCs);
+        _collision.ResolveShipToShip(ActivePlayer, Npcs);
     }
 
     private void UpdateStarOrbits(float deltaTime)
@@ -416,15 +418,18 @@ public class StarSystem
     {
         Random backgroundStarsRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_BackgroundStars"));
 
-        // Positions are in a virtual 2048×2048 space used only for parallax scrolling
-        const float VirtualSize = 2048f;
+        // Positions are in virtual space that matches the tile size used for parallax scrolling
+        // Must match tileWidth and tileHeight in SpriteRenderer.DrawBackgroundStars
+        const float VirtualWidth = 1920f;
+        const float VirtualHeight = 1080f;
+
         for (int i = 0; i < BackgroundStarCount; i++)
         {
             BackgroundStars.Add(new BackgroundStar
             {
                 Position   = new Vector2(
-                    (float)backgroundStarsRng.NextDouble() * VirtualSize,
-                    (float)backgroundStarsRng.NextDouble() * VirtualSize),
+                    (float)backgroundStarsRng.NextDouble() * VirtualWidth,
+                    (float)backgroundStarsRng.NextDouble() * VirtualHeight),
                 Brightness = MathHelper.Lerp(0.35f, 1f, (float)backgroundStarsRng.NextDouble()),
                 Size       = backgroundStarsRng.NextDouble() < 0.15 ? 2f : 1f,
                 // Randomly placed in front of (layer 1) or behind (layer 0) the nebula
@@ -475,13 +480,22 @@ public class StarSystem
     /// </summary>
     /// <param name="fromGalaxyPosition">The galaxy position the ship is arriving from (typically the previous system)</param>
     /// <returns>A position at the system edge in the direction of arrival with variance applied</returns>
-    public Vector2 GetSystemEdgeEntryPosition(Vector2 fromGalaxyPosition)
+    public Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null)
     {
         Random rand = new Random();
 
-        // Calculate the direction vector from the source to this system
-        Vector2 galaxyVector = GalaxyPosition - fromGalaxyPosition;
-        float baseAngle = (float)Math.Atan2(galaxyVector.Y, galaxyVector.X);
+        float baseAngle;
+        if (fromGalaxyPosition.HasValue)
+        {
+            // Calculate the direction vector from the source to this system
+            Vector2 galaxyVector = GalaxyPosition - fromGalaxyPosition.Value;
+            baseAngle = (float)Math.Atan2(galaxyVector.Y, galaxyVector.X);
+        }
+        else
+        {
+            // Use a random angle when no source position is provided
+            baseAngle = (float)(rand.NextDouble() * Math.PI * 2); // 0 to 2π radians
+        }
 
         // Add angular variance (±15 degrees = ±0.26 radians)
         float angleVariance = (float)((rand.NextDouble() - 0.5) * 0.52); // -0.26 to +0.26 radians
@@ -524,6 +538,132 @@ public class StarSystem
             Rotation = rotation,
             Scale = 1f
         };
+    }
+
+    /// <summary>
+    /// Checks if the given location conflicts with any stars or planets and returns
+    /// a safe location that is at least a safe distance away from all celestial bodies.
+    /// If the location is already safe, returns it unchanged.
+    /// </summary>
+    /// <param name="location">The desired location to check</param>
+    /// <returns>A safe location with adequate clearance from stars and planets</returns>
+    public Vector2 GetSafeLocation(Vector2 location)
+    {
+        const float MinimumClearance = 1000f; // Minimum safe distance from any celestial body
+        Vector2 safeLocation = location;
+        bool needsAdjustment = true;
+        int maxAttempts = 10;
+        int attempts = 0;
+
+        while (needsAdjustment && attempts < maxAttempts)
+        {
+            needsAdjustment = false;
+            attempts++;
+
+            // Check against all stars
+            if (Stars != null)
+            {
+                foreach (var star in Stars)
+                {
+                    float distance = Vector2.Distance(safeLocation, star.Position);
+                    float requiredDistance = star.Radius + MinimumClearance;
+
+                    if (distance < requiredDistance)
+                    {
+                        // Move the location away from the star
+                        Vector2 awayFromStar = safeLocation - star.Position;
+                        if (awayFromStar.LengthSquared() < 0.1f)
+                        {
+                            // If at the exact star position, pick a random direction
+                            Random rand = new Random();
+                            float randomAngle = (float)(rand.NextDouble() * Math.PI * 2);
+                            awayFromStar = new Vector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle));
+                        }
+                        else
+                        {
+                            awayFromStar = Vector2.Normalize(awayFromStar);
+                        }
+
+                        safeLocation = star.Position + awayFromStar * requiredDistance;
+                        needsAdjustment = true;
+                    }
+                }
+            }
+
+            // Check against all planets
+            if (Planets != null)
+            {
+                foreach (var planet in Planets)
+                {
+                    float distance = Vector2.Distance(safeLocation, planet.Position);
+                    float requiredDistance = planet.Radius + MinimumClearance;
+
+                    if (distance < requiredDistance)
+                    {
+                        // Move the location away from the planet
+                        Vector2 awayFromPlanet = safeLocation - planet.Position;
+                        if (awayFromPlanet.LengthSquared() < 0.1f)
+                        {
+                            // If at the exact planet position, pick a random direction
+                            Random rand = new Random();
+                            float randomAngle = (float)(rand.NextDouble() * Math.PI * 2);
+                            awayFromPlanet = new Vector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle));
+                        }
+                        else
+                        {
+                            awayFromPlanet = Vector2.Normalize(awayFromPlanet);
+                        }
+
+                        safeLocation = planet.Position + awayFromPlanet * requiredDistance;
+                        needsAdjustment = true;
+                    }
+                }
+            }
+        }
+
+        return safeLocation;
+    }
+
+    /// <summary>
+    /// Returns a random safe location outside the asteroid belt that is clear of stars and planets.
+    /// The location will be between the asteroid belt outer radius and the system radius.
+    /// </summary>
+    /// <returns>A safe position outside the asteroid belt</returns>
+    public Vector2 GetRandomSafeLocationOutsideAsteroidBelt()
+    {
+        // Try multiple times to find a safe location
+        Random random = new Random();
+        int maxAttempts = 20;
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            // Generate random angle and distance
+            float angle = (float)(random.NextDouble() * Math.PI * 2);
+            float distance = AsteroidBeltOuterRadius + (float)(random.NextDouble() * (SystemRadius - AsteroidBeltOuterRadius));
+
+            // Calculate position
+            Vector2 candidatePosition = new Vector2(
+                (float)Math.Cos(angle) * distance,
+                (float)Math.Sin(angle) * distance
+            );
+
+            // Use GetSafeLocation to ensure it's clear of celestial bodies
+            Vector2 safePosition = GetSafeLocation(candidatePosition);
+
+            // Check if the safe position is still in our desired range
+            float safeDistance = safePosition.Length();
+            if (safeDistance >= AsteroidBeltOuterRadius && safeDistance <= SystemRadius)
+            {
+                return safePosition;
+            }
+        }
+
+        // Fallback: return a position at mid-range on a random angle
+        float fallbackAngle = (float)(random.NextDouble() * Math.PI * 2);
+        float fallbackDistance = (AsteroidBeltOuterRadius + SystemRadius) / 2f;
+        return new Vector2(
+            (float)Math.Cos(fallbackAngle) * fallbackDistance,
+            (float)Math.Sin(fallbackAngle) * fallbackDistance
+        );
     }
 }
 

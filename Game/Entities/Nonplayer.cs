@@ -1,3 +1,9 @@
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
+using Strange_Universe.Game.NavSystem;
+using StrangeUniverse.Game.Entities;
+using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
@@ -13,16 +19,21 @@ public class Nonplayer : Ship
     /// </summary>
     [JsonIgnore] public bool Remove { get; set; }
 
-    public Nonplayer(string npcId, string shipName, string npcName = "NPC") : base(shipName)
+
+    public Nonplayer(string npcId, string shipName = "Shuttle", string npcName = "NPC", bool jumpSpawn = false) : base(shipName)
     {
         Id = npcId;
         Name = npcName;
+        if (jumpSpawn)
+        {
+            EnqueueNavTask(new JumpTask(this, currentState: TaskState.SystemTranslation));
+        }
+        else
+        {
+            EnqueueNavTask(new SpawnTask(this));
+        }
     }
 
-    /// <summary>
-    /// Updates the NPC ship using the AI pipeline:
-    /// Behavior logic -> Ship autopilot -> Ship physics
-    /// </summary>
     public new void Update(float deltaTime)
     { 
         base.Update(deltaTime);

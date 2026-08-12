@@ -1,9 +1,9 @@
 [
   {
     "ShipName": "Shuttle",
-    "ThrustForce": 260.0,
+    "ThrustForce": 360.0,
     "RotationSpeed": 3.5,
-    "MaxSpeed": 880.0,
+    "MaxSpeed": 580.0,
     "LinearDamping": 1.0,
     "Radius": 14.0,
     "SoftCapStart": 0.75,

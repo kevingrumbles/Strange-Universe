@@ -322,7 +322,7 @@ public class SpriteRenderer
             Dot(pip, 2, Color.White);
 
         // ── NPCs ──────────────────────────────────────────────────────────
-        foreach (var npc in universe.ActiveStarSystem.NPCs)
+        foreach (var npc in universe.ActiveStarSystem.Npcs)
         {
             Vector2 npcMap = WorldToMap(npc.Position);
             Dot(npcMap, 3, new Color(255, 180, 80));  // orange body for NPCs
