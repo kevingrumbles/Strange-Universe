@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Strange_Universe.Game.Components;
@@ -18,7 +18,7 @@ namespace StrangeUniverse
         public const bool PlanetColision = false;
 
 
-        // ── Core ──────────────────────────────────────────────────────────────
+        // -- Core --------------------------------------------------------------
         public static GraphicsDevice GD;
         private readonly GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch = null!;
@@ -26,18 +26,18 @@ namespace StrangeUniverse
         private int _screenWidth;
         private int _screenHeight;
 
-        // ── State ─────────────────────────────────────────────────────────────
+        // -- State -------------------------------------------------------------
         private GameState _state = GameState.Menu;
 
 
-        // ── Menu ──────────────────────────────────────────────────────────────
+        // -- Menu --------------------------------------------------------------
         // Each entry is either a Universe (existing) or null (Create New).
         private int _menuIndex = 0;
         private KeyboardState _prevKeys;
         private string _newUniverseName = string.Empty;
         private double _cursorBlink = 0;
 
-        // ── Gameplay ──────────────────────────────────────────────────────────
+        // -- Gameplay ----------------------------------------------------------
         private InputHandler _inputHandler = null!;
         public static Camera Camera { get; private set; } = null!;
         public static ProceduralTextureCache TextureCache = null!;
@@ -46,7 +46,7 @@ namespace StrangeUniverse
         private List<Universe> _universes = null!;
         private static string _universeFilePath = "Data/universe-settings.json";
 
-        // ── Layout constants ──────────────────────────────────────────────────
+        // -- Layout constants --------------------------------------------------
         private const int RowHeight = 62;
         private const int RowPadX = 24;
         private const int RowPadY = 14;
@@ -116,7 +116,7 @@ namespace StrangeUniverse
             }
         }
 
-        // ── Update ────────────────────────────────────────────────────────────
+        // -- Update ------------------------------------------------------------
 
         protected override void Update(GameTime gameTime)
         {
@@ -253,7 +253,7 @@ namespace StrangeUniverse
             ActiveUniverse.Update(deltaTime, input);
         }
 
-        // ── Draw ──────────────────────────────────────────────────────────────
+        // -- Draw --------------------------------------------------------------
 
         protected override void Draw(GameTime gameTime)
         {
@@ -500,7 +500,7 @@ namespace StrangeUniverse
             base.UnloadContent();
         }
 
-        // ── Input helper ──────────────────────────────────────────────────────
+        // -- Input helper ------------------------------------------------------
 
         private bool WasPressed(KeyboardState current, Keys key) =>
             current.IsKeyDown(key) && !_prevKeys.IsKeyDown(key);

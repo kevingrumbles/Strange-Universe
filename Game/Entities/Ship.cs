@@ -30,6 +30,7 @@ public abstract class Ship
     [JsonIgnore] private Queue<NavTask> NavTaskQueue { get; set; } = new Queue<NavTask>();
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public string Name { get; set; }
+    [JsonIgnore] public Ship? Target { get; set; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.CalculateGravityAtLocation(Transform.Position);
     [JsonIgnore] public ShipStats ShipStats { get; set; } = new();
     [JsonIgnore] public float Radius { get => CalculateRadius() ; }
@@ -90,12 +91,23 @@ public abstract class Ship
 
     /// <summary>
     /// Loads the ship's sprite texture and registers it in the texture cache.
+    /// Also loads the splash art (portrait) used in the HUD target panel,
+    /// falling back to the standard sprite if no splash art is defined or found.
     /// </summary>
     public virtual void Generate()
     {
         var tex = ArtLoader.TryLoad(Launcher.GD, ShipStats.SpriteName);
         Launcher.TextureCache.Register(ShipStats.ShipName, tex);
+
+        // Splash art -- fall back to the standard sprite if not provided or not found
+        Texture2D splashTex = null;
+        if (!string.IsNullOrEmpty(ShipStats.SplashName))
+            splashTex = ArtLoader.TryLoad(Launcher.GD, ShipStats.SplashName);
+        Launcher.TextureCache.Register(SplashArtKey, splashTex ?? tex);
     }
+
+    /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>
+    [JsonIgnore] public string SplashArtKey => $"splash_{ShipStats.ShipName}";
 
     /// <summary>
     /// Applies thrust force in the ship's current facing direction.
@@ -180,6 +192,12 @@ public abstract class Ship
     /// </summary>
     public void Update(float deltaTime)
     {
+        // Clear target if it becomes invalid
+        if (Target != null && !IsTargetValid(Target))
+        {
+            ClearTarget();
+        }
+
         if (ActiveNavTask is not null)
         {
             ActiveNavTask.Update(deltaTime);
@@ -252,6 +270,93 @@ public abstract class Ship
     {
         return Vector2.Distance(Transform.Position, position);
     }
+
+    #region Targeting
+    /// <summary>
+    /// Sets the current target. Does not allow targeting self.
+    /// </summary>
+    public void SetTarget(Ship? target)
+    {
+        if (target == this)
+            return;
+
+        Target = target;
+    }
+
+    /// <summary>
+    /// Clears the current target.
+    /// </summary>
+    public void ClearTarget()
+    {
+        Target = null;
+    }
+
+    /// <summary>
+    /// Gets the nearest ship in the current system, excluding self.
+    /// </summary>
+    public Ship? GetNearestTarget()
+    {
+        if (StarSystem == null)
+            return null;
+
+        var allShips = GetAllShipsInSystem();
+        Ship? nearest = null;
+        float nearestDistance = float.MaxValue;
+
+        foreach (var ship in allShips)
+        {
+            if (ship == this)
+                continue;
+
+            float distance = DistanceTo(ship.Position);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = ship;
+            }
+        }
+
+        return nearest;
+    }
+
+    /// <summary>
+    /// Checks if a target is valid (not null, not self, still in system).
+    /// </summary>
+    public bool IsTargetValid(Ship? target)
+    {
+        if (target == null || target == this)
+            return false;
+
+        if (StarSystem == null)
+            return false;
+
+        var allShips = GetAllShipsInSystem();
+        return allShips.Contains(target);
+    }
+
+    /// <summary>
+    /// Gets all ships in the current system (NPCs and player).
+    /// </summary>
+    private List<Ship> GetAllShipsInSystem()
+    {
+        var ships = new List<Ship>();
+
+        if (StarSystem == null)
+            return ships;
+
+        // Add all NPCs
+        ships.AddRange(StarSystem.Npcs);
+
+        // Add player
+        if (StarSystem.ActivePlayer != null)
+        {
+            ships.Add(StarSystem.ActivePlayer);
+        }
+
+        return ships;
+    }
+    #endregion
+
     /// <summary>
     /// Gets all nearby ships within sensor range.
     /// </summary>

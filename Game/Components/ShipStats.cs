@@ -9,6 +9,11 @@ public class ShipStats
     public string ShipName { get; set; }
 
     public string SpriteName { get; set; }
+    /// <summary>
+    /// Optional portrait/splash art shown in the HUD target selection panel.
+    /// If null or the file is not found, the standard sprite is used instead.
+    /// </summary>
+    public string SplashName { get; set; }
     public float ThrustForce    { get; set; }
     public float RotationSpeed  { get; set; }
     public float MaxSpeed       { get; set; }

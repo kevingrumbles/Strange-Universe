@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Entities;
 using StrangeUniverse;
@@ -29,7 +29,7 @@ public class SpriteRenderer
         _pixel.SetData(new[] { Color.White });
     }
 
-    // ── World-space pass (SpriteBatch already began with camera matrix) ──────
+    // -- World-space pass (SpriteBatch already began with camera matrix) ------
 
     /// <summary>
     /// Draws an infinite scrolling nebula background using a seamless tileable texture.
@@ -235,7 +235,7 @@ public class SpriteRenderer
             0);
     }
 
-    // ── HUD pass (no camera transform) ───────────────────────────────────────
+    // -- HUD pass (no camera transform) ---------------------------------------
 
     public void DrawSpeedBar(Player player, int screenWidth, int screenHeight, float maxSpeed)
     {
@@ -255,7 +255,7 @@ public class SpriteRenderer
             fillColor * 0.8f);
     }
 
-    // ── HUD ───────────────────────────────────────────────────────────────
+    // -- HUD ---------------------------------------------------------------
 
     public void DrawHud(Universe universe, int screenWidth, int screenHeight)
     {
@@ -269,7 +269,7 @@ public class SpriteRenderer
         float halfMap   = MapSize * 0.5f;
         float scale     = halfMap / universe.ActiveStarSystem.SystemRadius;   // world unit → minimap pixel
 
-        // ── Local helpers ────────────────────────────────────────────────────
+        // -- Local helpers ----------------------------------------------------
 
         // Converts a world-space position to a screen-space position on the minimap.
         Vector2 WorldToMap(Vector2 world) => new(
@@ -286,21 +286,21 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(x, y, size, size), color);
         }
 
-        // ── HUD Panel Background ─────────────────────────────────────────────
+        // -- HUD Panel Background ---------------------------------------------
         _spriteBatch.Draw(_pixel,
             new Rectangle(mapLeft, mapTop, MapSize, hudPanelHeight),
             new Color(0, 5, 18) * 0.84f);
 
-        // ── Minimap Background (darker inset within panel) ──────────────────
+        // -- Minimap Background (darker inset within panel) ------------------
         _spriteBatch.Draw(_pixel,
             new Rectangle(mapLeft, mapTop, MapSize, MapSize),
             new Color(0, 5, 18) * 0.95f);
 
-        // ── Asteroids (drawn first — smallest, dimmest) ───────────────────
+        // -- Asteroids (drawn first - smallest, dimmest) -------------------
         foreach (var asteroid in universe.ActiveStarSystem.Asteroids)
             Dot(WorldToMap(asteroid.Position), 1, new Color(85, 85, 90, 170));
 
-        // ── Planets ───────────────────────────────────────────────────────
+        // -- Planets -------------------------------------------------------
         foreach (var planet in universe.ActiveStarSystem.Planets)
             Dot(WorldToMap(planet.Position), 4, StaticHelpers.PlanetMinimapColor(planet.Type));
 
@@ -313,37 +313,54 @@ public class SpriteRenderer
             Dot(starMap,  3, Color.White * 0.90f);          // bright core
         }
 
-        // ── Player ────────────────────────────────────────────────────────
+        // -- Player --------------------------------------------------------
             Vector2 playerMap = WorldToMap(universe.Player.Position);
             Dot(playerMap, 4, new Color(55, 215, 255));                // cyan body
 
-            // Heading pip — white dot ahead of the player indicating facing direction
+            // Heading pip - white dot ahead of the player indicating facing direction
             Vector2 pip = playerMap + universe.Player.Forward * 5f;
             Dot(pip, 2, Color.White);
 
-        // ── NPCs ──────────────────────────────────────────────────────────
+        // -- NPCs ----------------------------------------------------------
         foreach (var npc in universe.ActiveStarSystem.Npcs)
         {
             Vector2 npcMap = WorldToMap(npc.Position);
             Dot(npcMap, 3, new Color(255, 180, 80));  // orange body for NPCs
         }
 
-        // ── Minimap Border (drawn to separate minimap from HUD info) ────
+        // -- Target Highlight -----------------------------------------------------
+        if (universe.Player.Target != null && universe.Player.IsTargetValid(universe.Player.Target))
+        {
+            Vector2 targetMap = WorldToMap(universe.Player.Target.Position);
+
+            // Draw pulsing highlight rings around the target
+            float pulseTime = (float)(DateTime.Now.Millisecond / 1000.0);
+            float pulse = 0.5f + 0.5f * MathF.Sin(pulseTime * MathF.PI * 4f); // Pulse between 0.5 and 1.0
+
+            // Outer ring (larger, dimmer)
+            Dot(targetMap, 10, new Color(255, 50, 50) * (0.3f + pulse * 0.3f));
+            // Middle ring
+            Dot(targetMap, 8, new Color(255, 100, 100) * (0.5f + pulse * 0.3f));
+            // Inner highlight (brightest)
+            Dot(targetMap, 6, new Color(255, 150, 150) * (0.7f + pulse * 0.3f));
+        }
+
+        // -- Minimap Border (drawn to separate minimap from HUD info) ----
         Color border = Color.White * 0.30f;
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    MapSize, Border),  border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop + MapSize - Border, MapSize, Border),  border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    Border,  MapSize), border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border, mapTop,              Border,  MapSize), border);
 
-        // ── HUD Panel Border (outer border for entire panel) ────────────
+        // -- HUD Panel Border (outer border for entire panel) ------------
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop,                             MapSize, Border),           border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop + hudPanelHeight - Border,   MapSize, Border),           border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop,                             Border,  hudPanelHeight),   border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border,   mapTop,                             Border,  hudPanelHeight),   border);
 
-        // ── HUD Content Layout ──────────────────────────────────────────────
+        // -- HUD Content Layout ----------------------------------------------
         int currentY = mapTop + MapSize + 12;
-        const int SectionSpacing = 15;
+        const int SectionSpacing = 3;
         const int BarHeight = 12;
         const int BarSpacing = 8;
         const int ContentMargin = 10;
@@ -386,7 +403,7 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(barX + barWidth - 1, barY, 1, BarHeight), border);
         }
 
-        // ── Player Status Bars ───────────────────────────────────────────────
+        // -- Player Status Bars -----------------------------------------------
         // Shields (placeholder: 75%)
         DrawBar("SHIELDS", universe.Player.CurrentShieldPercentage, 100f, new Color(100, 150, 255), currentY);
         currentY += 14 + BarHeight + BarSpacing;
@@ -399,11 +416,11 @@ public class SpriteRenderer
         DrawBar("FUEL", universe.Player.CurrentFuelPercentage, 100f, new Color(255, 200, 50), currentY);
         currentY += 14 + BarHeight + SectionSpacing;
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Jump Target Display (no label) ───────────────────────────────────
+        // -- Jump Target Display (no label) -----------------------------------
         if (universe.JumpRoute.Count > 0)
         {
             string targetSystemId = universe.JumpRoute[0];
@@ -439,11 +456,11 @@ public class SpriteRenderer
             currentY += (int)textSize.Y + SectionSpacing;
         }
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Secondary Weapon Display (no label) ──────────────────────────────
+        // -- Secondary Weapon Display (no label) ------------------------------
         string weaponText = "No Secondary Weapon";
         Vector2 weaponSize = _font.MeasureString(weaponText) * FontScale;
         _spriteBatch.DrawString(_font, weaponText, 
@@ -451,23 +468,65 @@ public class SpriteRenderer
             new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
         currentY += (int)weaponSize.Y + SectionSpacing;
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Selection Display (no label) ─────────────────────────────────────
-        string selectionText = "Nothing Selected";
-        Vector2 selectionSize = _font.MeasureString(selectionText) * FontScale;
-        _spriteBatch.DrawString(_font, selectionText, 
-            new Vector2(mapLeft + ContentMargin, currentY), 
-            new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
-        currentY += (int)selectionSize.Y + SectionSpacing;
+        // -- Selection Display (no label) -------------------------------------
+        const int SelectionSectionHeight = 80;
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        if (universe.Player.Target != null && universe.Player.IsTargetValid(universe.Player.Target))
+        {
+            var target = universe.Player.Target;
+
+            // Splash art -- centered in the panel, filling most of the section height
+            const int SplashSize = 72;
+            int splashX = mapLeft + (MapSize - SplashSize) / 2;
+            int splashY = currentY + (SelectionSectionHeight - SplashSize) / 2;
+            if (_cache.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
+            {
+                float splashScale = (float)SplashSize / Math.Max(splashTex.Width, splashTex.Height);
+                var splashOrigin = new Vector2(splashTex.Width * 0.5f, splashTex.Height * 0.5f);
+                var splashCenter = new Vector2(splashX + SplashSize * 0.5f, splashY + SplashSize * 0.5f);
+                _spriteBatch.Draw(splashTex,
+                    splashCenter, null, Color.White * 0.85f,
+                    -MathF.PI, splashOrigin, splashScale, SpriteEffects.FlipVertically, 0f);
+            }
+
+            // Name -- centered horizontally, flush to top of section, drawn over splash
+            string nameText = target.Name ?? "Unknown";
+            Vector2 nameSize = _font.MeasureString(nameText) * FontScale;
+            float nameX = mapLeft + (MapSize - nameSize.X) / 2f;
+            _spriteBatch.DrawString(_font, nameText,
+                new Vector2(nameX, currentY + 1),
+                new Color(220, 220, 220), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+
+            // Hull -- bottom left, flush to bottom of section, drawn over splash
+            string hullText = $"Hull: {target.CurrentHullPercentage:F0}%";
+            Vector2 hullSize = _font.MeasureString(hullText) * FontScale;
+            float hullY = currentY + SelectionSectionHeight - hullSize.Y - 1;
+            _spriteBatch.DrawString(_font, hullText,
+                new Vector2(mapLeft + ContentMargin, hullY),
+                new Color(100, 220, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+        }
+        else
+        {
+            // Nothing selected -- vertically center the label in the fixed-height section
+            string selectionText = "Nothing Selected";
+            Vector2 selectionSize = _font.MeasureString(selectionText) * FontScale;
+            float labelY = currentY + (SelectionSectionHeight - selectionSize.Y) / 2f;
+            _spriteBatch.DrawString(_font, selectionText,
+                new Vector2(mapLeft + ContentMargin, labelY),
+                new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+        }
+
+        currentY += SelectionSectionHeight + SectionSpacing;
+
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Player Stats Display (no label) ──────────────────────────────────
+        // -- Player Stats Display (no label) ----------------------------------
         string[] stats = new[]
         {
             "Speed: 450 m/s",

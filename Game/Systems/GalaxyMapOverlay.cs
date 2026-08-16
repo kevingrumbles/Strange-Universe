@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Strange_Universe.Game.Entities;
@@ -20,7 +20,7 @@ public class GalaxyMapOverlay
     /// <summary>Whether the map is currently visible.  While true, gameplay is paused.</summary>
     public bool IsOpen { get; private set; }
 
-    // Last computed node screen positions — shared between Update and Draw each frame.
+    // Last computed node screen positions - shared between Update and Draw each frame.
     private Dictionary<string, Vector2> _nodePositions = new();
 
     private KeyboardState _prevKeys;
@@ -35,7 +35,7 @@ public class GalaxyMapOverlay
         _input    = new GalaxyMapInput();
     }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────
+    // -- Lifecycle ---------------------------------------------------------
 
     public void Open()
     {
@@ -50,7 +50,7 @@ public class GalaxyMapOverlay
         IsOpen = false;
     }
 
-    // ── Per-frame API ─────────────────────────────────────────────────────
+    // -- Per-frame API -----------------------------------------------------
 
     /// <summary>
     /// Process UI input.  Call only while IsOpen == true.

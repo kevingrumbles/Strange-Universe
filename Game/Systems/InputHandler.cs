@@ -28,6 +28,8 @@ public class InputHandler
             OpenMap     = WasPressed(kb, Keys.M),
             Jump        = WasPressed(kb, Keys.J),
             Exit        = WasPressed(kb, Keys.Escape),
+            TargetNearest = WasPressed(kb, Keys.R),
+            CycleTarget   = WasPressed(kb, Keys.Tab),
         };
 
         _prevKeys = kb;

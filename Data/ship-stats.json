@@ -10,6 +10,7 @@
     // -1.5708 = sprite points up; 0 = sprite already points right
     "SpriteRotationOffset": -1.5708,
     "SpriteName": "Art/Shuttle_sprite.png",
+    "SplashName": "Art/Shuttle_splash.png",
     "SpriteScale": 1.5,
     "MaxHull": 100,
     "MaxShield": 100,

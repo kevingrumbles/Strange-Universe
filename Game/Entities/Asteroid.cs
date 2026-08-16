@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe;
 using StrangeUniverse.Game.Components;
@@ -86,7 +86,7 @@ public class Asteroid
         float cy = Size * 0.5f;
         float baseR = cx * 0.80f;
 
-        // ── Silhouette: 24 radial control points, smoothstep-interpolated ──────
+        // -- Silhouette: 24 radial control points, smoothstep-interpolated ------
         const int Samples = 24;
         float[] sampleAngles = new float[Samples];
         float[] sampleRadii = new float[Samples];
@@ -97,7 +97,7 @@ public class Asteroid
             sampleRadii[i] = baseR * disp;
         }
 
-        // ── Light direction: upper-left, lifted above plane ─────────────────────
+        // -- Light direction: upper-left, lifted above plane ---------------------
         float lx = -0.55f, ly = -0.45f, lz = 0.70f;
         float ll = (float)Math.Sqrt(lx * lx + ly * ly + lz * lz);
         lx /= ll; ly /= ll; lz /= ll;
@@ -114,7 +114,7 @@ public class Asteroid
                 // Low-freq control-point radius at this angle
                 float asteroidR = StaticHelpers.AsteroidInterpolatedRadius(angle, sampleAngles, sampleRadii);
 
-                // High-freq edge bumps — small protrusions and chipped indentations
+                // High-freq edge bumps - small protrusions and chipped indentations
                 float edgeBump = ProceduralHelpers.Fbm(
                     (float)Math.Cos(angle) * 4.5f,
                     (float)Math.Sin(angle) * 4.5f,
@@ -128,7 +128,7 @@ public class Asteroid
                 float u = dx / baseR;
                 float v = dy / baseR;
 
-                // ── Surface layers ──────────────────────────────────────────────
+                // -- Surface layers ----------------------------------------------
                 // Layer 1 – large rocky regions
                 float rocky = ProceduralHelpers.Remap01(
                     ProceduralHelpers.Fbm(u * 2.0f, v * 2.0f, seed, 5, 0.55f, 2.0f));
@@ -140,7 +140,7 @@ public class Asteroid
                     u * 4.5f, v * 4.5f, seed + 43, 4, 0.55f, 2.1f);
                 crack = (float)Math.Pow(crack, 1.6);
 
-                // ── Bump-mapped surface normal ──────────────────────────────────
+                // -- Bump-mapped surface normal ----------------------------------
                 // Central-difference gradient of an FBm height field
                 const float Eps = 0.035f;
                 const float BumpStr = 0.55f;
@@ -164,7 +164,7 @@ public class Asteroid
                 float diffuse = Math.Max(0f, nx * lx + ny * ly + nz * lz);
                 float lighting = 0.25f + 0.75f * diffuse;   // ambient + Lambert
 
-                // ── Color palette ───────────────────────────────────────────────
+                // -- Color palette -----------------------------------------------
                 // Blend from dark gray-brown → medium warm gray using surface mix
                 float blend = rocky * 0.60f + grain * 0.40f;
 
@@ -189,7 +189,7 @@ public class Asteroid
                 cg *= lighting;
                 cb *= lighting;
 
-                // Rim ambient-occlusion — darken toward the silhouette edge
+                // Rim ambient-occlusion - darken toward the silhouette edge
                 float rim = (float)Math.Pow(Math.Max(0f, 1f - normDist), 0.28f);
                 cr *= rim;
                 cg *= rim;

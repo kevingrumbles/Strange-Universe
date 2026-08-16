@@ -1,7 +1,8 @@
-using Strange_Universe.Game.Components;
+﻿using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
 using StrangeUniverse;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace Strange_Universe.Game.Entities;
@@ -20,12 +21,13 @@ public class Player : Ship
         HandleRetrograde(deltaTime, input);
         HandleThrust(deltaTime, input);
         HandleJump(deltaTime, input);
+        HandleTargeting(input);
 
         base.Update(deltaTime);
         Launcher.Camera.Update(Position, deltaTime, input);
     }
 
-    // ── Rotation ─────────────────────────────────────────────────────────────
+    // -- Rotation -------------------------------------------------------------
     // A/D rotate the ship facing immediately and responsively.
     // Facing is independent of the current velocity vector.
 
@@ -36,7 +38,7 @@ public class Player : Ship
         if (input.RotateRight) ApplyRotation(StaticHelpers.Direction.Right, deltaTime);
     }
 
-    // ── Maneuvering thrusters (S) ─────────────────────────────────────────────
+    // -- Maneuvering thrusters (S) ---------------------------------------------
     // Rotates the ship to face directly opposite the current velocity vector
     // so that W thrust will decelerate the ship.  A/D can combine with this.
 
@@ -49,7 +51,7 @@ public class Player : Ship
         RotateTowards((float)Math.Atan2(-Velocity.Y, -Velocity.X), deltaTime);
     }
 
-    // ── Forward thrust (W) ────────────────────────────────────────────────────
+    // -- Forward thrust (W) ----------------------------------------------------
     // Adds acceleration in the current facing direction using base Ship.ApplyThrust.
 
     private void HandleThrust(float deltaTime, InputState input)
@@ -59,7 +61,7 @@ public class Player : Ship
         ApplyThrust(deltaTime);
     }
 
-    // ── Forward thrust (J) ────────────────────────────────────────────────────
+    // -- Forward thrust (J) ----------------------------------------------------
     // Adds acceleration in the current facing direction using base Ship.ApplyThrust.
 
     private void HandleJump(float deltaTime, InputState input)
@@ -77,6 +79,57 @@ public class Player : Ship
                 Launcher.ActiveUniverse.ShowTimedMessage("Insufficient fuel for jump!");
             }
         }
+    }
+
+    // -- Targeting (R / ~) ---------------------------------------------------------
+    // R: Select nearest ship
+    // ~: Cycle through ships in system
+
+    private void HandleTargeting(InputState input)
+    {
+        if (input.TargetNearest)
+        {
+            SetTarget(GetNearestTarget());
+        }
+
+        if (input.CycleTarget)
+        {
+            CycleToNextTarget();
+        }
+    }
+
+    private void CycleToNextTarget()
+    {
+        if (StarSystem == null)
+            return;
+
+        // Get all ships except self
+        var allShips = new List<Ship>();
+        allShips.AddRange(StarSystem.Npcs);
+        if (StarSystem.ActivePlayer != null && StarSystem.ActivePlayer != this)
+        {
+            allShips.Add(StarSystem.ActivePlayer);
+        }
+
+        if (allShips.Count == 0)
+        {
+            ClearTarget();
+            return;
+        }
+
+        // Sort by stable ID for consistent ordering
+        allShips = allShips.OrderBy(s => s.Id).ToList();
+
+        // Find current target in list
+        int currentIndex = -1;
+        if (Target != null)
+        {
+            currentIndex = allShips.IndexOf(Target);
+        }
+
+        // Select next ship (wrap around)
+        int nextIndex = (currentIndex + 1) % allShips.Count;
+        SetTarget(allShips[nextIndex]);
     }
 }
 
