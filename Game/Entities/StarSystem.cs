@@ -85,7 +85,8 @@ public class StarSystem
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
-    [JsonIgnore] public List<Nonplayer>            Npcs            { get; }      = new();
+    [JsonIgnore] public List<Nonplayer> Npcs            { get; }      = new();
+    [JsonIgnore] public List<Projectile> Projectiles     { get; }      = new();
     [JsonIgnore] public string        NebulaId        { get; private set; }
 
     private readonly EventController _eventController;
@@ -202,6 +203,14 @@ public class StarSystem
 
         // Ship-to-ship collisions (player vs NPCs and NPC vs NPC)
         _collision.ResolveShipToShip(ActivePlayer, Npcs);
+
+        // Update and remove expired projectiles
+        for (int i = Projectiles.Count - 1; i >= 0; i--)
+        {
+            Projectiles[i].Update(deltaTime);
+            if (Projectiles[i].IsExpired)
+                Projectiles.RemoveAt(i);
+        }
     }
 
     private void UpdateStarOrbits(float deltaTime)

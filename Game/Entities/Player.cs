@@ -22,9 +22,18 @@ public class Player : Ship
         HandleThrust(deltaTime, input);
         HandleJump(deltaTime, input);
         HandleTargeting(input);
+        HandleFirePrimaryWeapons(input);
 
         base.Update(deltaTime);
         Launcher.Camera.Update(Position, deltaTime, input);
+    }
+
+    private void HandleFirePrimaryWeapons(InputState input)
+    {
+        if (input.Fire)
+        {
+            FireWeapons();
+        }
     }
 
     // -- Rotation -------------------------------------------------------------

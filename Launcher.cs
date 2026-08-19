@@ -19,9 +19,9 @@ namespace StrangeUniverse
 
 
         // -- Core --------------------------------------------------------------
-        public static GraphicsDevice GD;
+        public static GraphicsDevice GD = null;
+        public static RenderService RenderService = null!;
         private readonly GraphicsDeviceManager _graphics;
-        private SpriteBatch _spriteBatch = null!;
         private SpriteFont _font = null!;
         private int _screenWidth;
         private int _screenHeight;
@@ -41,7 +41,8 @@ namespace StrangeUniverse
         private InputHandler _inputHandler = null!;
         public static Camera Camera { get; private set; } = null!;
         public static ProceduralTextureCache TextureCache = null!;
-        private SpriteRenderer _renderer = null!;
+        private SpriteRenderer _starsystemRenderer = null!;
+        private ProjectileRenderer _projectileRenderer = null!;
         private GalaxyMapOverlay _galaxyMap = null!;
         private List<Universe> _universes = null!;
         private static string _universeFilePath = "Data/universe-settings.json";
@@ -88,14 +89,15 @@ namespace StrangeUniverse
             GD = _graphics.GraphicsDevice;
             _inputHandler = new InputHandler();
             TextureCache = new ProceduralTextureCache();
-            _spriteBatch = new SpriteBatch(GD);
+            RenderService = new RenderService();
             _font = Content.Load<SpriteFont>("Fonts/DefaultFont");
-            _renderer = new SpriteRenderer(_spriteBatch, GD, TextureCache, _font);
+            _starsystemRenderer = new SpriteRenderer(_font);
+            _projectileRenderer = new ProjectileRenderer();
             CameraSettings cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
-            Camera = new Camera(cameraSettings, _screenWidth, _screenHeight);
-            ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json");
-            EquipmentStats.Presets = StaticHelpers.LoadFile<List<EquipmentStats>>("Data/equipment-stats.json");
+            ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json") ?? new List<ShipStats>();
+            EquipmentStats.Presets = StaticHelpers.LoadFile<List<EquipmentStats>>("Data/equipment-stats.json") ?? new List<EquipmentStats>();
             _universes = StaticHelpers.LoadExisting(_universeFilePath);
+            Camera = new Camera(cameraSettings, _screenWidth, _screenHeight);
 
             _menuIndex = 0;
             _prevKeys = Keyboard.GetState();
@@ -207,15 +209,13 @@ namespace StrangeUniverse
             // Dispose old resources
             ActiveUniverse?.Dispose();
             TextureCache?.Dispose();
-            _spriteBatch?.Dispose();
             _galaxyMap?.Dispose();
 
             // Create new resources
             TextureCache = new ProceduralTextureCache();
             _inputHandler = new InputHandler();
-            _spriteBatch = new SpriteBatch(GraphicsDevice);
-            _renderer = new SpriteRenderer(_spriteBatch, GraphicsDevice, TextureCache, _font);
-            _galaxyMap = new GalaxyMapOverlay(_spriteBatch, GraphicsDevice, _font);
+            _starsystemRenderer = new SpriteRenderer(_font);
+            _galaxyMap = new GalaxyMapOverlay(_font);
             ActiveUniverse = null!;
         }
         private void UpdatePlaying(GameTime gameTime)
@@ -251,6 +251,10 @@ namespace StrangeUniverse
             }
 
             ActiveUniverse.Update(deltaTime, input);
+
+            // Update projectile particles (must happen after projectiles are moved)
+            if (ActiveUniverse.ActiveStarSystem != null)
+                _projectileRenderer.UpdateParticles(ActiveUniverse.ActiveStarSystem.Projectiles, deltaTime);
         }
 
         // -- Draw --------------------------------------------------------------
@@ -264,6 +268,8 @@ namespace StrangeUniverse
             else
                 DrawPlaying();
 
+            RenderService.End();
+
             base.Draw(gameTime);
         }
 
@@ -271,18 +277,18 @@ namespace StrangeUniverse
         {
             GraphicsDevice.Clear(new Color(4, 4, 12));
 
-            _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
+            RenderService.Begin(BatchMode.ScreenAlpha);
 
             // Title
             const string title = "STRANGE UNIVERSE";
             Vector2 titleSz = _font.MeasureString(title);
-            _spriteBatch.DrawString(_font, title,
+            RenderService.SpriteBatch.DrawString(_font, title,
                 new Vector2((_screenWidth - titleSz.X) / 2f, 80f),
                 new Color(180, 210, 255));
 
             const string subtitle = "Select a universe or create a new one";
             Vector2 subtitleSz = _font.MeasureString(subtitle);
-            _spriteBatch.DrawString(_font, subtitle,
+            RenderService.SpriteBatch.DrawString(_font, subtitle,
                 new Vector2((_screenWidth - subtitleSz.X) / 2f, 114f),
                 new Color(120, 140, 160));
 
@@ -303,28 +309,27 @@ namespace StrangeUniverse
             // Footer hint
             const string hint = "Up/Down  Navigate      Enter  Select      Del  Delete      Esc  Quit";
             Vector2 hintSz = _font.MeasureString(hint);
-            _spriteBatch.DrawString(_font, hint,
+            RenderService.SpriteBatch.DrawString(_font, hint,
                 new Vector2((_screenWidth - hintSz.X) / 2f, _screenHeight - 38f),
                 new Color(70, 88, 108));
 
-            _spriteBatch.End();
         }
 
         private void DrawNaming()
         {
             GraphicsDevice.Clear(new Color(4, 4, 12));
 
-            _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
+            RenderService.Begin(BatchMode.ScreenAlpha);
 
             const string title = "CREATE NEW UNIVERSE";
             Vector2 titleSz = _font.MeasureString(title);
-            _spriteBatch.DrawString(_font, title,
+            RenderService.SpriteBatch.DrawString(_font, title,
                 new Vector2((_screenWidth - titleSz.X) / 2f, 80f),
                 new Color(180, 210, 255));
 
             const string prompt = "Enter a name for your universe:";
             Vector2 promptSz = _font.MeasureString(prompt);
-            _spriteBatch.DrawString(_font, prompt,
+            RenderService.SpriteBatch.DrawString(_font, prompt,
                 new Vector2((_screenWidth - promptSz.X) / 2f, 140f),
                 new Color(120, 140, 160));
 
@@ -342,17 +347,16 @@ namespace StrangeUniverse
             DrawRect(boxX, boxY, 2, boxH, new Color(80, 140, 220));
             DrawRect(boxX + boxW - 2, boxY, 2, boxH, new Color(80, 140, 220));
 
-            _spriteBatch.DrawString(_font, displayed,
+            RenderService.SpriteBatch.DrawString(_font, displayed,
                 new Vector2(boxX + RowPadX, boxY + RowPadY),
                 new Color(220, 235, 255));
 
             const string hint = "Enter  Confirm      Esc  Back";
             Vector2 hintSz = _font.MeasureString(hint);
-            _spriteBatch.DrawString(_font, hint,
+            RenderService.SpriteBatch.DrawString(_font, hint,
                 new Vector2((_screenWidth - hintSz.X) / 2f, _screenHeight - 38f),
                 new Color(70, 88, 108));
 
-            _spriteBatch.End();
         }
 
         private void DrawMenuRow(int x, int y, int width,
@@ -377,14 +381,14 @@ namespace StrangeUniverse
             Color labelColor = isCreate
                 ? (isSelected ? new Color(120, 220, 120) : new Color(80, 160, 80))
                 : (isSelected ? new Color(220, 235, 255) : new Color(160, 175, 195));
-            _spriteBatch.DrawString(_font, label,
+            RenderService.SpriteBatch.DrawString(_font, label,
                 new Vector2(x + RowPadX, y + RowPadY), labelColor);
 
             // Sub-label (seed)
             if (!string.IsNullOrEmpty(sub))
             {
                 Color subColor = isSelected ? new Color(100, 130, 170) : new Color(70, 90, 115);
-                _spriteBatch.DrawString(_font, sub,
+                RenderService.SpriteBatch.DrawString(_font, sub,
                     new Vector2(x + RowPadX, y + RowPadY + 20), subColor);
             }
         }
@@ -393,7 +397,7 @@ namespace StrangeUniverse
         {
             using var px = new Texture2D(GraphicsDevice, 1, 1);
             px.SetData(new[] { Color.White });
-            _spriteBatch.Draw(px, new Rectangle(x, y, w, h), color);
+            RenderService.SpriteBatch.Draw(px, new Rectangle(x, y, w, h), color);
         }
 
         private void DrawPlaying()
@@ -408,46 +412,48 @@ namespace StrangeUniverse
         private void DrawUniverseLayers(StarSystem sys)
         {
             var cameraMatrix = Camera.GetTransformMatrix();
-            _spriteBatch.Begin(sortMode: SpriteSortMode.Deferred,
-                               blendState: BlendState.AlphaBlend,
-                               samplerState: SamplerState.LinearClamp,
-                               transformMatrix: cameraMatrix);
+
             //Draw Layer 0
-            _renderer.DrawBackgroundStars(
+            _starsystemRenderer.DrawBackgroundStars(
                 sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, layer: 0);
 
             //Draw Layer 1
-            _renderer.DrawNebula(sys.NebulaId, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, debug);
+            _starsystemRenderer.DrawNebula(sys.NebulaId, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, debug);
 
             //Draw Layer 2
-            _renderer.DrawBackgroundStars(
+            _starsystemRenderer.DrawBackgroundStars(
                 sys.BackgroundStars, _screenWidth, _screenHeight, Camera.Position, Camera.Zoom, layer: 1);
 
             //Draw Layer 3
             foreach (var star in sys.Stars)
-                _renderer.DrawStar(star);
+                _starsystemRenderer.DrawStar(star);
 
             //Draw Layer 4
             foreach (var planet in sys.Planets)
-                _renderer.DrawPlanet(planet);
+                _starsystemRenderer.DrawPlanet(planet);
 
             //Draw Layer 5
             foreach (var asteroid in sys.Asteroids)
-                _renderer.DrawAsteroid(asteroid);
+                _starsystemRenderer.DrawAsteroid(asteroid);
 
             //Draw Layer 6
-            _renderer.DrawPlayer(ActiveUniverse.Player);
+            _starsystemRenderer.DrawPlayer(ActiveUniverse.Player);
 
             // Draw NPCs
             foreach (var npc in sys.Npcs)
-                _renderer.DrawNPC(npc);
+                _starsystemRenderer.DrawNPC(npc);
+
+            // Draw projectiles with additive blending — RenderService transparently
+            // switches batch modes, no manual End/Begin needed here.
+            _projectileRenderer.SetCameraMatrix(cameraMatrix);
+            _projectileRenderer.DrawAll(sys.Projectiles);
 
             // Debug: Draw gravity well indicators
             if (debug)
             {
                 foreach (var star in sys.Stars)
                 {
-                    _renderer.DrawDebugCircle(
+                    _starsystemRenderer.DrawDebugCircle(
                         star.GravityWell.Center,
                         star.GravityWell.Radius,
                         Color.Yellow * 0.3f,
@@ -456,22 +462,20 @@ namespace StrangeUniverse
 
                 foreach (var planet in sys.Planets)
                 {
-                    _renderer.DrawDebugCircle(
+                    _starsystemRenderer.DrawDebugCircle(
                         planet.GravityWell.Center,
                         planet.GravityWell.Radius,
                         Color.Cyan * 0.3f,
                         48);
                 }
             }
-
-            _spriteBatch.End();
         }
 
         private void DrawOverlay()
         {
-            _spriteBatch.Begin(blendState: BlendState.AlphaBlend);
-            _renderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.MaxSpeed);
-            _renderer.DrawHud(ActiveUniverse, _screenWidth, _screenHeight);
+            RenderService.Begin(BatchMode.ScreenAlpha);
+            _starsystemRenderer.DrawSpeedBar(ActiveUniverse.Player, _screenWidth, _screenHeight, ActiveUniverse.Player.MaxSpeed);
+            _starsystemRenderer.DrawHud(ActiveUniverse, _screenWidth, _screenHeight);
 
             // Draw timed message if active with fade out
             if (ActiveUniverse.TimedMessageRemaining > 0f && !string.IsNullOrEmpty(ActiveUniverse.TimedMessage))
@@ -487,10 +491,8 @@ namespace StrangeUniverse
                     _screenHeight - messageSize.Y - 40f);
 
                 Color messageColor = new Color(255, 140, 0) * alpha;
-                _spriteBatch.DrawString(_font, ActiveUniverse.TimedMessage, messagePosition, messageColor);
+                RenderService.SpriteBatch.DrawString(_font, ActiveUniverse.TimedMessage, messagePosition, messageColor);
             }
-
-            _spriteBatch.End();
         }
 
         protected override void UnloadContent()

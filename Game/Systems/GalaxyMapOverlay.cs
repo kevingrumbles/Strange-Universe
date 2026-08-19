@@ -29,9 +29,9 @@ public class GalaxyMapOverlay
     // Accumulated time for animation (pulsing ring)
     private double _totalSeconds;
 
-    public GalaxyMapOverlay(SpriteBatch spriteBatch, GraphicsDevice gd, SpriteFont font)
+    public GalaxyMapOverlay(SpriteFont font)
     {
-        _renderer = new GalaxyMapRenderer(spriteBatch, gd, font);
+        _renderer = new GalaxyMapRenderer(font);
         _input    = new GalaxyMapInput();
     }
 
@@ -114,5 +114,8 @@ public class GalaxyMapOverlay
                                         _input.HoveredSystemId, _totalSeconds);
     }
 
-    public void Dispose() => _renderer.Dispose();
+    public void Dispose() 
+    { 
+        _renderer.Dispose();
+    }
 }

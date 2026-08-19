@@ -7,7 +7,8 @@
     "Range": 1500.0,
     "FireRate": 3.0,
     "EnergyCost": 10.0,
-    "Mass": 50.0
+    "Mass": 50.0,
+    "Accuracy": 0.9
   },
   {
     "EquipmentName": "Heavy Laser",
@@ -17,7 +18,8 @@
     "Range": 2000.0,
     "FireRate": 1.5,
     "EnergyCost": 25.0,
-    "Mass": 120.0
+    "Mass": 120.0,
+    "Accuracy": 0.85
   },
   {
     "EquipmentName": "Pulse Cannon",
@@ -27,7 +29,8 @@
     "Range": 1200.0,
     "FireRate": 4.0,
     "EnergyCost": 12.0,
-    "Mass": 80.0
+    "Mass": 80.0,
+    "Accuracy": 0.9
   },
   {
     "EquipmentName": "Gatling Gun",
@@ -37,7 +40,8 @@
     "Range": 1000.0,
     "FireRate": 10.0,
     "EnergyCost": 5.0,
-    "Mass": 60.0
+    "Mass": 60.0,
+    "Accuracy": 0.95
   },
   {
     "EquipmentName": "Plasma Beam",
@@ -45,7 +49,8 @@
     "Damage": 50.0,
     "Range": 2500.0,
     "EnergyCost": 40.0,
-    "Mass": 150.0
+    "Mass": 150.0,
+    "Accuracy": 0.8
   },
   {
     "EquipmentName": "Mining Beam",
@@ -53,7 +58,8 @@
     "Damage": 5.0,
     "Range": 800.0,
     "EnergyCost": 15.0,
-    "Mass": 90.0
+    "Mass": 90.0,
+    "Accuracy": 0.95
   },
   {
     "EquipmentName": "Light Missile",

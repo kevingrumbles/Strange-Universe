@@ -30,6 +30,7 @@ public class InputHandler
             Exit        = WasPressed(kb, Keys.Escape),
             TargetNearest = WasPressed(kb, Keys.R),
             CycleTarget   = WasPressed(kb, Keys.Tab),
+            Fire          = kb.IsKeyDown(Keys.Space),
         };
 
         _prevKeys = kb;

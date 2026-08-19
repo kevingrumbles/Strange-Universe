@@ -14,18 +14,14 @@ namespace Strange_Universe.Game.Systems;
 /// </summary>
 public class SpriteRenderer
 {
-    private readonly SpriteBatch           _spriteBatch;
-    private readonly ProceduralTextureCache _cache;
+    private SpriteBatch _spriteBatch => Launcher.RenderService.SpriteBatch;
     private readonly Texture2D             _pixel;      // 1×1 white texture for dots
     private readonly SpriteFont            _font;       // Font for HUD text
 
-    public SpriteRenderer(SpriteBatch spriteBatch, GraphicsDevice gd, ProceduralTextureCache cache, SpriteFont font)
+    public SpriteRenderer(SpriteFont font)
     {
-        _spriteBatch = spriteBatch;
-        _cache       = cache;
         _font        = font;
-
-        _pixel = new Texture2D(gd, 1, 1);
+        _pixel = new Texture2D(Launcher.GD, 1, 1);
         _pixel.SetData(new[] { Color.White });
     }
 
@@ -38,7 +34,9 @@ public class SpriteRenderer
     public void DrawNebula(string nebulaId, int screenWidth, int screenHeight, 
                           Vector2 cameraPos, float cameraZoom, bool debugMode = false)
     {
-        if (!_cache.TryGet(nebulaId, out var tex) || tex is null) return;
+        if (!Launcher.TextureCache.TryGet(nebulaId, out var tex) || tex is null) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
 
         int textureSize = tex.Width; // Should be 4096 from Nebula.Size
 
@@ -93,6 +91,8 @@ public class SpriteRenderer
     {
         // Background stars render in screen space and maintain constant appearance
         // regardless of zoom level. They provide atmosphere without cluttering the view.
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
 
         // Define the base tile size for background stars (matches typical screen resolution)
         const float tileWidth = 1920f;
@@ -165,7 +165,9 @@ public class SpriteRenderer
     /// <summary>Draws any entity that has a position, rotation, scale, and texture ID.</summary>
     public void DrawEntity(string textureId, Vector2 position, float rotation, float radius)
     {
-        if (!_cache.TryGet(textureId, out var tex) || tex is null) return;
+        if (!Launcher.TextureCache.TryGet(textureId, out var tex) || tex is null) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
 
         float scale = radius * 2f / Math.Max(tex.Width, tex.Height);
         var origin  = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
@@ -199,6 +201,8 @@ public class SpriteRenderer
     /// </summary>
     public void DrawDebugCircle(Vector2 center, float radius, Color color, int segments = 32)
     {
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+
         float angleStep = MathHelper.TwoPi / segments;
         for (int i = 0; i < segments; i++)
         {
@@ -239,6 +243,8 @@ public class SpriteRenderer
 
     public void DrawSpeedBar(Player player, int screenWidth, int screenHeight, float maxSpeed)
     {
+        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
+
         // Speed bar in bottom-left
         float speed     = player.Speed;
         float barW      = 140;
@@ -259,6 +265,8 @@ public class SpriteRenderer
 
     public void DrawHud(Universe universe, int screenWidth, int screenHeight)
     {
+        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
+
         const int MapSize = 180;
         const int Margin  = 14;
         const int Border  = 1;
@@ -483,7 +491,7 @@ public class SpriteRenderer
             const int SplashSize = 72;
             int splashX = mapLeft + (MapSize - SplashSize) / 2;
             int splashY = currentY + (SelectionSectionHeight - SplashSize) / 2;
-            if (_cache.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
+            if (Launcher.TextureCache.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
             {
                 float splashScale = (float)SplashSize / Math.Max(splashTex.Width, splashTex.Height);
                 var splashOrigin = new Vector2(splashTex.Width * 0.5f, splashTex.Height * 0.5f);

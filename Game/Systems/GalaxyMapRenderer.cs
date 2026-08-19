@@ -1,6 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Entities;
+using StrangeUniverse;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -39,7 +40,7 @@ public class GalaxyMapRenderer
     private static readonly Color CloseXColor      = new Color(220, 100, 80);
     private static readonly Color PanelBorderC     = new Color(60,  80, 120) * 0.8f;
 
-    private readonly SpriteBatch _sb;
+    private SpriteBatch _sb => Launcher.RenderService.SpriteBatch;
     private readonly Texture2D   _pixel;
     private readonly SpriteFont  _font;
 
@@ -48,12 +49,11 @@ public class GalaxyMapRenderer
     private float  _scaleX, _scaleY;
     private Vector2 _galaxyMin, _galaxyMax;
 
-    public GalaxyMapRenderer(SpriteBatch spriteBatch, GraphicsDevice gd, SpriteFont font)
+    public GalaxyMapRenderer(SpriteFont font)
     {
-        _sb   = spriteBatch;
         _font = font;
 
-        _pixel = new Texture2D(gd, 1, 1);
+        _pixel = new Texture2D(Launcher.GD, 1, 1);
         _pixel.SetData(new[] { Color.White });
     }
 
@@ -72,7 +72,7 @@ public class GalaxyMapRenderer
     {
         ComputeLayout(universe, screenW, screenH);
 
-        _sb.Begin(blendState: BlendState.AlphaBlend);
+        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
 
         DrawBackground(screenW, screenH);
         var positions = ComputeNodeScreenPositions(universe);
@@ -82,8 +82,6 @@ public class GalaxyMapRenderer
         DrawLabels(universe, positions);
         DrawJumpTargetHint(universe, screenW, screenH);
         DrawCloseButton(screenW, screenH);
-
-        _sb.End();
 
         return positions;
     }
@@ -469,5 +467,6 @@ public class GalaxyMapRenderer
     public void Dispose()
     {
         _pixel?.Dispose();
+        _sb?.Dispose();
     }
 }

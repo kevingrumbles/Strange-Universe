@@ -24,13 +24,15 @@ public abstract class Ship
     public int? CurrentHullStrength { get; set; } = null;
     public int? CurrentShieldStrength { get; set; } = null;
     public int? CurrentFuelLevel { get; set; } = null;
-    public List<EquipmentStats> Equipment { get; set; } = new();
+    [JsonConverter(typeof(EquipmentListConverter))]
+    public List<Equipment> Equipment { get; set; } = new();
+    [JsonIgnore] public List<Equipment> PrimaryWeapons { get => Equipment.Where(e => e.EquipmentStats.PrimaryWeapon).ToList(); }
     [JsonIgnore] public bool HasActiveNavTask => ActiveNavTask is not null;
     [JsonIgnore] private NavTask ActiveNavTask { get; set; } = null;
     [JsonIgnore] private Queue<NavTask> NavTaskQueue { get; set; } = new Queue<NavTask>();
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public string Name { get; set; }
-    [JsonIgnore] public Ship? Target { get; set; }
+    [JsonIgnore] public Ship Target { get; set; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.CalculateGravityAtLocation(Transform.Position);
     [JsonIgnore] public ShipStats ShipStats { get; set; } = new();
     [JsonIgnore] public float Radius { get => CalculateRadius() ; }
@@ -225,10 +227,34 @@ public abstract class Ship
         // Gravity is not capped by MaxSpeed - it can push ships beyond their normal limits
         Physics.ApplyForce(StarSystem.CalculateGravityAtLocation(Transform.Position), deltaTime);
         Physics.Integrate(Transform, deltaTime);
+
+        // Advance weapon cooldowns
+        foreach (Equipment weapon in PrimaryWeapons)
+            weapon.EquipmentStats.UpdateCooldown(deltaTime);
     }
     public void EnqueueNavTask(NavTask task)
     {
         NavTaskQueue.Enqueue(task);
+    }
+
+    /// <summary>
+    /// Fires all installed weapons that are ready. Spawned projectiles are added
+    /// to the current StarSystem's Projectiles list.
+    /// </summary>
+    public void FireWeapons()
+    {
+        if (StarSystem == null)
+            return;
+
+        foreach (Equipment weapon in PrimaryWeapons)
+        {
+            float attackSpeedBonus   = CalculateBaseAttackSpeed();
+            float attackRangeBonus   = CalculateBaseAttackRange();
+            float accuracyBonus      = CalculateBaseAccuracyBonus();
+            Projectile projectile = weapon.EquipmentStats.TryFire(this, attackSpeedBonus, attackRangeBonus, accuracyBonus);
+            if (projectile != null)
+                StarSystem.Projectiles.Add(projectile);
+        }
     }
 
     #region Ship Stats Calculations
@@ -261,6 +287,43 @@ public abstract class Ship
     {
         return ShipStats.MaxSpeed;
     }
+
+    private float CalculateBaseAttackSpeed()
+    {
+        float baseAttackSpeed = 0f; // Additive attacks-per-second bonus from utility gear
+        foreach (var equipment in Equipment)
+        {
+            if (equipment.EquipmentStats.EquipmentType == EquipmentType.Utility)
+            {
+                baseAttackSpeed += equipment.EquipmentStats.FireRate ?? 0f;
+            }
+        }
+        return baseAttackSpeed;
+    }
+
+    private float CalculateBaseAttackRange()
+    {
+        float baseAttackRange = 0f; // Additive attack-range bonus from utility gear
+        foreach (var equipment in Equipment)
+        {
+            if (equipment.EquipmentStats.EquipmentType == EquipmentType.Utility)
+            {
+                baseAttackRange += equipment.EquipmentStats.Range ?? 0f;
+            }
+        }
+        return baseAttackRange;
+    }
+
+    private float CalculateBaseAccuracyBonus()
+    {
+        float bonus = 0f; // Additive accuracy bonus from utility gear
+        foreach (var equipment in Equipment)
+        {
+            if (equipment.EquipmentStats.EquipmentType == EquipmentType.Utility)
+                bonus += equipment.EquipmentStats.Accuracy ?? 0f;
+        }
+        return bonus;
+    }
     #endregion
     #region Sensors
     /// <summary>
@@ -275,7 +338,7 @@ public abstract class Ship
     /// <summary>
     /// Sets the current target. Does not allow targeting self.
     /// </summary>
-    public void SetTarget(Ship? target)
+    public void SetTarget(Ship target)
     {
         if (target == this)
             return;
@@ -294,13 +357,13 @@ public abstract class Ship
     /// <summary>
     /// Gets the nearest ship in the current system, excluding self.
     /// </summary>
-    public Ship? GetNearestTarget()
+    public Ship GetNearestTarget()
     {
         if (StarSystem == null)
             return null;
 
         var allShips = GetAllShipsInSystem();
-        Ship? nearest = null;
+        Ship nearest = null;
         float nearestDistance = float.MaxValue;
 
         foreach (var ship in allShips)
@@ -322,7 +385,7 @@ public abstract class Ship
     /// <summary>
     /// Checks if a target is valid (not null, not self, still in system).
     /// </summary>
-    public bool IsTargetValid(Ship? target)
+    public bool IsTargetValid(Ship target)
     {
         if (target == null || target == this)
             return false;

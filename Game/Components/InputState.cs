@@ -13,4 +13,5 @@ public class InputState
     public bool Exit        { get; set; }
     public bool TargetNearest { get; set; }
     public bool CycleTarget   { get; set; }
+    public bool Fire          { get; set; }
 }
