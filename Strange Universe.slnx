@@ -1,3 +1,6 @@
 <Solution>
+  <Folder Name="/Tests/">
+    <Project Path="Tests/Strange-Universe.Tests.csproj" />
+  </Folder>
   <Project Path="Strange Universe.csproj" />
 </Solution>

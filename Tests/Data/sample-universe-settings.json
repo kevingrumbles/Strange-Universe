@@ -1,0 +1,108 @@
+[
+  {
+    "Id": "37a2d42a-b4f7-476c-95c8-1215b2f225a2",
+    "Name": "Strife",
+    "Player": {
+      "CurrentStarSystemID": "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Eastanisus",
+      "ShipType": {
+        "ShipTypeName": "Shuttle"
+      },
+      "Name": "Strife",
+      "CurrentHullStrength": 1,
+      "CurrentShieldStrength": 1,
+      "CurrentFuelLevel": 4,
+      "Equipment": [
+        "Light Laser"
+      ],
+      "Position": {
+        "X": -2440.9517,
+        "Y": -4107.5776
+      },
+      "Rotation": 10.003561,
+      "Scale": 1,
+      "Velocity": {
+        "X": -490.46744,
+        "Y": -317.40677
+      }
+    },
+    "Seed": "37a2d42a-b4f7-476c-95c8-1215b2f225a2",
+    "StarSystemNodes": [
+      {
+        "SystemId": "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Sol",
+        "SystemConnectionIds": [
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Eastanisus",
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Belo Prime",
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Talori Reach",
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Galania Point"
+        ],
+        "Name": "Sol",
+        "GalaxyPosition": {
+          "X": 0,
+          "Y": 0
+        },
+        "Discovered": true
+      },
+      {
+        "SystemId": "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Eastanisus",
+        "SystemConnectionIds": [
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Sol",
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Beloris Gate"
+        ],
+        "Name": "Eastanisus",
+        "GalaxyPosition": {
+          "X": 6,
+          "Y": 2
+        },
+        "Discovered": true
+      },
+      {
+        "SystemId": "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Belo Prime",
+        "SystemConnectionIds": [
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Sol"
+        ],
+        "Name": "Belo Prime",
+        "GalaxyPosition": {
+          "X": 2,
+          "Y": 8
+        },
+        "Discovered": false
+      },
+      {
+        "SystemId": "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Talori Reach",
+        "SystemConnectionIds": [
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Sol"
+        ],
+        "Name": "Talori Reach",
+        "GalaxyPosition": {
+          "X": -3,
+          "Y": -9
+        },
+        "Discovered": false
+      },
+      {
+        "SystemId": "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Galania Point",
+        "SystemConnectionIds": [
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Sol"
+        ],
+        "Name": "Galania Point",
+        "GalaxyPosition": {
+          "X": 6,
+          "Y": -9
+        },
+        "Discovered": false
+      },
+      {
+        "SystemId": "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Beloris Gate",
+        "SystemConnectionIds": [
+          "37a2d42a-b4f7-476c-95c8-1215b2f225a2_Eastanisus"
+        ],
+        "Name": "Beloris Gate",
+        "GalaxyPosition": {
+          "X": 12,
+          "Y": 4
+        },
+        "Discovered": false
+      }
+    ]
+  }
+]
