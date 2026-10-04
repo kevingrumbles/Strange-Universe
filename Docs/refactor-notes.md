@@ -118,3 +118,59 @@ Unseeded (non-deterministic):
 - `Persistence` read and write options differ in enum handling: read accepts camelCase strings, write emits integers.
 - `Launcher.PlanetColision` is misspelled and is a `const`, which produces the CS0162 warnings.
 - `JumpTask._targetSystemId` is a public field with an underscore prefix.
+
+---
+
+## Phase 1 - Remove global static access
+
+Branch `refactor/phase-1-remove-globals` (from `refactor/phase-0-baseline`).
+
+### Result
+
+`Launcher.ActiveUniverse`, `TextureCache`, `GD`, `Camera` and `RenderService` are no longer public statics; they are now private instance fields. The search for `Launcher\.(ActiveUniverse|TextureCache|GD)` returns no hits outside `Launcher.cs`. The only remaining external `Launcher.` reference is the `const` `Launcher.PlanetColision` in `CollisionSystem`. It is a compile-time constant, not state, and is deferred.
+
+### Changes
+
+- **`GameServices`** (`Game/Systems/GameServices.cs`) holds `GraphicsDevice` and `ProceduralTextureCache`. `Launcher` creates it in `LoadContent` and recreates it in `ClearRuntime`. A `null` `GraphicsDevice` means "no graphics": texture creation is skipped, but all RNG draws still happen, so generation stays deterministic.
+- **`StarSystemNode`** has a new constructor, `(seed, position, backConnection, existingNodes)`. The `Universe` property is removed, and the parameterless JSON constructor is kept. `NameGenerator.GetStarSystemName(seed, existingNodes)` replaces the global lookup for duplicate names.
+- **`StarSystem`** has a new constructor, `(StarSystemNode, Universe, GameServices)`, and exposes `Universe` and `Services`. `ActivePlayer` is now `Universe?.Player`. `Star` and `Planet` take an optional `GameServices`.
+- **`Ship.StarSystem`** is now a settable property that is `null` until attached:
+  - Player: attached inside `Universe.ActiveStarSystem` when the system is built. This covers load, `Generate`, and jumps, because `JumpTask` calls `universe.Regenerate()` and then reads `ActiveStarSystem`.
+  - NPCs: the new `StarSystem.AddNpc(npc)` sets the system. All four spawn events use it.
+- **`Universe.Generate(GameServices)`** stores the services, and **`Universe.Regenerate()`** reuses them. Nebula upload goes through `Nebula.CreateTexture(GraphicsDevice)`. A deserialized `Universe` has no services until `Generate` is called.
+- **`GravityWell`** (not in the plan's list, but it read the global): `CalculateForce(position, referenceThrustForce)`. `StarSystem.CalculateGravityAtLocation` passes the player's thrust, which keeps the previous rule that every ship's gravity is scaled by the player's ship.
+- **Camera**: `Player.Update` records `CameraTarget` at the exact point where it used to call `Launcher.Camera.Update` (after its physics step, before collisions). `Launcher` then calls `Camera.Update(Player.CameraTarget, ...)` after `Universe.Update`, so framing is identical.
+- **Renderers** (`SpriteRenderer`, `ProjectileRenderer`, `RenderService`, `GalaxyMapOverlay`, `GalaxyMapRenderer`) receive `GraphicsDevice`, `GameServices`, `RenderService` and `Camera` through their constructors.
+
+### Tests
+
+38 tests pass, including the new `StarSystemConstructionTests`:
+- The first node is `Sol`.
+- A `StarSystem` can be built without graphics.
+- Generation is deterministic for the same seed, including generated connections.
+- `ActiveStarSystem` attaches the player.
+- `AddNpc` attaches the system.
+
+The test was not blocked by Phase 2, because a `null` `GraphicsDevice` is supported.
+
+### Deviations
+
+- Steps 2-7 are one commit, because the constructor and signature changes ripple through `Launcher` and do not compile independently. Step 1 is its own commit.
+- Step 5 (Universe) was done together with step 3, because the new `StarSystem` constructor depends on it.
+- The IDE auto-added `Tests\StarSystemConstructionTests.cs` to the game csproj. That change was reverted; the `Tests\**` exclusion remains.
+
+### Manual smoke test
+
+**Not performed by the agent** (no interactive display). Please verify:
+1. Load an existing save. The world renders and flight works.
+2. Create a new universe. The same seed gives the same Sol layout.
+3. Use the galaxy map to pick a route, then jump. You arrive in the new system, fuel goes down, and the route entry is removed.
+4. On entering a system, NPCs spawn (Defended/Scouted messages appear and patrollers move).
+5. A merchant arrives, docks, and jumps out.
+6. Projectiles hit NPCs and asteroids.
+7. Exit to the menu and re-enter. Textures are recreated.
+
+### Deferred
+
+- `Launcher.PlanetColision` const is still referenced from `CollisionSystem`.
+- A ship loaded from JSON has a `null` `StarSystem` until the first `Universe.ActiveStarSystem` access. `Universe.Update` does this first.
