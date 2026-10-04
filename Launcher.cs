@@ -7,7 +7,7 @@ using Strange_Universe.Game.Systems;
 using Strange_Universe.Game.UI;
 using System.Collections.Generic;
 
-namespace StrangeUniverse
+namespace Strange_Universe
 {
     enum GameState { Menu, Naming, Playing }
 
@@ -45,6 +45,7 @@ namespace StrangeUniverse
         private ProjectileRenderer _projectileRenderer = null!;
         private GalaxyMapOverlay _galaxyMap = null!;
         private List<Universe> _universes = null!;
+        private Texture2D _pixel = null!;
         private static string _universeFilePath = "Data/universe-settings.json";
 
         // -- Layout constants --------------------------------------------------
@@ -65,7 +66,6 @@ namespace StrangeUniverse
             _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
             _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
             _graphics.ApplyChanges();
-            Content.RootDirectory = "Content";
             IsMouseVisible = true;
             IsFixedTimeStep = true;
             TargetElapsedTime = System.TimeSpan.FromSeconds(1.0 / 60.0);
@@ -74,13 +74,16 @@ namespace StrangeUniverse
 
         protected override void Initialize()
         {
-            _screenWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
-            _screenHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+            _screenWidth = _graphics.PreferredBackBufferWidth;
+            _screenHeight = _graphics.PreferredBackBufferHeight;
             base.Initialize();
         }
 
         protected override void OnExiting(object sender, ExitingEventArgs args)
         {
+            if (ActiveUniverse != null)
+                Persistence.Persist(ActiveUniverse, _universeFilePath);
+
             base.OnExiting(sender, args);
         }
 
@@ -90,14 +93,13 @@ namespace StrangeUniverse
             _inputHandler = new InputHandler();
             TextureCache = new ProceduralTextureCache();
             RenderService = new RenderService();
-            _font = Content.Load<SpriteFont>("Fonts/DefaultFont");
+            _font = FontBuilder.Build(GD, "Arial", 16f);
+            _pixel = new Texture2D(GD, 1, 1);
+            _pixel.SetData(new[] { Color.White });
             _starsystemRenderer = new SpriteRenderer(_font);
             _projectileRenderer = new ProjectileRenderer();
-            CameraSettings cameraSettings = StaticHelpers.LoadFile<CameraSettings>("Data/camera-settings.json") ?? new CameraSettings();
-            ShipStats.Presets = StaticHelpers.LoadFile<List<ShipStats>>("Data/ship-stats.json") ?? new List<ShipStats>();
-            EquipmentStats.Presets = StaticHelpers.LoadFile<List<EquipmentStats>>("Data/equipment-stats.json") ?? new List<EquipmentStats>();
-            _universes = StaticHelpers.LoadExisting(_universeFilePath);
-            Camera = new Camera(cameraSettings, _screenWidth, _screenHeight);
+            _universes = Persistence.LoadExisting(_universeFilePath);
+            Camera = new Camera(_screenWidth, _screenHeight);
 
             _menuIndex = 0;
             _prevKeys = Keyboard.GetState();
@@ -147,7 +149,7 @@ namespace StrangeUniverse
             {
                 var toDelete = _universes[_menuIndex];
                 _universes.RemoveAt(_menuIndex);
-                StaticHelpers.Remove(toDelete, _universeFilePath);
+                Persistence.Remove(toDelete, _universeFilePath);
                 if (_menuIndex >= _universes.Count && _menuIndex > 0)
                     _menuIndex = _universes.Count - 1;
             }
@@ -183,8 +185,7 @@ namespace StrangeUniverse
             }
             else if (WasPressed(keys, Keys.Enter))
             {
-                string name = _newUniverseName.Trim();
-                if (name.Length == 0) name = "New Universe";
+                string name = string.IsNullOrWhiteSpace(_newUniverseName) ? "New Universe" : _newUniverseName.Trim();
                 var created = new Universe(name);
                 _universes.Add(created);
                 LaunchUniverse(created);
@@ -234,7 +235,7 @@ namespace StrangeUniverse
             if (input.Exit)
             {
                 if (ActiveUniverse != null)
-                    StaticHelpers.Persist(ActiveUniverse, _universeFilePath);
+                    Persistence.Persist(ActiveUniverse, _universeFilePath);
                 ClearRuntime();
 
                 // Update _prevKeys to current state so Escape doesn't trigger again in menu
@@ -395,9 +396,8 @@ namespace StrangeUniverse
 
         private void DrawRect(int x, int y, int w, int h, Color color)
         {
-            using var px = new Texture2D(GraphicsDevice, 1, 1);
-            px.SetData(new[] { Color.White });
-            RenderService.SpriteBatch.Draw(px, new Rectangle(x, y, w, h), color);
+            // The batch is deferred, so the texture must stay alive until End().
+            RenderService.SpriteBatch.Draw(_pixel, new Rectangle(x, y, w, h), color);
         }
 
         private void DrawPlaying()
@@ -499,6 +499,7 @@ namespace StrangeUniverse
         {
             TextureCache?.Dispose();
             _galaxyMap?.Dispose();
+            _pixel?.Dispose();
             base.UnloadContent();
         }
 

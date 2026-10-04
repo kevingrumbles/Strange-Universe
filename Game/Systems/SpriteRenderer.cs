@@ -1,8 +1,8 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
-using StrangeUniverse.Game.Entities;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 
@@ -41,7 +41,7 @@ public class SpriteRenderer
         int textureSize = tex.Width; // Should be 4096 from Nebula.Size
 
         // Apply parallax (slower movement than camera for depth)
-        const float parallax = StrangeUniverse.Game.Entities.Nebula.ParallaxFactor;
+        const float parallax = Strange_Universe.Game.Entities.Nebula.ParallaxFactor;
         float parallaxOffsetX = cameraPos.X * parallax;
         float parallaxOffsetY = cameraPos.Y * parallax;
 
@@ -182,18 +182,129 @@ public class SpriteRenderer
     public void DrawPlanet(Planet planet) =>
         DrawEntity(planet.Id, planet.Position, planet.Rotation, planet.Radius);
 
-    public void DrawAsteroid(Asteroid asteroid) =>
-        DrawEntity(asteroid.TextureId, asteroid.Position, asteroid.Rotation, asteroid.Radius);
+    public void DrawAsteroid(Asteroid asteroid)
+    {
+        // A destroyed asteroid lingers only to play out its debris.
+        if (!asteroid.IsDestroyed)
+            DrawEntity(asteroid.TextureId, asteroid.Position, asteroid.Rotation, asteroid.Radius);
 
-    public void DrawPlayer(Player player) =>
-            DrawEntity(player.ShipName, player.Position,
-                       player.Rotation + player.ShipStats.SpriteRotationOffset,
-                       player.Radius * 2.2f * player.ShipStats.SpriteScale);
+        foreach (var shard in asteroid.Shards)
+            DrawShard(shard);
+    }
 
-    public void DrawNPC(Nonplayer npc) =>
-            DrawEntity(npc.ShipName, npc.Position,
-                       npc.Rotation + npc.ShipStats.SpriteRotationOffset,
-                       npc.Radius * 2.2f * npc.ShipStats.SpriteScale);
+    /// <summary>Draws a single asteroid fragment, fading out as it expires.</summary>
+    private void DrawShard(AsteroidShard shard)
+    {
+        if (!Launcher.TextureCache.TryGet(shard.TextureId, out var tex) || tex is null) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+
+        float scale = shard.Radius * 2f / Math.Max(tex.Width, tex.Height);
+        var origin  = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
+
+        _spriteBatch.Draw(tex, shard.Position, null, Color.White * shard.Alpha,
+            shard.Rotation, origin, scale, SpriteEffects.None, 0f);
+    }
+
+    public void DrawPlayer(Player player)
+    {
+        DrawEntity(player.ShipType.ShipTypeName, player.Position,
+                   player.Rotation + player.ShipType.SpriteRotationOffset,
+                   player.Radius * 2.2f * player.ShipType.SpriteScale);
+
+        DrawShipImpacts(player);
+    }
+
+    public void DrawNPC(Nonplayer npc)
+    {
+        DrawEntity(npc.ShipType.ShipTypeName, npc.Position,
+                   npc.Rotation + npc.ShipType.SpriteRotationOffset,
+                   npc.Radius * 2.2f * npc.ShipType.SpriteScale);
+
+        DrawShipImpacts(npc);
+    }
+
+    /// <summary>
+    /// Draws a ship's active hit visuals: shield flares, hull scorch flashes and
+    /// blasted hull fragments.
+    /// </summary>
+    private void DrawShipImpacts(Ship ship)
+    {
+        if (ship.Impacts.Count == 0 && ship.Debris.Count == 0) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+
+        foreach (var impact in ship.Impacts)
+        {
+            if (impact.ShieldHit)
+                DrawShieldArc(ship, impact);
+            else
+                DrawHullFlash(impact);
+        }
+
+        foreach (var debris in ship.Debris)
+        {
+            float size = Math.Max(1f, debris.Size);
+
+            _spriteBatch.Draw(_pixel, debris.Position, null,
+                debris.Color * debris.Alpha,
+                debris.Rotation,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(size, size),
+                SpriteEffects.None, 0f);
+        }
+    }
+
+    /// <summary>
+    /// Draws a curved glow hugging the shield surface, brightest at the point of
+    /// impact and tapering toward the edges of the arc.
+    /// </summary>
+    private void DrawShieldArc(Ship ship, ShipImpact impact)
+    {
+        const int Segments = 18;
+
+        // Flares outward slightly then fades as it dissipates.
+        float expand = 1f + impact.Progress * 0.12f;
+        float radius = impact.Radius * expand;
+        float alpha  = impact.Alpha * impact.Alpha;
+
+        float step = (impact.ArcWidth * 2f) / Segments;
+        float start = impact.Angle - impact.ArcWidth;
+
+        for (int i = 0; i < Segments; i++)
+        {
+            float a1 = start + step * i;
+            float a2 = start + step * (i + 1);
+
+            // Taper toward the arc edges so the flare peaks at the impact point.
+            float mid   = (a1 + a2) * 0.5f;
+            float t     = Math.Abs(mid - impact.Angle) / Math.Max(impact.ArcWidth, 0.0001f);
+            float taper = 1f - (t * t);
+
+            if (taper <= 0.01f) continue;
+
+            Vector2 p1 = ship.Position + new Vector2(MathF.Cos(a1), MathF.Sin(a1)) * radius;
+            Vector2 p2 = ship.Position + new Vector2(MathF.Cos(a2), MathF.Sin(a2)) * radius;
+
+            // Wide soft band underneath, tight bright core on top.
+            DrawLineF(p1, p2, impact.Color * (alpha * taper * 0.35f), 7f);
+            DrawLineF(p1, p2, impact.Color * (alpha * taper), 2.5f);
+        }
+    }
+
+    /// <summary>Draws the brief scorch flash left by an unshielded hit.</summary>
+    private void DrawHullFlash(ShipImpact impact)
+    {
+        float size  = impact.Radius * (1f + impact.Progress);
+        float alpha = impact.Alpha * impact.Alpha;
+
+        _spriteBatch.Draw(_pixel, impact.Position, null,
+            impact.Color * alpha,
+            impact.Angle,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(size, size),
+            SpriteEffects.None, 0f);
+    }
 
     /// <summary>
     /// Draws a circle outline (ring) for debug visualization.
@@ -237,6 +348,24 @@ public class SpriteRenderer
             new Vector2(0, 0.5f),
             SpriteEffects.None,
             0);
+    }
+
+    /// <summary>
+    /// Draws a line between two points at sub-pixel precision. Used for smooth
+    /// curves where the integer-rectangle overload would leave gaps.
+    /// </summary>
+    private void DrawLineF(Vector2 start, Vector2 end, Color color, float thickness)
+    {
+        Vector2 edge = end - start;
+        float length = edge.Length();
+        if (length <= 0.0001f) return;
+
+        float angle = MathF.Atan2(edge.Y, edge.X);
+
+        _spriteBatch.Draw(_pixel, start, null, color, angle,
+            new Vector2(0f, 0.5f),
+            new Vector2(length, thickness),
+            SpriteEffects.None, 0f);
     }
 
     // -- HUD pass (no camera transform) ---------------------------------------
@@ -310,7 +439,7 @@ public class SpriteRenderer
 
         // -- Planets -------------------------------------------------------
         foreach (var planet in universe.ActiveStarSystem.Planets)
-            Dot(WorldToMap(planet.Position), 4, StaticHelpers.PlanetMinimapColor(planet.Type));
+            Dot(WorldToMap(planet.Position), 4, ProceduralHelpers.PlanetMinimapColor(planet.Type));
 
         // Stars
         foreach (var star in universe.ActiveStarSystem.Stars)

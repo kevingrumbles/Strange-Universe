@@ -1,6 +1,6 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using StrangeUniverse;
+using Strange_Universe;
 
 namespace Strange_Universe.Game.Systems;
 

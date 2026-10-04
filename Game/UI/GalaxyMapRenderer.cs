@@ -1,12 +1,13 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
+using Strange_Universe.Game.Systems;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strange_Universe.Game.Systems;
+namespace Strange_Universe.Game.UI;
 
 /// <summary>
 /// Handles all drawing for the Galaxy Map overlay.

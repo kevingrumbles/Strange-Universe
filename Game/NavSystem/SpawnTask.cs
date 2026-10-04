@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
+using Strange_Universe;
 using System;
 using System.Linq;
 

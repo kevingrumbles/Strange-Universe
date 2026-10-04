@@ -1,6 +1,6 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
-namespace StrangeUniverse.Game.Entities;
+namespace Strange_Universe.Game.Entities;
 
 /// <summary>
 /// Distant background star — just a screen-space dot.

@@ -1,5 +1,5 @@
 ﻿using Strange_Universe.Game.Entities;
-using StrangeUniverse;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,7 +24,7 @@ namespace Strange_Universe.Game.EventSystem
         private int _maxEventThreshold = 61;
         public EventController(StarSystem owner)
         {
-            _random = new Random(StaticHelpers.SeedHash($"{owner.SystemId}:Events"));
+            _random = new Random(ProceduralHelpers.SeedHash($"{owner.SystemId}:Events"));
             _owner = owner;
         }
         public void Update(float deltaTime)
@@ -57,6 +57,10 @@ namespace Strange_Universe.Game.EventSystem
             SystemEvent spawnEvent = null;
             switch ((int)(_random.NextDouble() * 100))
             {
+                //case int n when (n < NpcTestEvent.EventProbability):
+                //    Launcher.ActiveUniverse.ShowTimedMessage($"A Npc Test Event has been discovered! {n}/{NpcTestEvent.EventProbability}");
+                //    spawnEvent = new NpcTestEvent();
+                //    break;
                 case int n when (n < DefendedSystemSpawn.EventProbability):
                     Launcher.ActiveUniverse.ShowTimedMessage($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
                     spawnEvent = new DefendedSystemSpawn();

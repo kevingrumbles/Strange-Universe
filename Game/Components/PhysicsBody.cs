@@ -1,6 +1,6 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
-namespace StrangeUniverse.Game.Components;
+namespace Strange_Universe.Game.Components;
 
 /// <summary>2-D physics state: velocity, per-second damping, and force accumulation.</summary>
 public class PhysicsBody

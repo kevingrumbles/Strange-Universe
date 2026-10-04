@@ -1,9 +1,9 @@
-using Strange_Universe.Game.Components;
+﻿using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
-using StrangeUniverse;
-using StrangeUniverse.Game.Components;
-using StrangeUniverse.Game.Entities;
+using Strange_Universe;
+using Strange_Universe.Game.Entities;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -56,6 +56,10 @@ public class Universe : IDisposable
 
     private const int NebulaPoolSize = 6;
 
+    // Nebulae finished on a background thread, waiting to be uploaded on the main thread.
+    private readonly ConcurrentQueue<Nebula> _pendingNebulae = new();
+    private volatile bool _disposed;
+
     /// <summary>Shared nebula textures generated once per universe launch. Each StarSystem samples a crop of one of these.</summary>
     [JsonIgnore]
     public List<Nebula> NebulaPool { get; } = new();
@@ -105,16 +109,18 @@ public class Universe : IDisposable
         Id = id;
         Name = name;
         Seed = seed ?? id.ToString();
-        Player = new Player("Shuttle");
+        Player = new Player(name, "Shuttle");
         Player.CurrentFuelLevel = Player.MaxFuelLevel;
         Player.CurrentHullStrength = Player.MaxHullStrength;
         Player.CurrentShieldStrength = Player.MaxShieldStrength;
-        Player.Equipment.Add(new Equipment() { EquipmentName = "Light Laser" });
+        Player.Equipment.Add(Equipment.FromName("Light Laser"));
         Player.EnqueueNavTask(new SpawnTask(Player));
     }
 
     public void Update(float deltaTime, InputState input)
     {
+        DrainPendingNebulae();
+
         // Update timed message
         if (TimedMessageRemaining > 0f)
         {
@@ -140,6 +146,7 @@ public class Universe : IDisposable
         {
             string id = $"nebula_pool_{NebulaPool.Count}";
             var nebula = new Nebula($"{Seed}_{id}");
+            nebula.CreateTexture();
             Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
             NebulaPool.Add(nebula);
         }
@@ -148,21 +155,36 @@ public class Universe : IDisposable
         _ = GenerateRemainingNebulaPoolAsync();
     }
 
+    /// <summary>
+    /// Computes pixel data on background threads only. Textures, the texture cache and
+    /// <see cref="NebulaPool"/> are touched exclusively on the main thread in
+    /// <see cref="DrainPendingNebulae"/>, because MonoGame has no synchronization
+    /// context and await continuations would otherwise run on the thread pool.
+    /// </summary>
     private async Task GenerateRemainingNebulaPoolAsync()
     {
-        // Generate remaining nebulae one at a time on background thread
-        for (int i = NebulaPool.Count; i < NebulaPoolSize; i++)
+        int start = NebulaPool.Count;
+        for (int i = start; i < NebulaPoolSize && !_disposed; i++)
         {
-            int index = i; // Capture for closure
+            int index = i;
+            var nebula = await Task.Run(() => new Nebula($"{Seed}_nebula_pool_{index}"));
 
-            // Generate nebula on background thread
-            var nebula = await Task.Run(() =>
+            if (_disposed)
             {
-                string id = $"nebula_pool_{index}";
-                return new Nebula($"{Seed}_{id}");
-            });
+                nebula.Dispose();
+                return;
+            }
 
-            // Register texture and add to pool on the main thread
+            _pendingNebulae.Enqueue(nebula);
+        }
+    }
+
+    /// <summary>Uploads finished nebulae to the GPU. Main thread only.</summary>
+    private void DrainPendingNebulae()
+    {
+        while (_pendingNebulae.TryDequeue(out var nebula))
+        {
+            nebula.CreateTexture();
             Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
             NebulaPool.Add(nebula);
         }
@@ -181,6 +203,11 @@ public class Universe : IDisposable
 
     public void Dispose()
     {
+        _disposed = true;
+
+        while (_pendingNebulae.TryDequeue(out var pending))
+            pending.Dispose();
+
         // Dispose all nebula textures owned by this universe
         foreach (var nebula in NebulaPool)
         {

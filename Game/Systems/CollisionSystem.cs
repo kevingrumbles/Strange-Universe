@@ -1,9 +1,8 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse.Game.Entities;
 
-namespace StrangeUniverse.Game.Systems;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>Circle-circle collision detection with push-out resolution for ships.</summary>
 public class CollisionSystem
@@ -22,7 +21,10 @@ public class CollisionSystem
         }
 
         foreach (var asteroid in asteroids)
+        {
+            if (asteroid.IsDestroyed) continue;
             ResolveShipStatic(player, asteroid.Position, asteroid.Radius);
+        }
     }
 
     /// <summary>
@@ -37,7 +39,10 @@ public class CollisionSystem
         }
 
         foreach (var asteroid in asteroids)
+        {
+            if (asteroid.IsDestroyed) continue;
             ResolveShipStatic(npc, asteroid.Position, asteroid.Radius);
+        }
     }
 
     /// <summary>

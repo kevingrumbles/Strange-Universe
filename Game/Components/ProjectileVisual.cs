@@ -1,6 +1,6 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 
-namespace Strange_Universe.Game.Entities;
+namespace Strange_Universe.Game.Components;
 
 /// <summary>
 /// High-level appearance descriptor for a projectile.
@@ -63,6 +63,23 @@ public struct ProjectileVisual
     /// </summary>
     public int ParticleCount { get; set; }
 
+    // -- Impact burst ------------------------------------------------------------
+
+    /// <summary>
+    /// Duration of the impact burst in seconds. Set to 0 to disable the burst,
+    /// in which case the projectile despawns immediately on contact.
+    /// </summary>
+    public float BurstDuration { get; set; }
+
+    /// <summary>Peak radius of the impact flash in world pixels.</summary>
+    public float BurstRadius { get; set; }
+
+    /// <summary>Number of sparks thrown outward from the impact point.</summary>
+    public int BurstParticleCount { get; set; }
+
+    /// <summary>Speed of the ejected impact sparks in world pixels per second.</summary>
+    public float BurstParticleSpeed { get; set; }
+
     // -- Presets -----------------------------------------------------------------
 
     /// <summary>Default amber energy bolt — all effects enabled.</summary>
@@ -86,6 +103,179 @@ public struct ProjectileVisual
         PulseAmount   = 0.18f,
 
         ParticleCount = 12,
+
+        BurstDuration      = 0.18f,
+        BurstRadius        = 18f,
+        BurstParticleCount = 10,
+        BurstParticleSpeed = 120f,
+    };
+
+    /// <summary>"Light Laser" (FixedProjectile) — fast, thin cyan bolt.</summary>
+    public static ProjectileVisual LightLaser => new ProjectileVisual
+    {
+        Style = ProjectileVisualStyle.Laser,
+
+        CoreColor = ProjectileColorStyle.LaserCore,
+        CoreLength = 22,
+        CoreWidth = 3,
+
+        GlowColor = ProjectileColorStyle.LaserGlow,
+        GlowRadius = 10,
+        GlowIntensity = 0.8f,
+
+        TrailLength = 30,
+        TrailWidth = 5,
+        TrailAlpha = 0.45f,
+
+        PulseSpeed = 8f,
+        PulseAmount = 0.18f,
+
+        ParticleCount = 12,
+
+        BurstDuration      = 0.16f,
+        BurstRadius        = 16f,
+        BurstParticleCount = 10,
+        BurstParticleSpeed = 120f,
+    };
+
+    /// <summary>"Heavy Laser" (FixedProjectile) — slower, thick crimson bolt.</summary>
+    public static ProjectileVisual HeavyLaser => new ProjectileVisual
+    {
+        Style         = ProjectileVisualStyle.Laser,
+
+        CoreColor     = ProjectileColorStyle.LaserCore,
+        CoreLength    = 30,
+        CoreWidth     = 5,
+
+        GlowColor     = ProjectileColorStyle.LaserGlow,
+        GlowRadius    = 14,
+        GlowIntensity = 0.9f,
+
+        TrailLength   = 40,
+        TrailWidth    = 8,
+        TrailAlpha    = 0.5f,
+
+        PulseSpeed    = 6f,
+        PulseAmount   = 0.22f,
+
+        ParticleCount = 16,
+
+        BurstDuration      = 0.26f,
+        BurstRadius        = 30f,
+        BurstParticleCount = 20,
+        BurstParticleSpeed = 190f,
+    };
+
+    /// <summary>"Gatling Gun" (FixedProjectile) — small, rapid-fire tracer round.</summary>
+    public static ProjectileVisual GatlingGun => new ProjectileVisual
+    {
+        Style         = ProjectileVisualStyle.Solid,
+
+        CoreColor     = ProjectileColorStyle.SolidCore,
+        CoreLength    = 10,
+        CoreWidth     = 2,
+
+        GlowColor     = ProjectileColorStyle.SolidGlow,
+        GlowRadius    = 4,
+        GlowIntensity = 0.5f,
+
+        TrailLength   = 14,
+        TrailWidth    = 2,
+        TrailAlpha    = 0.25f,
+
+        PulseSpeed    = 0f,
+        PulseAmount   = 0f,
+
+        ParticleCount = 4,
+
+        BurstDuration      = 0.10f,
+        BurstRadius        = 8f,
+        BurstParticleCount = 6,
+        BurstParticleSpeed = 150f,
+    };
+
+    /// <summary>"Plasma Beam" (FixedBeam) — continuous violet plasma beam.</summary>
+    public static ProjectileVisual PlasmaBeam => new ProjectileVisual
+    {
+        Style         = ProjectileVisualStyle.Beam,
+
+        CoreColor     = ProjectileColorStyle.PlasmaCore,
+        CoreLength    = 64,
+        CoreWidth     = 6,
+
+        GlowColor     = ProjectileColorStyle.PlasmaGlow,
+        GlowRadius    = 18,
+        GlowIntensity = 1f,
+
+        TrailLength   = 0,
+        TrailWidth    = 0,
+        TrailAlpha    = 0f,
+
+        PulseSpeed    = 14f,
+        PulseAmount   = 0.25f,
+
+        ParticleCount = 20,
+
+        BurstDuration      = 0.34f,
+        BurstRadius        = 38f,
+        BurstParticleCount = 26,
+        BurstParticleSpeed = 160f,
+    };
+
+    /// <summary>"Pulse Cannon" (TurretProjectile) — rounded green energy pulse.</summary>
+    public static ProjectileVisual PulseCannon => new ProjectileVisual
+    {
+        Style         = ProjectileVisualStyle.Pulse,
+
+        CoreColor     = ProjectileColorStyle.PulseCore,
+        CoreLength    = 14,
+        CoreWidth     = 6,
+
+        GlowColor     = ProjectileColorStyle.PulseGlow,
+        GlowRadius    = 12,
+        GlowIntensity = 0.85f,
+
+        TrailLength   = 20,
+        TrailWidth    = 6,
+        TrailAlpha    = 0.4f,
+
+        PulseSpeed    = 12f,
+        PulseAmount   = 0.3f,
+
+        ParticleCount = 10,
+
+        BurstDuration      = 0.22f,
+        BurstRadius        = 24f,
+        BurstParticleCount = 16,
+        BurstParticleSpeed = 170f,
+    };
+
+    /// <summary>"Mining Beam" (TurretBeam) — steady amber cutting beam.</summary>
+    public static ProjectileVisual MiningBeam => new ProjectileVisual
+    {
+        Style         = ProjectileVisualStyle.Beam,
+
+        CoreColor     = ProjectileColorStyle.MiningLaserCore,
+        CoreLength    = 48,
+        CoreWidth     = 3,
+
+        GlowColor     = ProjectileColorStyle.MiningLaserGlow,
+        GlowRadius    = 10,
+        GlowIntensity = 0.75f,
+
+        TrailLength   = 0,
+        TrailWidth    = 0,
+        TrailAlpha    = 0f,
+
+        PulseSpeed    = 5f,
+        PulseAmount   = 0.15f,
+
+        ParticleCount = 14,
+
+        BurstDuration      = 0.20f,
+        BurstRadius        = 14f,
+        BurstParticleCount = 14,
+        BurstParticleSpeed = 90f,
     };
 }
 

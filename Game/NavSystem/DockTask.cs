@@ -1,8 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
 using System;
-using System.Linq;
 
 namespace Strange_Universe.Game.NavSystem
 {
@@ -19,14 +17,14 @@ namespace Strange_Universe.Game.NavSystem
         private float _holdTimer = 0f;
         private float _holdDuration;
 
-        public DockTask(Ship owner, Vector2 target) : base(owner)
+        public DockTask(Ship owner, Vector2 target, float? holdDuration = null) : base(owner)
         {
             _target = target;
             CurrentState = TaskState.ApproachPosition;
 
             // Random hold duration between 15 and 60 seconds
             Random rand = new Random();
-            _holdDuration = 15f + (float)(rand.NextDouble() * 45f);
+            _holdDuration = holdDuration ?? 15f + (float)(rand.NextDouble() * 45f);
         }
 
         public override void Update(float deltaTime)
@@ -81,7 +79,7 @@ namespace Strange_Universe.Game.NavSystem
                             speedFactor = Math.Max(0.3f, distanceFromTarget / DecelerationDistance);
                         }
 
-                        float desiredSpeed = Owner.ShipStats.MaxSpeed * speedFactor;
+                        float desiredSpeed = Owner.ShipType.MaxSpeed * speedFactor;
 
                         // Check if gravity is pushing us toward target (need extra braking)
                         bool gravityAcceleratingTowardTarget = false;
@@ -156,7 +154,7 @@ namespace Strange_Universe.Game.NavSystem
                         desiredDirection = toHoldPosition;
                         needsCorrection = true;
                     }
-                    else if (Owner.Speed > Owner.ShipStats.MaxSpeed * 0.1f)
+                    else if (Owner.Speed > Owner.ShipType.MaxSpeed * 0.1f)
                     {
                         // Slow down if moving too fast while in position
                         Vector2 velocityDir = Owner.Velocity;
@@ -198,7 +196,7 @@ namespace Strange_Universe.Game.NavSystem
                         // Apply thrust proportional to gravity strength and position error
                         if (isAligned)
                         {
-                            float gravityStrength = gravityForce.Length() / (Owner.ShipStats.ThrustForce * GravityWell.GravityThrustRatio);
+                            float gravityStrength = gravityForce.Length() / (Owner.ShipType.ThrustForce * GravityWell.GravityThrustRatio);
                             float thrustMultiplier = Math.Max(0.3f, Math.Clamp(gravityStrength + 0.5f, 0.3f, 1.0f));
                             Owner.ApplyThrust(deltaTime * thrustMultiplier);
                         }

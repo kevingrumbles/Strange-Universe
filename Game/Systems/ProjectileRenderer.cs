@@ -1,7 +1,7 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 
@@ -96,6 +96,15 @@ public sealed class ProjectileRenderer : IDisposable
         // Emit new particles from live projectiles
         foreach (var proj in projectiles)
         {
+            if (proj.HasHit)
+            {
+                // Impact sparks are emitted once, on the frame of contact.
+                if (proj.TryConsumeBurstEmission())
+                    EmitBurst(proj);
+
+                continue;
+            }
+
             int count = proj.Visual.ParticleCount;
             if (count <= 0) continue;
 
@@ -142,10 +151,89 @@ public sealed class ProjectileRenderer : IDisposable
         DrawParticles();
 
         foreach (var p in projectiles)
-            DrawGlowLayers(p);
+        {
+            if (p.HasHit)
+                DrawBurst(p);
+            else
+                DrawGlowLayers(p);
+        }
 
         foreach (var p in projectiles)
-            DrawCoreLayers(p);
+        {
+            if (!p.HasHit)
+                DrawCoreLayers(p);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Impact burst
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Throws a one-shot ring of sparks outward from the impact point. Burst
+    /// appearance is driven entirely by the projectile's own visual settings.
+    /// </summary>
+    private void EmitBurst(Projectile proj)
+    {
+        var vis = proj.Visual;
+        if (vis.BurstDuration <= 0f || vis.BurstParticleCount <= 0)
+            return;
+
+        float angleStep = MathHelper.TwoPi / vis.BurstParticleCount;
+        float baseAngle = (float)(_rng.NextDouble() * MathHelper.TwoPi);
+
+        for (int i = 0; i < vis.BurstParticleCount; i++)
+        {
+            ref Particle p = ref _particles[_nextSlot];
+            _nextSlot = (_nextSlot + 1) % MaxParticles;
+
+            // Even radial spread with a little jitter so it doesn't look mechanical.
+            float angle = baseAngle + angleStep * i
+                        + (float)(_rng.NextDouble() - 0.5) * angleStep * 0.6f;
+            float speed = vis.BurstParticleSpeed * (0.45f + (float)_rng.NextDouble() * 0.75f);
+
+            p.Active   = true;
+            p.Position = proj.Position;
+            p.Velocity = new Vector2(MathF.Cos(angle), MathF.Sin(angle)) * speed;
+            p.MaxLife  = vis.BurstDuration * (0.6f + (float)_rng.NextDouble() * 0.6f);
+            p.Life     = p.MaxLife;
+            p.Radius   = 1.5f + (float)_rng.NextDouble() * 2f;
+            p.Color    = i % 3 == 0 ? vis.CoreColor : vis.GlowColor;
+        }
+    }
+
+    /// <summary>
+    /// Draws the expanding impact flash. Grows quickly and fades out over the
+    /// burst duration.
+    /// </summary>
+    private void DrawBurst(Projectile proj)
+    {
+        var vis = proj.Visual;
+        if (vis.BurstDuration <= 0f || vis.BurstRadius <= 0f)
+            return;
+
+        float t = proj.BurstProgress;
+
+        // Fast ease-out expansion paired with a quadratic fade.
+        float expand = 1f - (1f - t) * (1f - t);
+        float alpha  = (1f - t) * (1f - t);
+
+        Vector2 origin = new Vector2(_radialGlow.Width * 0.5f, _radialGlow.Height * 0.5f);
+
+        // Outer halo in the glow colour.
+        float outerR = vis.BurstRadius * (0.35f + expand * 0.65f);
+        _spriteBatch.Draw(_radialGlow, proj.Position, null,
+            vis.GlowColor * (alpha * vis.GlowIntensity),
+            0f, origin, (outerR * 2f) / _radialGlow.Width, SpriteEffects.None, 0f);
+
+        // Hot core flash that collapses faster than the halo.
+        float coreR = vis.BurstRadius * 0.45f * (1f - t);
+        if (coreR > 0.5f)
+        {
+            _spriteBatch.Draw(_radialGlow, proj.Position, null,
+                vis.CoreColor * alpha,
+                0f, origin, (coreR * 2f) / _radialGlow.Width, SpriteEffects.None, 0f);
+        }
     }
 
     // -------------------------------------------------------------------------

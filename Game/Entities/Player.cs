@@ -1,9 +1,10 @@
 ﻿using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
-using StrangeUniverse;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -12,7 +13,14 @@ public class Player : Ship
 {
     public string CurrentStarSystemID { get; set; }
 
-    public Player(string shipName) : base(shipName)
+    public Player(string name, string shipType) : base(name, shipType)
+    {
+
+    }
+
+    /// <summary>Used by System.Text.Json when loading a saved universe.</summary>
+    [JsonConstructor]
+    public Player() : base()
     {
     }
     public void Update(float deltaTime, InputState input)
@@ -43,8 +51,8 @@ public class Player : Ship
     private void HandleManualRotation(float deltaTime, InputState input)
     {
         if (HasActiveNavTask) return;
-        if (input.RotateLeft)  ApplyRotation(StaticHelpers.Direction.Left, deltaTime);
-        if (input.RotateRight) ApplyRotation(StaticHelpers.Direction.Right, deltaTime);
+        if (input.RotateLeft)  ApplyRotation(Direction.Left, deltaTime);
+        if (input.RotateRight) ApplyRotation(Direction.Right, deltaTime);
     }
 
     // -- Maneuvering thrusters (S) ---------------------------------------------

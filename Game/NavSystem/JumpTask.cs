@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
+using Strange_Universe;
 using System;
 using System.Linq;
 
@@ -99,7 +99,7 @@ namespace Strange_Universe.Game.NavSystem
 
                 case TaskState.AlignForJump:
                     // GOAL: Align ship for jump (pointing away from system center)
-                    Vector2 jumpDirection = Vector2.Normalize(Owner.Position);
+                    Vector2 jumpDirection = MathHelpers.SafeNormalize(Owner.Position, Owner.Forward);
                     float jumpAngle = (float)Math.Atan2(jumpDirection.Y, jumpDirection.X);
 
                     // Rotate toward jump angle with tighter alignment tolerance
@@ -117,7 +117,7 @@ namespace Strange_Universe.Game.NavSystem
                     float distanceFromCenter = Owner.Position.Length();
                     float systemRadius = Owner.StarSystem?.SystemRadius ?? 50000f;
 
-                    if (distanceFromCenter > systemRadius && Owner.Velocity.LengthSquared() > Owner.ShipStats.MaxSpeed * 8)
+                    if (distanceFromCenter > systemRadius && Owner.Velocity.LengthSquared() > Owner.ShipType.MaxSpeed * 8)
                     {
                         // Successfully jumped beyond system edge
                         if (Owner is Player) 
@@ -134,7 +134,7 @@ namespace Strange_Universe.Game.NavSystem
                     {
                         // Apply exponential acceleration - bypasses normal MaxSpeed limits
                         // Base acceleration rate (units per second per second)
-                        float BaseAcceleration = Owner.ShipStats.ThrustForce;
+                        float BaseAcceleration = Owner.ShipType.ThrustForce;
 
                         // Exponential growth factor - increases acceleration over time
                         // The longer we accelerate, the faster we go
@@ -177,10 +177,10 @@ namespace Strange_Universe.Game.NavSystem
                     Owner.Position = Owner.StarSystem.GetSystemEdgeEntryPosition(_originGalaxyPosition);
 
                     // Calculate inward direction (toward system center)
-                    Vector2 inwardDirection = Vector2.Normalize(-Owner.Position);
+                    Vector2 inwardDirection = MathHelpers.SafeNormalize(-Owner.Position, -Vector2.UnitX);
 
                     // Keep the high velocity from the Jump state, but ensure it's pointing inward
-                    Owner.Velocity = inwardDirection * (Owner.ShipStats.MaxSpeed * 8f);
+                    Owner.Velocity = inwardDirection * (Owner.ShipType.MaxSpeed * 8f);
 
                     // Transition to the arrival deceleration phase
                     CurrentState = TaskState.ArriveInSystem;
@@ -197,8 +197,8 @@ namespace Strange_Universe.Game.NavSystem
                     if (currentDistanceFromCenter < mandevilleRadius)
                     {
                         // Already inside Mandeville radius - complete the jump
-                        Vector2 directionToCenter = Vector2.Normalize(-Owner.Position);
-                        Owner.Velocity = directionToCenter * Owner.ShipStats.MaxSpeed;
+                        Vector2 directionToCenter = MathHelpers.SafeNormalize(-Owner.Position, Owner.Forward);
+                        Owner.Velocity = directionToCenter * Owner.ShipType.MaxSpeed;
                         float inwardRotation = (float)Math.Atan2(directionToCenter.Y, directionToCenter.X);
                         Owner.Rotation = inwardRotation;
                         CurrentState = TaskState.Complete;
@@ -206,13 +206,13 @@ namespace Strange_Universe.Game.NavSystem
                     }
 
                     // Target is on the same line toward center, at Mandeville distance
-                    Vector2 directionToCenter2 = Vector2.Normalize(-Owner.Position);
+                    Vector2 directionToCenter2 = MathHelpers.SafeNormalize(-Owner.Position, Owner.Forward);
                     Vector2 targetPosition = directionToCenter2 * mandevilleRadius;
 
                     // Calculate distance to target (Mandeville point)
                     float distanceToTarget = Vector2.Distance(Owner.Position, targetPosition);
                     float currentSpeed = Owner.Speed;
-                    float targetSpeed = Owner.ShipStats.MaxSpeed;
+                    float targetSpeed = Owner.ShipType.MaxSpeed;
 
                     // Check if we've arrived (close to Mandeville point and at reasonable speed)
                     const float ArrivalDistanceThreshold = 1000f; // Within 1000 units of Mandeville point

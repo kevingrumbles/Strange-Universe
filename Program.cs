@@ -1,2 +1,2 @@
-﻿using var launcher = new StrangeUniverse.Launcher();
+﻿using var launcher = new Strange_Universe.Launcher();
     launcher.Run();

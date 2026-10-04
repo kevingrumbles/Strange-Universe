@@ -1,9 +1,9 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Threading.Tasks;
 
-namespace StrangeUniverse.Game.Entities;
+namespace Strange_Universe.Game.Entities;
 
 /// <summary>
 /// Generates a seamless tileable nebula texture from three independently domain-warped
@@ -29,24 +29,45 @@ public class Nebula : IDisposable
     public float Density = 1.0f;         // Overall density multiplier (higher = more visible nebula)
     public float Brightness = 0.80f;      // Color brightness multiplier
 
+    // Pixel data produced by Generate(); released once uploaded to the GPU.
+    private Color[] _pixels;
+
+    /// <summary>
+    /// Computes the nebula pixels. Safe to call from a background thread.
+    /// Call <see cref="CreateTexture"/> on the main thread before use.
+    /// </summary>
     public Nebula(string id)
     {
         Id = id;
         Generate();
     }
+
+    /// <summary>
+    /// Uploads the generated pixels to a GPU texture. Must run on the main (graphics) thread.
+    /// </summary>
+    public void CreateTexture()
+    {
+        if (Texture != null || _pixels == null) return;
+
+        var tex = new Texture2D(Launcher.GD, Size, Size);
+        tex.SetData(_pixels);
+        Texture = tex;
+        _pixels = null;
+    }
+
     private void Generate()
     {
-        int    baseSeed = StaticHelpers.SeedHash(Id);
+        int    baseSeed = ProceduralHelpers.SeedHash(Id);
         var rng    = new Random(baseSeed);
         var pixels = new Color[Size * Size];
         Density = rng.NextWeightedFloat(.80f, 3.0f);
         Brightness = rng.NextWeightedFloat(0.40f, 1.0f);
 
         // Pick 3 strongly-contrasting hues for this nebula
-        int[]  triplet = StaticHelpers.NebulaTriplets[rng.Next(StaticHelpers.NebulaTriplets.Length)];
-        Color  c0      = StaticHelpers.NebulaColorPool[triplet[0]];
-        Color  c1      = StaticHelpers.NebulaColorPool[triplet[1]];
-        Color  c2      = StaticHelpers.NebulaColorPool[triplet[2]];
+        int[]  triplet = ProceduralHelpers.NebulaTriplets[rng.Next(ProceduralHelpers.NebulaTriplets.Length)];
+        Color  c0      = ProceduralHelpers.NebulaColorPool[triplet[0]];
+        Color  c1      = ProceduralHelpers.NebulaColorPool[triplet[1]];
+        Color  c2      = ProceduralHelpers.NebulaColorPool[triplet[2]];
 
         // Pre-normalise to [0,1] float so the inner loop avoids repeated division
         float r0f = c0.R / 255f;  float g0f = c0.G / 255f;  float b0f = c0.B / 255f;
@@ -70,9 +91,9 @@ public class Nebula : IDisposable
 
                 // Three independent tileable cloud layers
                 // Each layer uses tileable noise so the texture wraps seamlessly
-                float d0 = StaticHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 0) * Density;
-                float d1 = StaticHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 1) * Density;
-                float d2 = StaticHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 2) * Density;
+                float d0 = ProceduralHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 0) * Density;
+                float d1 = ProceduralHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 1) * Density;
+                float d2 = ProceduralHelpers.TileableNebulaLayerDensity(u, v, baseSeed + LayerStride * 2) * Density;
 
                 float maxDens = Math.Max(d0, Math.Max(d1, d2));
                 if (maxDens < 0.01f) continue;
@@ -110,9 +131,7 @@ public class Nebula : IDisposable
             }
         });
 
-        var tex = new Texture2D(Launcher.GD, Size, Size);
-        tex.SetData(pixels);
-        Texture = tex;
+        _pixels = pixels;
     }
 
     /// <summary>
@@ -135,5 +154,6 @@ public class Nebula : IDisposable
     {
         Texture?.Dispose();
         Texture = null!;
+        _pixels = null;
     }
 }
