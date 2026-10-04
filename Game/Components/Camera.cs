@@ -4,7 +4,7 @@ namespace Strange_Universe.Game.Components;
 
 /// <summary>
 /// Smooth-following, zoomable camera.
-/// Produces a <see cref="Matrix"/> for use with <c>SpriteBatch.Begin</c>.
+/// Produces a <see cref="Matrix"/> for use with the sprite batch.
 /// </summary>
 public class Camera
 {
@@ -34,7 +34,7 @@ public class Camera
             Zoom = MathHelper.Clamp(Zoom - Zoom * ZoomSpeed, MinZoom, MaxZoom);
     }
 
-    /// <summary>Returns the SpriteBatch transform matrix for world-space drawing.</summary>
+    /// <summary>Returns the sprite-batch transform matrix for world-space drawing.</summary>
     public Matrix GetTransformMatrix() =>
         Matrix.CreateTranslation(-Position.X, -Position.Y, 0f)
         * Matrix.CreateScale(Zoom, Zoom, 1f)

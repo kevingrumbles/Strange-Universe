@@ -20,6 +20,7 @@ namespace Strange_Universe
 
         // -- Core --------------------------------------------------------------
         private GameServices _services;
+        private readonly HudMessageService _hud = new();
         private RenderService RenderService = null!;
         private readonly GraphicsDeviceManager _graphics;
         private SpriteFont _font = null!;
@@ -197,7 +198,8 @@ namespace Strange_Universe
             ClearRuntime();
 
             ActiveUniverse = universe;
-            ActiveUniverse.Generate(_services);
+            _hud.Clear();
+            ActiveUniverse.Generate(_services.Assets, _hud);
 
             IsMouseVisible = false;
             _state = GameState.Playing;
@@ -249,6 +251,7 @@ namespace Strange_Universe
                 return;
             }
 
+            _hud.Update(deltaTime);
             ActiveUniverse.Update(deltaTime, input);
             Camera.Update(ActiveUniverse.Player.CameraTarget, deltaTime, input);
 
@@ -477,20 +480,20 @@ namespace Strange_Universe
             _starsystemRenderer.DrawHud(ActiveUniverse, _screenWidth, _screenHeight);
 
             // Draw timed message if active with fade out
-            if (ActiveUniverse.TimedMessageRemaining > 0f && !string.IsNullOrEmpty(ActiveUniverse.TimedMessage))
+            if (_hud.Remaining > 0f && !string.IsNullOrEmpty(_hud.Message))
             {
                 // Calculate alpha based on remaining time (fade out during last second)
-                float alpha = ActiveUniverse.TimedMessageRemaining < 1f 
-                    ? ActiveUniverse.TimedMessageRemaining 
+                float alpha = _hud.Remaining < 1f 
+                    ? _hud.Remaining 
                     : 1f;
 
-                Vector2 messageSize = _font.MeasureString(ActiveUniverse.TimedMessage);
+                Vector2 messageSize = _font.MeasureString(_hud.Message);
                 Vector2 messagePosition = new Vector2(
                     (_screenWidth - messageSize.X) / 2f,
                     _screenHeight - messageSize.Y - 40f);
 
                 Color messageColor = new Color(255, 140, 0) * alpha;
-                RenderService.SpriteBatch.DrawString(_font, ActiveUniverse.TimedMessage, messagePosition, messageColor);
+                RenderService.SpriteBatch.DrawString(_font, _hud.Message, messagePosition, messageColor);
             }
         }
 

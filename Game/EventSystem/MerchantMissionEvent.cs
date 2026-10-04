@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
 using System;
@@ -25,7 +25,7 @@ namespace Strange_Universe.Game.EventSystem
             merchant.EnqueueNavTask(new DockTask(merchant, system.Planets[random.Next(0, system.Planets.Count)].Position));
             merchant.EnqueueNavTask(new JumpTask(merchant));
             system.AddNpc(merchant);
-            system.Universe.ShowTimedMessage("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
+            system.Universe.Messages.Post("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
         }
     }
 }

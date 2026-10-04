@@ -1,4 +1,4 @@
-﻿using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities;
 using Strange_Universe;
 using System;
 using System.Collections.Generic;
@@ -58,16 +58,16 @@ namespace Strange_Universe.Game.EventSystem
             switch ((int)(_random.NextDouble() * 100))
             {
                 //case int n when (n < NpcTestEvent.EventProbability):
-                //    _owner.Universe.ShowTimedMessage(
+                //    _owner.Universe.Messages.Post(
                 //    spawnEvent = new NpcTestEvent();
                 //    break;
                 case int n when (n < DefendedSystemSpawn.EventProbability):
-                    _owner.Universe.ShowTimedMessage($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
+                    _owner.Universe.Messages.Post($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
                     spawnEvent = new DefendedSystemSpawn();
                     break;
 
                 case int n when (n < ScoutedSystemSpawn.EventProbability):
-                    _owner.Universe.ShowTimedMessage($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
+                    _owner.Universe.Messages.Post($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
                     spawnEvent = new ScoutedSystemSpawn();
                     break;
             }

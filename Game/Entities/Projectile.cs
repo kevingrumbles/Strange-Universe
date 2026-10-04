@@ -41,6 +41,18 @@ public class Projectile
     /// <summary>Seconds elapsed since impact. Only meaningful once <see cref="HasHit"/> is set.</summary>
     public float BurstAge { get; private set; }
 
+    private float? _impactLingerSeconds;
+
+    /// <summary>
+    /// Gameplay time a spent projectile remains in the world after impact.
+    /// Defaults to the visual burst duration so behaviour is unchanged.
+    /// </summary>
+    public float ImpactLingerSeconds
+    {
+        get => _impactLingerSeconds ?? Visual.BurstDuration;
+        init => _impactLingerSeconds = value;
+    }
+
     private bool _burstEmitted;
 
     /// <summary>
@@ -71,7 +83,7 @@ public class Projectile
     /// burst has finished playing.
     /// </summary>
     public bool IsExpired => HasHit
-        ? BurstAge >= Visual.BurstDuration
+        ? BurstAge >= ImpactLingerSeconds
         : Lifetime <= 0f;
 
     /// <summary>

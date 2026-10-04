@@ -1,6 +1,6 @@
 ﻿using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
-using Strange_Universe.Game.Systems;
 using Strange_Universe;
 using Strange_Universe.Game.Entities;
 using System;
@@ -47,7 +47,7 @@ public class Universe : IDisposable
                     currentSystemNode = StarSystemNodes.FirstOrDefault(n => n.Name == "Sol") ?? StarSystemNodes.FirstOrDefault();
                     Player.CurrentStarSystemID = currentSystemNode.SystemId; // Update player's current star system ID
                 }
-                _activeStarSystem = new StarSystem(currentSystemNode, this, _services);
+                _activeStarSystem = new StarSystem(currentSystemNode, this, _assets);
                 Player.StarSystem = _activeStarSystem;
             }
             return _activeStarSystem;
@@ -58,8 +58,12 @@ public class Universe : IDisposable
 
     private const int NebulaPoolSize = 6;
 
-    // Runtime services; null after deserialization until Generate(services) is called.
-    private GameServices _services;
+    // Runtime services; null after deserialization until Generate(...) is called.
+    private IAssetRequests _assets;
+
+    /// <summary>Sink for on-screen notifications. Never null (no-op until Generate supplies one).</summary>
+    [JsonIgnore]
+    public IMessageSink Messages { get; private set; } = NullMessageSink.Instance;
 
     // Nebulae finished on a background thread, waiting to be uploaded on the main thread.
     private readonly ConcurrentQueue<Nebula> _pendingNebulae = new();
@@ -75,18 +79,6 @@ public class Universe : IDisposable
     /// </summary>
     [JsonIgnore]
     public List<string> JumpRoute { get; set; } = new();
-
-    /// <summary>
-    /// Timed message displayed at the bottom center of the screen.
-    /// </summary>
-    [JsonIgnore]
-    public string TimedMessage { get; private set; } = string.Empty;
-
-    /// <summary>
-    /// Remaining time in seconds for the timed message display.
-    /// </summary>
-    [JsonIgnore]
-    public float TimedMessageRemaining { get; private set; } = 0f;
 
     /// <summary>
     /// The system the player has selected on the Galaxy Map as the next jump destination.
@@ -126,30 +118,24 @@ public class Universe : IDisposable
     {
         DrainPendingNebulae();
 
-        // Update timed message
-        if (TimedMessageRemaining > 0f)
-        {
-            TimedMessageRemaining -= deltaTime;
-            if (TimedMessageRemaining < 0f)
-                TimedMessageRemaining = 0f;
-        }
-
         ActiveStarSystem.Update(deltaTime, input);
     }
 
-    public void Generate(GameServices services)
+    public void Generate(IAssetRequests assets, IMessageSink messages = null)
     {
-        _services = services;
+        _assets = assets;
+        Messages = messages ?? NullMessageSink.Instance;
         _activeStarSystem = null;
         GenerateNebulaPool();
-        Player.Generate(services);
+        Player.Generate();
+        _assets?.EnsureShipArt(Player.ShipType);
     }
 
     /// <summary>
-    /// Rebuilds the active star system (e.g. after a jump) using the services supplied to
-    /// <see cref="Generate(GameServices)"/>. The player is re-attached to the new system.
+    /// Rebuilds the active star system (e.g. after a jump) reusing the services supplied to
+    /// <see cref="Generate"/>. The player is re-attached to the new system.
     /// </summary>
-    public void Regenerate() => Generate(_services);
+    public void Regenerate() => Generate(_assets, Messages);
 
     public void GenerateNebulaPool()
     {
@@ -180,10 +166,7 @@ public class Universe : IDisposable
             var nebula = await Task.Run(() => new Nebula($"{Seed}_nebula_pool_{index}"));
 
             if (_disposed)
-            {
-                nebula.Dispose();
                 return;
-            }
 
             _pendingNebulae.Enqueue(nebula);
         }
@@ -198,37 +181,16 @@ public class Universe : IDisposable
 
     private void UploadNebula(Nebula nebula)
     {
-        if (_services?.GraphicsDevice != null)
-        {
-            nebula.CreateTexture(_services.GraphicsDevice);
-            _services.TextureCache.Register(nebula.Id, nebula.Texture);
-        }
+        _assets?.RegisterNebula(nebula);
         NebulaPool.Add(nebula);
-    }
-
-    /// <summary>
-    /// Displays a message at the bottom center of the screen in orange text for the specified duration.
-    /// </summary>
-    /// <param name="message">The text to display</param>
-    /// <param name="durationSeconds">Number of seconds to display the message</param>
-    public void ShowTimedMessage(string message, int durationSeconds = 3)
-    {
-        TimedMessage = message;
-        TimedMessageRemaining = durationSeconds;
     }
 
     public void Dispose()
     {
         _disposed = true;
 
-        while (_pendingNebulae.TryDequeue(out var pending))
-            pending.Dispose();
-
-        // Dispose all nebula textures owned by this universe
-        foreach (var nebula in NebulaPool)
-        {
-            nebula?.Dispose();
-        }
+        // Nebula textures are owned by the render-side texture cache; only drop data here.
+        _pendingNebulae.Clear();
         NebulaPool.Clear();
     }
 }

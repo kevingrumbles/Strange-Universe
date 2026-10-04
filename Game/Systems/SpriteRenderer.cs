@@ -18,7 +18,7 @@ public class SpriteRenderer
     private readonly RenderService _renderService;
     private readonly Camera _camera;
     private SpriteBatch _spriteBatch => _renderService.SpriteBatch;
-    private readonly Texture2D             _pixel;      // 1×1 white texture for dots
+    private readonly Texture2D             _pixel;      // 1ï¿½1 white texture for dots
     private readonly SpriteFont            _font;       // Font for HUD text
 
     public SpriteRenderer(SpriteFont font, GameServices services, RenderService renderService, Camera camera)
@@ -101,8 +101,8 @@ public class SpriteRenderer
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         // Define the base tile size for background stars (matches typical screen resolution)
-        const float tileWidth = 1920f;
-        const float tileHeight = 1080f;
+        const float tileWidth = BackgroundTile.Width;
+        const float tileHeight = BackgroundTile.Height;
 
         float parallax = 0.08f;
 
@@ -451,8 +451,8 @@ public class SpriteRenderer
         foreach (var star in universe.ActiveStarSystem.Stars)
         {
             Vector2 starMap = WorldToMap(star.Position);
-            Dot(starMap, 10, star.MinimapColor * 0.55f);   // soft outer glow
-            Dot(starMap,  6, star.MinimapColor);            // coloured body
+            Dot(starMap, 10, ProceduralHelpers.StarColors[star.ColorIndex] * 0.55f);   // soft outer glow
+            Dot(starMap,  6, ProceduralHelpers.StarColors[star.ColorIndex]);            // coloured body
             Dot(starMap,  3, Color.White * 0.90f);          // bright core
         }
 

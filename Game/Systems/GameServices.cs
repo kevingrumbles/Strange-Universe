@@ -12,11 +12,13 @@ public sealed class GameServices : IDisposable
 {
     public GraphicsDevice GraphicsDevice { get; }
     public ProceduralTextureCache TextureCache { get; }
+    public AssetService Assets { get; }
 
     public GameServices(GraphicsDevice graphicsDevice, ProceduralTextureCache textureCache = null)
     {
         GraphicsDevice = graphicsDevice;
         TextureCache = textureCache ?? new ProceduralTextureCache();
+        Assets = new AssetService(graphicsDevice, TextureCache);
     }
 
     public void Dispose() => TextureCache.Dispose();

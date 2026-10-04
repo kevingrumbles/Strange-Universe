@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
@@ -30,7 +30,7 @@ namespace Strange_Universe.Game.EventSystem
 
                 if (patrolPoints.Count == 0)
                 {
-                    system.Universe.ShowTimedMessage($"No valid patrol points for {npc.Id}");
+                    system.Universe.Messages.Post($"No valid patrol points for {npc.Id}");
                 }
 
                 npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));

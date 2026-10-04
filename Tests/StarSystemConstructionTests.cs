@@ -32,7 +32,7 @@ public class StarSystemConstructionTests
     {
         var (universe, node) = BuildUniverse("seed-1");
 
-        var system = new StarSystem(node, universe, services: null);
+        var system = new StarSystem(node, universe, assets: null);
 
         Assert.Same(universe, system.Universe);
         Assert.Same(universe.Player, system.ActivePlayer);

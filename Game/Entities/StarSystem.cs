@@ -1,5 +1,4 @@
 ﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.EventSystem;
 using Strange_Universe.Game.NavSystem;
@@ -53,7 +52,8 @@ public class StarSystem
     [JsonIgnore] public StarSystemNode Node { get; set; }
     [JsonIgnore] public Player ActivePlayer => Universe?.Player;
     [JsonIgnore] public Universe Universe { get; }
-    [JsonIgnore] public GameServices Services { get; }
+    /// <summary>Render-side art requests; null when running without graphics.</summary>
+    [JsonIgnore] public IAssetRequests Assets { get; }
     [JsonIgnore] public string DisplayName { get { return Node.DisplayName; } }
     [JsonIgnore] public bool Discovered { get { return Node.Discovered; } }
     [JsonIgnore] public int    PlanetCount             { get; set; }
@@ -89,13 +89,13 @@ public class StarSystem
     {
 
     }
-    public StarSystem(StarSystemNode node, Universe universe, GameServices services)
+    public StarSystem(StarSystemNode node, Universe universe, IAssetRequests assets)
     {
         var sw = Stopwatch.StartNew();
         Debug.WriteLine($"StarSystem initialization started: {sw.ElapsedMilliseconds} ms");
         Node = node;
         Universe = universe;
-        Services = services;
+        Assets = assets;
         Node.Discovered = true;
 
         _eventController = new EventController(this);
@@ -353,7 +353,7 @@ public class StarSystem
         {
             string starId = $"{Node.SystemId}_Star_{i}";
             Random starRandom = new Random(ProceduralHelpers.SeedHash(starId));
-            Color starColor = ProceduralHelpers.StarColors[starRandom.Next(ProceduralHelpers.StarColors.Length)];
+            int colorIndex = starRandom.Next(ProceduralHelpers.StarColors.Length);
             string name = null;
             while (name is null || Stars.Contains(Stars.Find(s => s.Name == name)))
             {
@@ -361,7 +361,8 @@ public class StarSystem
             }
             
             float initialAngle = MathHelper.TwoPi * i / StarCount;
-            Star newStar = new Star(starId, StarRadius, name, starColor, StarOrbitRadius, initialAngle, StarOrbitSpeed, Services);
+            Star newStar = new Star(starId, StarRadius, name, colorIndex, StarOrbitRadius, initialAngle, StarOrbitSpeed);
+            Assets?.EnsureStarTexture(newStar);
             newStar.Position = StarCount == 1
                 ? Vector2.Zero
                 : new Vector2(
@@ -384,8 +385,7 @@ public class StarSystem
                                             minOrbit: Math.Max(StarRadius * 3.5f, StarOrbitRadius * 2f),
                                             maxOrbit: AsteroidBeltInnerRadius * 0.9f,
                                             planetNumber: i,
-                                            totalPlanets: PlanetCount,
-                                            services: Services));
+                                            totalPlanets: PlanetCount));
                     break;
                 default:
                     Planets.Add(new Planet(planetId: $"{Node.SystemId}_Planet_{i}",
@@ -394,10 +394,10 @@ public class StarSystem
                                           minOrbit: AsteroidBeltOuterRadius * 1.1f,
                                           maxOrbit: SystemRadius * 0.75f,
                                           planetNumber: i,
-                                          totalPlanets: PlanetCount,
-                                          services: Services));
+                                          totalPlanets: PlanetCount));
                     break;
             }
+            Assets?.EnsurePlanetTexture(Planets[^1]);
         }
     }
 
@@ -410,12 +410,13 @@ public class StarSystem
         for (int i = 0; i < PaletteSize; i++)
         {
             paletteIds[i] = $"asteroid_tex_{i}";
-            if (Services?.TextureCache.TryGet(paletteIds[i], out Texture2D texture) == true) continue;
 
-            // The RNG draw must happen whether or not a texture is created, to keep layout deterministic.
-            int texSeed = asteroidsRng.Next();
-            if (Services?.GraphicsDevice != null)
-                Services.TextureCache.Register(paletteIds[i], Asteroid.Generate(Services.GraphicsDevice, texSeed));
+            // A seed is drawn only when a texture is actually created; this matches the
+            // original order of RNG draws exactly, keeping asteroid layout deterministic.
+            if (Assets != null)
+                Assets.EnsureAsteroidTexture(paletteIds[i], asteroidsRng.Next);
+            else
+                asteroidsRng.Next();
         }
 
         for (int i = 0; i < AsteroidCount; i++)
@@ -434,8 +435,8 @@ public class StarSystem
 
         // Positions are in virtual space that matches the tile size used for parallax scrolling
         // Must match tileWidth and tileHeight in SpriteRenderer.DrawBackgroundStars
-        const float VirtualWidth = 1920f;
-        const float VirtualHeight = 1080f;
+        const float VirtualWidth = BackgroundTile.Width;
+        const float VirtualHeight = BackgroundTile.Height;
 
         for (int i = 0; i < BackgroundStarCount; i++)
         {
@@ -494,6 +495,7 @@ public class StarSystem
     public void AddNpc(Nonplayer npc)
     {
         npc.StarSystem = this;
+        Assets?.EnsureShipArt(npc.ShipType);
         Npcs.Add(npc);
     }
 

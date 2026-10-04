@@ -1,7 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.NavSystem;
-using Strange_Universe.Game.Systems;
 using Strange_Universe;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
@@ -108,30 +106,21 @@ public abstract partial class Ship
     }
 
     /// <summary>
-    /// Loads the ship's sprite texture and registers it in the texture cache.
-    /// Also loads the splash art (portrait) used in the HUD target panel,
-    /// falling back to the standard sprite if no splash art is defined or found.
+    /// Recomputes runtime-only physics state after construction or deserialization.
+    /// Art is loaded on the render side (<c>AssetService.EnsureShipArt</c>) using
+    /// <see cref="ShipStats.SpriteName"/>, <see cref="ShipStats.SplashName"/> and <see cref="SplashArtKey"/>.
     /// </summary>
-    public virtual void Generate(GameServices services)
+    public virtual void Generate()
     {
         // Mass depends on ShipType and Equipment, which are not available to the
         // JSON constructor, so it is (re)computed once everything is populated.
         Physics.Mass = ShipType.Mass;
-
-        if (services?.GraphicsDevice == null) return;
-
-        var tex = ArtLoader.TryLoad(services.GraphicsDevice, ShipType.SpriteName);
-        services.TextureCache.Register(ShipType.ShipTypeName, tex);
-
-        // Splash art -- fall back to the standard sprite if not provided or not found
-        Texture2D splashTex = null;
-        if (!string.IsNullOrEmpty(ShipType.SplashName))
-            splashTex = ArtLoader.TryLoad(services.GraphicsDevice, ShipType.SplashName);
-        services.TextureCache.Register(SplashArtKey, splashTex ?? tex);
     }
 
     /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>
-    [JsonIgnore] public string SplashArtKey => $"splash_{ShipType.ShipTypeName}";
+    [JsonIgnore] public string SplashArtKey => SplashArtKeyFor(ShipType);
+
+    public static string SplashArtKeyFor(ShipStats shipType) => $"splash_{shipType.ShipTypeName}";
 
     /// <summary>
     /// Applies thrust force in the ship's current facing direction.

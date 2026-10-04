@@ -1,4 +1,4 @@
-﻿using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
 using System;
@@ -99,7 +99,7 @@ public class Player : Ship
             }
             else
             {
-                StarSystem.Universe.ShowTimedMessage("Insufficient fuel for jump!");
+                StarSystem.Universe.Messages.Post("Insufficient fuel for jump!");
             }
         }
     }

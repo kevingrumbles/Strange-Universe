@@ -1,21 +1,19 @@
 ﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Threading.Tasks;
 
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>
-/// Generates a seamless tileable nebula texture from three independently domain-warped
+/// Pixel data for a seamless tileable nebula built from three independently domain-warped
 /// color layers that blend additively.  Where two layers overlap their hues mix
 /// like colored light (red+blue=purple, blue+green=cyan, orange+blue=white, etc.),
 /// producing genuine color variety across the cloud.
-/// Generated once at startup and used for infinite scrolling background.
+/// Pure data: the GPU texture is created on the render side (<c>AssetService.RegisterNebula</c>).
 /// </summary>
-public class Nebula : IDisposable
+public class Nebula
 {
     public string Id { get; }
-    public Texture2D Texture { get; private set; }
 
     // Configuration constants
     public const int Size = 4096;              // Large texture for varied scrolling
@@ -29,12 +27,14 @@ public class Nebula : IDisposable
     public float Density = 1.0f;         // Overall density multiplier (higher = more visible nebula)
     public float Brightness = 0.80f;      // Color brightness multiplier
 
-    // Pixel data produced by Generate(); released once uploaded to the GPU.
-    private Color[] _pixels;
+    /// <summary>
+    /// Packed RGBA pixels (R in the low byte, matching <see cref="Color.PackedValue"/>),
+    /// <see cref="Size"/> x <see cref="Size"/>. Null once released after upload.
+    /// </summary>
+    public uint[] Pixels { get; private set; }
 
     /// <summary>
     /// Computes the nebula pixels. Safe to call from a background thread.
-    /// Call <see cref="CreateTexture"/> on the main thread before use.
     /// </summary>
     public Nebula(string id)
     {
@@ -42,24 +42,14 @@ public class Nebula : IDisposable
         Generate();
     }
 
-    /// <summary>
-    /// Uploads the generated pixels to a GPU texture. Must run on the main (graphics) thread.
-    /// </summary>
-    public void CreateTexture(GraphicsDevice graphicsDevice)
-    {
-        if (Texture != null || _pixels == null) return;
-
-        var tex = new Texture2D(graphicsDevice, Size, Size);
-        tex.SetData(_pixels);
-        Texture = tex;
-        _pixels = null;
-    }
+    /// <summary>Drops the pixel buffer once the render side has uploaded it.</summary>
+    public void ReleasePixels() => Pixels = null;
 
     private void Generate()
     {
         int    baseSeed = ProceduralHelpers.SeedHash(Id);
         var rng    = new Random(baseSeed);
-        var pixels = new Color[Size * Size];
+        var pixels = new uint[Size * Size];
         Density = rng.NextWeightedFloat(.80f, 3.0f);
         Brightness = rng.NextWeightedFloat(0.40f, 1.0f);
 
@@ -127,11 +117,11 @@ public class Nebula : IDisposable
                     (byte)Math.Min(255, (int)(r * 255f)),
                     (byte)Math.Min(255, (int)(g * 255f)),
                     (byte)Math.Min(255, (int)(b * 255f)),
-                    alpha);
+                    alpha).PackedValue;
             }
         });
 
-        _pixels = pixels;
+        Pixels = pixels;
     }
 
     /// <summary>
@@ -148,12 +138,5 @@ public class Nebula : IDisposable
 
         // Apply smoothstep for smooth transition
         return fade * fade * (3f - 2f * fade);
-    }
-
-    public void Dispose()
-    {
-        Texture?.Dispose();
-        Texture = null!;
-        _pixels = null;
     }
 }
