@@ -19,7 +19,10 @@ namespace Strange_Universe
 
 
         // -- Core --------------------------------------------------------------
-        public static GraphicsDevice GD = null;
+        private static GameServices s_services;
+
+        [System.Obsolete("Use GameServices.GraphicsDevice")]
+        public static GraphicsDevice GD => s_services?.GraphicsDevice;
         public static RenderService RenderService = null!;
         private readonly GraphicsDeviceManager _graphics;
         private SpriteFont _font = null!;
@@ -40,7 +43,8 @@ namespace Strange_Universe
         // -- Gameplay ----------------------------------------------------------
         private InputHandler _inputHandler = null!;
         public static Camera Camera { get; private set; } = null!;
-        public static ProceduralTextureCache TextureCache = null!;
+        [System.Obsolete("Use GameServices.TextureCache")]
+        public static ProceduralTextureCache TextureCache => s_services?.TextureCache;
         private SpriteRenderer _starsystemRenderer = null!;
         private ProjectileRenderer _projectileRenderer = null!;
         private GalaxyMapOverlay _galaxyMap = null!;
@@ -89,12 +93,11 @@ namespace Strange_Universe
 
         protected override void LoadContent()
         {
-            GD = _graphics.GraphicsDevice;
+            s_services = new GameServices(GraphicsDevice);
             _inputHandler = new InputHandler();
-            TextureCache = new ProceduralTextureCache();
             RenderService = new RenderService();
-            _font = FontBuilder.Build(GD, "Arial", 16f);
-            _pixel = new Texture2D(GD, 1, 1);
+            _font = FontBuilder.Build(GraphicsDevice, "Arial", 16f);
+            _pixel = new Texture2D(GraphicsDevice, 1, 1);
             _pixel.SetData(new[] { Color.White });
             _starsystemRenderer = new SpriteRenderer(_font);
             _projectileRenderer = new ProjectileRenderer();
@@ -209,11 +212,11 @@ namespace Strange_Universe
         {
             // Dispose old resources
             ActiveUniverse?.Dispose();
-            TextureCache?.Dispose();
+            s_services?.Dispose();
             _galaxyMap?.Dispose();
 
             // Create new resources
-            TextureCache = new ProceduralTextureCache();
+            s_services = new GameServices(GraphicsDevice);
             _inputHandler = new InputHandler();
             _starsystemRenderer = new SpriteRenderer(_font);
             _galaxyMap = new GalaxyMapOverlay(_font);
@@ -497,7 +500,7 @@ namespace Strange_Universe
 
         protected override void UnloadContent()
         {
-            TextureCache?.Dispose();
+            s_services?.Dispose();
             _galaxyMap?.Dispose();
             _pixel?.Dispose();
             base.UnloadContent();
