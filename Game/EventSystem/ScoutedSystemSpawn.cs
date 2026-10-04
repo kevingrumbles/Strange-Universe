@@ -30,11 +30,11 @@ namespace Strange_Universe.Game.EventSystem
 
                 if (patrolPoints.Count == 0)
                 {
-                    Launcher.ActiveUniverse.ShowTimedMessage($"No valid patrol points for {npc.Id}");
+                    system.Universe.ShowTimedMessage($"No valid patrol points for {npc.Id}");
                 }
 
                 npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));
-                system.Npcs.Add(npc);
+                system.AddNpc(npc);
             }
         }
     }

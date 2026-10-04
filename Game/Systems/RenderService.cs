@@ -29,6 +29,13 @@ public enum BatchMode
 /// </summary>
 public class RenderService
 {
+    private readonly GraphicsDevice _graphicsDevice;
+
+    public RenderService(GraphicsDevice graphicsDevice)
+    {
+        _graphicsDevice = graphicsDevice;
+    }
+
     public SpriteBatch SpriteBatch { get; private set; }
 
     private BatchMode? _activeMode;
@@ -48,7 +55,7 @@ public class RenderService
     {
         if (SpriteBatch == null || SpriteBatch.IsDisposed)
         {
-            SpriteBatch = new SpriteBatch(Launcher.GD);
+            SpriteBatch = new SpriteBatch(_graphicsDevice);
             _batchOpen = false;
             _activeMode = null;
         }

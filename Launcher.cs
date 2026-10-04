@@ -13,17 +13,14 @@ namespace Strange_Universe
 
     public class Launcher : Microsoft.Xna.Framework.Game
     {
-        public static Universe ActiveUniverse = null;
+        private Universe ActiveUniverse = null;
         public bool debug = false;
         public const bool PlanetColision = false;
 
 
         // -- Core --------------------------------------------------------------
-        private static GameServices s_services;
-
-        [System.Obsolete("Use GameServices.GraphicsDevice")]
-        public static GraphicsDevice GD => s_services?.GraphicsDevice;
-        public static RenderService RenderService = null!;
+        private GameServices _services;
+        private RenderService RenderService = null!;
         private readonly GraphicsDeviceManager _graphics;
         private SpriteFont _font = null!;
         private int _screenWidth;
@@ -42,9 +39,7 @@ namespace Strange_Universe
 
         // -- Gameplay ----------------------------------------------------------
         private InputHandler _inputHandler = null!;
-        public static Camera Camera { get; private set; } = null!;
-        [System.Obsolete("Use GameServices.TextureCache")]
-        public static ProceduralTextureCache TextureCache => s_services?.TextureCache;
+        private Camera Camera = null!;
         private SpriteRenderer _starsystemRenderer = null!;
         private ProjectileRenderer _projectileRenderer = null!;
         private GalaxyMapOverlay _galaxyMap = null!;
@@ -93,16 +88,16 @@ namespace Strange_Universe
 
         protected override void LoadContent()
         {
-            s_services = new GameServices(GraphicsDevice);
+            _services = new GameServices(GraphicsDevice);
             _inputHandler = new InputHandler();
-            RenderService = new RenderService();
+            RenderService = new RenderService(GraphicsDevice);
             _font = FontBuilder.Build(GraphicsDevice, "Arial", 16f);
             _pixel = new Texture2D(GraphicsDevice, 1, 1);
             _pixel.SetData(new[] { Color.White });
-            _starsystemRenderer = new SpriteRenderer(_font);
-            _projectileRenderer = new ProjectileRenderer();
             _universes = Persistence.LoadExisting(_universeFilePath);
             Camera = new Camera(_screenWidth, _screenHeight);
+            _starsystemRenderer = new SpriteRenderer(_font, _services, RenderService, Camera);
+            _projectileRenderer = new ProjectileRenderer(GraphicsDevice, RenderService);
 
             _menuIndex = 0;
             _prevKeys = Keyboard.GetState();
@@ -202,7 +197,7 @@ namespace Strange_Universe
             ClearRuntime();
 
             ActiveUniverse = universe;
-            ActiveUniverse.Generate();
+            ActiveUniverse.Generate(_services);
 
             IsMouseVisible = false;
             _state = GameState.Playing;
@@ -212,14 +207,14 @@ namespace Strange_Universe
         {
             // Dispose old resources
             ActiveUniverse?.Dispose();
-            s_services?.Dispose();
+            _services?.Dispose();
             _galaxyMap?.Dispose();
 
             // Create new resources
-            s_services = new GameServices(GraphicsDevice);
+            _services = new GameServices(GraphicsDevice);
             _inputHandler = new InputHandler();
-            _starsystemRenderer = new SpriteRenderer(_font);
-            _galaxyMap = new GalaxyMapOverlay(_font);
+            _starsystemRenderer = new SpriteRenderer(_font, _services, RenderService, Camera);
+            _galaxyMap = new GalaxyMapOverlay(_font, GraphicsDevice, RenderService);
             ActiveUniverse = null!;
         }
         private void UpdatePlaying(GameTime gameTime)
@@ -255,6 +250,7 @@ namespace Strange_Universe
             }
 
             ActiveUniverse.Update(deltaTime, input);
+            Camera.Update(ActiveUniverse.Player.CameraTarget, deltaTime, input);
 
             // Update projectile particles (must happen after projectiles are moved)
             if (ActiveUniverse.ActiveStarSystem != null)
@@ -500,7 +496,7 @@ namespace Strange_Universe
 
         protected override void UnloadContent()
         {
-            s_services?.Dispose();
+            _services?.Dispose();
             _galaxyMap?.Dispose();
             _pixel?.Dispose();
             base.UnloadContent();

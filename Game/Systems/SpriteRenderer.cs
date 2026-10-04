@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
@@ -14,14 +14,20 @@ namespace Strange_Universe.Game.Systems;
 /// </summary>
 public class SpriteRenderer
 {
-    private SpriteBatch _spriteBatch => Launcher.RenderService.SpriteBatch;
-    private readonly Texture2D             _pixel;      // 1×1 white texture for dots
+    private readonly GameServices _services;
+    private readonly RenderService _renderService;
+    private readonly Camera _camera;
+    private SpriteBatch _spriteBatch => _renderService.SpriteBatch;
+    private readonly Texture2D             _pixel;      // 1�1 white texture for dots
     private readonly SpriteFont            _font;       // Font for HUD text
 
-    public SpriteRenderer(SpriteFont font)
+    public SpriteRenderer(SpriteFont font, GameServices services, RenderService renderService, Camera camera)
     {
         _font        = font;
-        _pixel = new Texture2D(Launcher.GD, 1, 1);
+        _services = services;
+        _renderService = renderService;
+        _camera = camera;
+        _pixel = new Texture2D(services.GraphicsDevice, 1, 1);
         _pixel.SetData(new[] { Color.White });
     }
 
@@ -34,9 +40,9 @@ public class SpriteRenderer
     public void DrawNebula(string nebulaId, int screenWidth, int screenHeight, 
                           Vector2 cameraPos, float cameraZoom, bool debugMode = false)
     {
-        if (!Launcher.TextureCache.TryGet(nebulaId, out var tex) || tex is null) return;
+        if (!_services.TextureCache.TryGet(nebulaId, out var tex) || tex is null) return;
 
-        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         int textureSize = tex.Width; // Should be 4096 from Nebula.Size
 
@@ -92,7 +98,7 @@ public class SpriteRenderer
         // Background stars render in screen space and maintain constant appearance
         // regardless of zoom level. They provide atmosphere without cluttering the view.
 
-        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         // Define the base tile size for background stars (matches typical screen resolution)
         const float tileWidth = 1920f;
@@ -165,9 +171,9 @@ public class SpriteRenderer
     /// <summary>Draws any entity that has a position, rotation, scale, and texture ID.</summary>
     public void DrawEntity(string textureId, Vector2 position, float rotation, float radius)
     {
-        if (!Launcher.TextureCache.TryGet(textureId, out var tex) || tex is null) return;
+        if (!_services.TextureCache.TryGet(textureId, out var tex) || tex is null) return;
 
-        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         float scale = radius * 2f / Math.Max(tex.Width, tex.Height);
         var origin  = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
@@ -195,9 +201,9 @@ public class SpriteRenderer
     /// <summary>Draws a single asteroid fragment, fading out as it expires.</summary>
     private void DrawShard(AsteroidShard shard)
     {
-        if (!Launcher.TextureCache.TryGet(shard.TextureId, out var tex) || tex is null) return;
+        if (!_services.TextureCache.TryGet(shard.TextureId, out var tex) || tex is null) return;
 
-        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         float scale = shard.Radius * 2f / Math.Max(tex.Width, tex.Height);
         var origin  = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
@@ -232,7 +238,7 @@ public class SpriteRenderer
     {
         if (ship.Impacts.Count == 0 && ship.Debris.Count == 0) return;
 
-        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         foreach (var impact in ship.Impacts)
         {
@@ -312,7 +318,7 @@ public class SpriteRenderer
     /// </summary>
     public void DrawDebugCircle(Vector2 center, float radius, Color color, int segments = 32)
     {
-        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         float angleStep = MathHelper.TwoPi / segments;
         for (int i = 0; i < segments; i++)
@@ -372,7 +378,7 @@ public class SpriteRenderer
 
     public void DrawSpeedBar(Player player, int screenWidth, int screenHeight, float maxSpeed)
     {
-        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
+        _renderService.Begin(BatchMode.ScreenAlpha);
 
         // Speed bar in bottom-left
         float speed     = player.Speed;
@@ -394,7 +400,7 @@ public class SpriteRenderer
 
     public void DrawHud(Universe universe, int screenWidth, int screenHeight)
     {
-        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
+        _renderService.Begin(BatchMode.ScreenAlpha);
 
         const int MapSize = 180;
         const int Margin  = 14;
@@ -404,7 +410,7 @@ public class SpriteRenderer
         int   mapTop    = Margin;
         int   hudPanelHeight = screenHeight - (Margin * 2); // Extend to bottom with same margin
         float halfMap   = MapSize * 0.5f;
-        float scale     = halfMap / universe.ActiveStarSystem.SystemRadius;   // world unit → minimap pixel
+        float scale     = halfMap / universe.ActiveStarSystem.SystemRadius;   // world unit ? minimap pixel
 
         // -- Local helpers ----------------------------------------------------
 
@@ -620,7 +626,7 @@ public class SpriteRenderer
             const int SplashSize = 72;
             int splashX = mapLeft + (MapSize - SplashSize) / 2;
             int splashY = currentY + (SelectionSectionHeight - SplashSize) / 2;
-            if (Launcher.TextureCache.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
+            if (_services.TextureCache.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
             {
                 float splashScale = (float)SplashSize / Math.Max(splashTex.Width, splashTex.Height);
                 var splashOrigin = new Vector2(splashTex.Width * 0.5f, splashTex.Height * 0.5f);

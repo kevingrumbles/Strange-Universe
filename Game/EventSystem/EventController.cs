@@ -58,16 +58,16 @@ namespace Strange_Universe.Game.EventSystem
             switch ((int)(_random.NextDouble() * 100))
             {
                 //case int n when (n < NpcTestEvent.EventProbability):
-                //    Launcher.ActiveUniverse.ShowTimedMessage($"A Npc Test Event has been discovered! {n}/{NpcTestEvent.EventProbability}");
+                //    _owner.Universe.ShowTimedMessage(
                 //    spawnEvent = new NpcTestEvent();
                 //    break;
                 case int n when (n < DefendedSystemSpawn.EventProbability):
-                    Launcher.ActiveUniverse.ShowTimedMessage($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
+                    _owner.Universe.ShowTimedMessage($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
                     spawnEvent = new DefendedSystemSpawn();
                     break;
 
                 case int n when (n < ScoutedSystemSpawn.EventProbability):
-                    Launcher.ActiveUniverse.ShowTimedMessage($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
+                    _owner.Universe.ShowTimedMessage($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
                     spawnEvent = new ScoutedSystemSpawn();
                     break;
             }

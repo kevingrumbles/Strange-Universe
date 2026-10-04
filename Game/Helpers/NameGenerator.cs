@@ -23,14 +23,13 @@ public enum CelestialNameType
 /// <summary>Procedural names for stars, systems and planets.</summary>
 public static class NameGenerator
 {
-    public static string GetStarSystemName(string seed, OriginFaction faction = OriginFaction.Human)
+    public static string GetStarSystemName(string seed, System.Collections.Generic.IReadOnlyList<Strange_Universe.Game.Entities.StarSystemNode> existingNodes = null, OriginFaction faction = OriginFaction.Human)
     {
         Random universeRng = new Random(ProceduralHelpers.SeedHash(seed));
         string name = "Sol";
-        var nodes = Launcher.ActiveUniverse?.StarSystemNodes;
-        if (nodes?.Count > 0)
+        if (existingNodes?.Count > 0)
         {
-            while (name is null || nodes.Contains(nodes.Find(s => s.Name == name)))
+            while (name is null || System.Linq.Enumerable.Any(existingNodes, s => s.Name == name))
             {
                 name = GenerateCelestialName(CelestialNameType.System, faction, universeRng);
             }

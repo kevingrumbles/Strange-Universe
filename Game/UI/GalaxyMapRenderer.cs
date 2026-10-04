@@ -41,7 +41,8 @@ public class GalaxyMapRenderer
     private static readonly Color CloseXColor      = new Color(220, 100, 80);
     private static readonly Color PanelBorderC     = new Color(60,  80, 120) * 0.8f;
 
-    private SpriteBatch _sb => Launcher.RenderService.SpriteBatch;
+    private readonly RenderService _renderService;
+    private SpriteBatch _sb => _renderService.SpriteBatch;
     private readonly Texture2D   _pixel;
     private readonly SpriteFont  _font;
 
@@ -50,11 +51,12 @@ public class GalaxyMapRenderer
     private float  _scaleX, _scaleY;
     private Vector2 _galaxyMin, _galaxyMax;
 
-    public GalaxyMapRenderer(SpriteFont font)
+    public GalaxyMapRenderer(SpriteFont font, GraphicsDevice graphicsDevice, RenderService renderService)
     {
         _font = font;
+        _renderService = renderService;
 
-        _pixel = new Texture2D(Launcher.GD, 1, 1);
+        _pixel = new Texture2D(graphicsDevice, 1, 1);
         _pixel.SetData(new[] { Color.White });
     }
 
@@ -73,7 +75,7 @@ public class GalaxyMapRenderer
     {
         ComputeLayout(universe, screenW, screenH);
 
-        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
+        _renderService.Begin(BatchMode.ScreenAlpha);
 
         DrawBackground(screenW, screenH);
         var positions = ComputeNodeScreenPositions(universe);

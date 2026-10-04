@@ -45,11 +45,11 @@ public class Nebula : IDisposable
     /// <summary>
     /// Uploads the generated pixels to a GPU texture. Must run on the main (graphics) thread.
     /// </summary>
-    public void CreateTexture()
+    public void CreateTexture(GraphicsDevice graphicsDevice)
     {
         if (Texture != null || _pixels == null) return;
 
-        var tex = new Texture2D(Launcher.GD, Size, Size);
+        var tex = new Texture2D(graphicsDevice, Size, Size);
         tex.SetData(_pixels);
         Texture = tex;
         _pixels = null;

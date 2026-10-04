@@ -29,9 +29,9 @@ public class GalaxyMapOverlay
     // Accumulated time for animation (pulsing ring)
     private double _totalSeconds;
 
-    public GalaxyMapOverlay(SpriteFont font)
+    public GalaxyMapOverlay(SpriteFont font, Microsoft.Xna.Framework.Graphics.GraphicsDevice graphicsDevice, Strange_Universe.Game.Systems.RenderService renderService)
     {
-        _renderer = new GalaxyMapRenderer(font);
+        _renderer = new GalaxyMapRenderer(font, graphicsDevice, renderService);
         _input    = new GalaxyMapInput();
     }
 

@@ -42,7 +42,8 @@ public abstract partial class Ship
     [JsonIgnore] public Ship Target { get; set; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.CalculateGravityAtLocation(Transform.Position);
     [JsonIgnore] public float Radius => ShipType.Radius;
-    [JsonIgnore] public StarSystem StarSystem { get { return Launcher.ActiveUniverse.ActiveStarSystem; } }
+    /// <summary>The system this ship is in. Null until attached (see <see cref="Entities.StarSystem.AddNpc"/> / <see cref="Universe"/>).</summary>
+    [JsonIgnore] public StarSystem StarSystem { get; set; }
     [JsonIgnore] private PhysicsBody Physics { get; set; }
     private Transform Transform { get; set; } = new();
     public Vector2 Position
@@ -111,20 +112,22 @@ public abstract partial class Ship
     /// Also loads the splash art (portrait) used in the HUD target panel,
     /// falling back to the standard sprite if no splash art is defined or found.
     /// </summary>
-    public virtual void Generate()
+    public virtual void Generate(GameServices services)
     {
         // Mass depends on ShipType and Equipment, which are not available to the
         // JSON constructor, so it is (re)computed once everything is populated.
         Physics.Mass = ShipType.Mass;
 
-        var tex = ArtLoader.TryLoad(Launcher.GD, ShipType.SpriteName);
-        Launcher.TextureCache.Register(ShipType.ShipTypeName, tex);
+        if (services?.GraphicsDevice == null) return;
+
+        var tex = ArtLoader.TryLoad(services.GraphicsDevice, ShipType.SpriteName);
+        services.TextureCache.Register(ShipType.ShipTypeName, tex);
 
         // Splash art -- fall back to the standard sprite if not provided or not found
         Texture2D splashTex = null;
         if (!string.IsNullOrEmpty(ShipType.SplashName))
-            splashTex = ArtLoader.TryLoad(Launcher.GD, ShipType.SplashName);
-        Launcher.TextureCache.Register(SplashArtKey, splashTex ?? tex);
+            splashTex = ArtLoader.TryLoad(services.GraphicsDevice, ShipType.SplashName);
+        services.TextureCache.Register(SplashArtKey, splashTex ?? tex);
     }
 
     /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>

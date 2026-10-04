@@ -54,18 +54,20 @@ public sealed class ProjectileRenderer : IDisposable
     // Rendering state
     // -------------------------------------------------------------------------
 
-    private SpriteBatch _spriteBatch => Launcher.RenderService.SpriteBatch;
+    private readonly RenderService _renderService;
+    private SpriteBatch _spriteBatch => _renderService.SpriteBatch;
     private          Matrix         _cameraMatrix;
 
     // -------------------------------------------------------------------------
     // Constructor — generate all textures once
     // -------------------------------------------------------------------------
 
-    public ProjectileRenderer()
+    public ProjectileRenderer(GraphicsDevice graphicsDevice, RenderService renderService)
     {
-        _radialGlow  = GenerateRadialGlow(128);
-        _boltBody    = GenerateBoltBody(128, 8);
-        _particle    = GenerateRadialGlow(16);
+        _renderService = renderService;
+        _radialGlow  = GenerateRadialGlow(graphicsDevice, 128);
+        _boltBody    = GenerateBoltBody(graphicsDevice, 128, 8);
+        _particle    = GenerateRadialGlow(graphicsDevice, 16);
     }
 
     // -------------------------------------------------------------------------
@@ -146,7 +148,7 @@ public sealed class ProjectileRenderer : IDisposable
         if (projectiles.Count == 0) return;
 
         // ── Additive pass: particles + glow layers + core bolt + hot centre ───
-        Launcher.RenderService.Begin(BatchMode.WorldAdditive, _cameraMatrix);
+        _renderService.Begin(BatchMode.WorldAdditive, _cameraMatrix);
 
         DrawParticles();
 
@@ -354,9 +356,9 @@ public sealed class ProjectileRenderer : IDisposable
     /// <summary>
     /// Generates a square radial glow texture: bright centre, smooth falloff, transparent edges.
     /// </summary>
-    private static Texture2D GenerateRadialGlow( int size)
+    private static Texture2D GenerateRadialGlow(GraphicsDevice gd, int size)
     {
-        var tex    = new Texture2D(Launcher.GD, size, size);
+        var tex    = new Texture2D(gd, size, size);
         var pixels = new Color[size * size];
         float half = size * 0.5f;
 
@@ -383,9 +385,9 @@ public sealed class ProjectileRenderer : IDisposable
     /// Height = short axis (thickness) — SpriteBatch rotation turns the Width axis to
     /// face the rotation angle, so length must be the Width dimension.
     /// </summary>
-    private static Texture2D GenerateBoltBody(int length, int thickness)
+    private static Texture2D GenerateBoltBody(GraphicsDevice gd, int length, int thickness)
     {
-        var   tex     = new Texture2D(Launcher.GD, length, thickness);
+        var   tex     = new Texture2D(gd, length, thickness);
         var   pixels  = new Color[length * thickness];
         float halfH   = thickness * 0.5f;
 

@@ -51,7 +51,7 @@ public class Star
 
     private const int Size = 512;
 
-    public Star(string id, float radius, string name, Color minimapColor, float orbitRadius, float orbitAngle, float orbitSpeed)
+    public Star(string id, float radius, string name, Color minimapColor, float orbitRadius, float orbitAngle, float orbitSpeed, Strange_Universe.Game.Systems.GameServices services = null)
     {
         Id = id;
         Radius = radius;
@@ -68,14 +68,14 @@ public class Star
         float wellStrength = MathHelper.Lerp(0.8f, 1.0f, (float)starRng.NextDouble());
         GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);
 
-        var tex = Generate(minimapColor, starRng);
-        Launcher.TextureCache.Register(Id, tex);
+        if (services?.GraphicsDevice != null)
+            services.TextureCache.Register(Id, Generate(services.GraphicsDevice, minimapColor, starRng));
     }
 
     /// <summary>
     /// Generates a glowing star texture: bright core, coloured corona, soft halo, and ray spikes.
     /// </summary>
-    public static Texture2D Generate(Color starColor, Random rng)
+    public static Texture2D Generate(GraphicsDevice gd, Color starColor, Random rng)
     {
         var colors = new Color[Size * Size];
         float cx = Size * 0.5f;
@@ -131,7 +131,7 @@ public class Star
             }
         }
 
-        var tex = new Texture2D(Launcher.GD, Size, Size);
+        var tex = new Texture2D(gd, Size, Size);
         tex.SetData(colors);
         return tex;
     }

@@ -58,9 +58,8 @@ public class NameGeneratorTests
     }
 
     [Fact]
-    public void GetStarSystemName_WithoutActiveUniverse_ReturnsSol()
+    public void GetStarSystemName_WithoutExistingNodes_ReturnsSol()
     {
-        // Characterizes current behaviour: depends on Launcher.ActiveUniverse (null in tests).
         Assert.Equal("Sol", NameGenerator.GetStarSystemName("any-seed"));
     }
 }

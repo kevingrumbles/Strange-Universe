@@ -30,17 +30,11 @@ public class GravityWell
     /// Strength/intensity of the gravitational field at the center.
     /// This is the maximum force applied, which falls off linearly to zero at the edge.
     /// </summary>
-    private float _strength;
-    public float Strength {
-        get
-        {
-            return _strength * Launcher.ActiveUniverse.Player.ShipType.ThrustForce * GravityWell.GravityThrustRatio;
-        }
-        private set
-        {
-            _strength = value;
-        }
-    }
+    /// <summary>
+    /// Unscaled strength (0..1). The applied force is scaled by a reference thrust force
+    /// supplied to <see cref="CalculateForce"/>.
+    /// </summary>
+    public float Strength { get; private set; }
 
     public GravityWell(Vector2 center, float radius, float strength)
     {
@@ -54,7 +48,8 @@ public class GravityWell
     /// Maximum force at center, ramping linearly down to zero at the edge.
     /// Returns zero if position is outside the well's radius.
     /// </summary>
-    public Vector2 CalculateForce(Vector2 position)
+    /// <param name="referenceThrustForce">Thrust force gravity is expressed relative to (the player's ship).</param>
+    public Vector2 CalculateForce(Vector2 position, float referenceThrustForce)
     {
         Vector2 toCenter = Center - position;
         float distanceSquared = toCenter.LengthSquared();
@@ -74,7 +69,7 @@ public class GravityWell
         // Linear falloff: force = strength * (1 - distance/radius)
         // Maximum force (= Strength) at center, zero at edge
         float falloff = 1f - (distance / Radius);
-        float forceMagnitude = Strength * falloff;
+        float forceMagnitude = Strength * referenceThrustForce * GravityThrustRatio * falloff;
 
         return direction * forceMagnitude;
     }

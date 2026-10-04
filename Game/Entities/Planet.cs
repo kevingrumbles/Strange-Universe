@@ -49,7 +49,7 @@ public class Planet
     public GravityWell GravityWell { get; private set; }
 
     private const int Size = 256;
-    public Planet(string planetId, float minPlanetRadius, float maxPlanetRadius, float minOrbit, float maxOrbit, int planetNumber, int totalPlanets)
+    public Planet(string planetId, float minPlanetRadius, float maxPlanetRadius, float minOrbit, float maxOrbit, int planetNumber, int totalPlanets, Strange_Universe.Game.Systems.GameServices services = null)
     {
         Id = planetId;
         Random planetRng = new Random(ProceduralHelpers.SeedHash(Id));
@@ -59,8 +59,8 @@ public class Planet
         Type = (PlanetType)planetRng.Next(PlanetTypes);  
         Radius = MathHelper.Lerp(minPlanetRadius, maxPlanetRadius, (float)planetRng.NextDouble());
 
-        var tex = Generate(Launcher.GD, Type, ProceduralHelpers.SeedHash(Id));
-        Launcher.TextureCache.Register(Id, tex);
+        if (services?.GraphicsDevice != null)
+            services.TextureCache.Register(Id, Generate(services.GraphicsDevice, Type, ProceduralHelpers.SeedHash(Id)));
 
         float orbit = MathHelper.Lerp(minOrbit, maxOrbit,
                                       (float)(planetNumber + 0.5f + planetRng.NextDouble() * 0.5f - 0.25f) / totalPlanets);

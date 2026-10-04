@@ -18,7 +18,7 @@ namespace Strange_Universe.Game.EventSystem
                 Nonplayer npc = new Nonplayer(npcId: $"Npc_test_{system.Npcs.Count + 1}", shipType: "Shuttle", jumpSpawn: true, npcName: $"Testing Shuttle");
 
                 npc.EnqueueNavTask(new DockTask(npc, planet.Position, 9999));
-                system.Npcs.Add(npc);
+                system.AddNpc(npc);
             }
         }
     }

@@ -29,19 +29,11 @@ public class StarSystemNode
         }
     }
 
-    [JsonIgnore]
-    public Universe Universe
-    {
-        get
-        {
-            return Launcher.ActiveUniverse;
-        }
-    }
     public StarSystemNode() { }
-    public StarSystemNode(Vector2 position, StarSystemNode backConnection = null)
+    public StarSystemNode(string seed, Vector2 position, StarSystemNode backConnection = null, IReadOnlyList<StarSystemNode> existingNodes = null)
     {
-        Name = NameGenerator.GetStarSystemName(Universe.Seed);
-        SystemId = $"{Universe.Seed}_{Name}";
+        Name = NameGenerator.GetStarSystemName(seed, existingNodes);
+        SystemId = $"{seed}_{Name}";
         GalaxyPosition = position;
 
         if (backConnection != null)
@@ -59,8 +51,9 @@ public class StarSystem
     [JsonIgnore] public string Name { get { return Node.Name; } }
     [JsonIgnore] public Vector2 GalaxyPosition { get { return Node.GalaxyPosition; } }
     [JsonIgnore] public StarSystemNode Node { get; set; }
-    [JsonIgnore] public Player ActivePlayer { get { return Launcher.ActiveUniverse.Player; } }
-    [JsonIgnore] public Universe Universe { get { return Launcher.ActiveUniverse; } }
+    [JsonIgnore] public Player ActivePlayer => Universe?.Player;
+    [JsonIgnore] public Universe Universe { get; }
+    [JsonIgnore] public GameServices Services { get; }
     [JsonIgnore] public string DisplayName { get { return Node.DisplayName; } }
     [JsonIgnore] public bool Discovered { get { return Node.Discovered; } }
     [JsonIgnore] public int    PlanetCount             { get; set; }
@@ -96,11 +89,13 @@ public class StarSystem
     {
 
     }
-    public StarSystem(StarSystemNode node)
+    public StarSystem(StarSystemNode node, Universe universe, GameServices services)
     {
         var sw = Stopwatch.StartNew();
         Debug.WriteLine($"StarSystem initialization started: {sw.ElapsedMilliseconds} ms");
         Node = node;
+        Universe = universe;
+        Services = services;
         Node.Discovered = true;
 
         _eventController = new EventController(this);
@@ -244,7 +239,7 @@ public class StarSystem
         foreach (string id in Node.SystemConnectionIds)
         {
             StarSystemNode connected =
-                Node.Universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == id);
+                Universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == id);
 
             if (connected == null)
                 continue;
@@ -268,7 +263,7 @@ public class StarSystem
         //
         const float LocalDensityRadius = 30f;
 
-        int nearbySystemCount = Node.Universe.StarSystemNodes.Count(n =>
+        int nearbySystemCount = Universe.StarSystemNodes.Count(n =>
             n.SystemId != Node.SystemId &&
             Vector2.Distance(Node.GalaxyPosition, n.GalaxyPosition) <= LocalDensityRadius);
 
@@ -288,7 +283,7 @@ public class StarSystem
             //
             const float MaxConnectionDistance = 8f;
 
-            var nearbySystems = Node.Universe.StarSystemNodes
+            var nearbySystems = Universe.StarSystemNodes
                 .Where(n =>
                     n.SystemId != Node.SystemId &&
                     !Node.SystemConnectionIds.Contains(n.SystemId) &&
@@ -330,13 +325,13 @@ public class StarSystem
                                    new Vector2(dir.X * distance,
                                                dir.Y * distance);
 
-                StarSystemNode node = Node.Universe.StarSystemNodes
+                StarSystemNode node = Universe.StarSystemNodes
                     .FirstOrDefault(n => n.GalaxyPosition == location);
 
                 if (node == null)
                 {
-                    node = new StarSystemNode(location, Node);
-                    Node.Universe.StarSystemNodes.Add(node);
+                    node = new StarSystemNode(Universe.Seed, location, Node, Universe.StarSystemNodes);
+                    Universe.StarSystemNodes.Add(node);
                 }
 
                 if (!Node.SystemConnectionIds.Contains(node.SystemId))
@@ -366,7 +361,7 @@ public class StarSystem
             }
             
             float initialAngle = MathHelper.TwoPi * i / StarCount;
-            Star newStar = new Star(starId, StarRadius, name, starColor, StarOrbitRadius, initialAngle, StarOrbitSpeed);
+            Star newStar = new Star(starId, StarRadius, name, starColor, StarOrbitRadius, initialAngle, StarOrbitSpeed, Services);
             newStar.Position = StarCount == 1
                 ? Vector2.Zero
                 : new Vector2(
@@ -389,7 +384,8 @@ public class StarSystem
                                             minOrbit: Math.Max(StarRadius * 3.5f, StarOrbitRadius * 2f),
                                             maxOrbit: AsteroidBeltInnerRadius * 0.9f,
                                             planetNumber: i,
-                                            totalPlanets: PlanetCount));
+                                            totalPlanets: PlanetCount,
+                                            services: Services));
                     break;
                 default:
                     Planets.Add(new Planet(planetId: $"{Node.SystemId}_Planet_{i}",
@@ -398,7 +394,8 @@ public class StarSystem
                                           minOrbit: AsteroidBeltOuterRadius * 1.1f,
                                           maxOrbit: SystemRadius * 0.75f,
                                           planetNumber: i,
-                                          totalPlanets: PlanetCount));
+                                          totalPlanets: PlanetCount,
+                                          services: Services));
                     break;
             }
         }
@@ -413,10 +410,12 @@ public class StarSystem
         for (int i = 0; i < PaletteSize; i++)
         {
             paletteIds[i] = $"asteroid_tex_{i}";
-            if (Launcher.TextureCache.TryGet(paletteIds[i], out Texture2D texture)) continue;
+            if (Services?.TextureCache.TryGet(paletteIds[i], out Texture2D texture) == true) continue;
 
-            var tex = Asteroid.Generate(Launcher.GD, asteroidsRng.Next());
-            Launcher.TextureCache.Register(paletteIds[i], tex);
+            // The RNG draw must happen whether or not a texture is created, to keep layout deterministic.
+            int texSeed = asteroidsRng.Next();
+            if (Services?.GraphicsDevice != null)
+                Services.TextureCache.Register(paletteIds[i], Asteroid.Generate(Services.GraphicsDevice, texSeed));
         }
 
         for (int i = 0; i < AsteroidCount; i++)
@@ -458,7 +457,8 @@ public class StarSystem
         Random nebulaRandom = new Random(ProceduralHelpers.SeedHash($"{Node.SystemId}_Nebula"));
 
         // Select a nebula from the pool deterministically
-        var pool = Node.Universe.NebulaPool;
+        var pool = Universe.NebulaPool;
+        if (pool.Count == 0) return;
         int poolIndex = nebulaRandom.Next(pool.Count);
         Nebula chosen = pool[poolIndex];
         NebulaId = chosen.Id;
@@ -473,20 +473,28 @@ public class StarSystem
     public Vector2 CalculateGravityAtLocation(Vector2 position)
     {
         Vector2 totalForce = Vector2.Zero;
+        float referenceThrust = ActivePlayer?.ShipType?.ThrustForce ?? 0f;
 
         // Sum forces from all star gravity wells
         foreach (var star in Stars)
         {
-            totalForce += star.GravityWell.CalculateForce(position);
+            totalForce += star.GravityWell.CalculateForce(position, referenceThrust);
         }
 
         // Sum forces from all planet gravity wells
         foreach (var planet in Planets)
         {
-            totalForce += planet.GravityWell.CalculateForce(position);
+            totalForce += planet.GravityWell.CalculateForce(position, referenceThrust);
         }
 
         return totalForce;
+    }
+
+    /// <summary>Adds an NPC to this system and attaches the system to it.</summary>
+    public void AddNpc(Nonplayer npc)
+    {
+        npc.StarSystem = this;
+        Npcs.Add(npc);
     }
 
     /// <summary>

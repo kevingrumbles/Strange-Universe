@@ -20,7 +20,7 @@ namespace Strange_Universe.Game.NavSystem
             _targetSystemId = targetSystemId;
             _originGalaxyPosition = originGalaxyPosition;
             CurrentState = currentState ?? TaskState.MoveToMandeville;
-            if (Owner is Player && (_targetSystemId == null || Launcher.ActiveUniverse.StarSystemNodes.FirstOrDefault(n => n.SystemId == _targetSystemId) == null))
+            if (Owner is Player && (_targetSystemId == null || Owner.StarSystem?.Universe?.StarSystemNodes.FirstOrDefault(n => n.SystemId == _targetSystemId) == null))
             {
                 CurrentState = TaskState.Invalid;
             }
@@ -167,10 +167,13 @@ namespace Strange_Universe.Game.NavSystem
                 case TaskState.SystemTranslation:
                     // GOAL: Set arrival location and generate new system
                     // Update the player's current system ID so the StarSystem reference is correct
-                    if (Owner is Player)
+                    if (Owner is Player player)
                     {
-                        ((Player)Owner).CurrentStarSystemID = _targetSystemId;
-                        Launcher.ActiveUniverse.Generate();
+                        Universe universe = player.StarSystem.Universe;
+                        player.CurrentStarSystemID = _targetSystemId;
+                        universe.Regenerate();
+                        // Builds the new system and re-attaches the player to it.
+                        _ = universe.ActiveStarSystem;
                     }
 
                     // Set ship position at system edge entry point

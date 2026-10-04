@@ -24,7 +24,7 @@ namespace Strange_Universe.Game.EventSystem
             Nonplayer merchant = new Nonplayer(npcId: $"Npc_merchant_{system.Npcs.Count + 1}", shipType: "Shuttle", jumpSpawn: true, npcName: $"Merchant Shuttle");
             merchant.EnqueueNavTask(new DockTask(merchant, system.Planets[random.Next(0, system.Planets.Count)].Position));
             merchant.EnqueueNavTask(new JumpTask(merchant));
-            system.Npcs.Add(merchant);
+            system.AddNpc(merchant);
             system.Universe.ShowTimedMessage("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
         }
     }

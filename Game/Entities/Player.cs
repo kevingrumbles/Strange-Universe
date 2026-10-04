@@ -33,8 +33,14 @@ public class Player : Ship
         HandleFirePrimaryWeapons(input);
 
         base.Update(deltaTime);
-        Launcher.Camera.Update(Position, deltaTime, input);
+        CameraTarget = Position;
     }
+
+    /// <summary>
+    /// Player position captured immediately after the player's own physics step, before
+    /// collisions resolve. The camera follows this so framing matches the original behaviour.
+    /// </summary>
+    [JsonIgnore] public Microsoft.Xna.Framework.Vector2 CameraTarget { get; private set; }
 
     private void HandleFirePrimaryWeapons(InputState input)
     {
@@ -93,7 +99,7 @@ public class Player : Ship
             }
             else
             {
-                Launcher.ActiveUniverse.ShowTimedMessage("Insufficient fuel for jump!");
+                StarSystem.Universe.ShowTimedMessage("Insufficient fuel for jump!");
             }
         }
     }

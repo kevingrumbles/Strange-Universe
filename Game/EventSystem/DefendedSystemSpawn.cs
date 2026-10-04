@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
 using System;
@@ -20,7 +20,7 @@ namespace Strange_Universe.Game.EventSystem
             {
                 Nonplayer npc = new Nonplayer(npcId:$"Npc_defender_{system.Npcs.Count+1}", shipType: "Shuttle", jumpSpawn: false, npcName: $"Defending Shuttle");
                 npc.EnqueueNavTask(new GuardTask(npc, p.Position, p.Radius * 2));
-                system.Npcs.Add(npc);
+                system.AddNpc(npc);
             }
             for (int i = 0; i < 5; i++)
             {
@@ -34,7 +34,7 @@ namespace Strange_Universe.Game.EventSystem
                 }
 
                 npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));
-                system.Npcs.Add(npc);
+                system.AddNpc(npc);
             }
         }
     }

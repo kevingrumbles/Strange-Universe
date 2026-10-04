@@ -27,7 +27,7 @@ public abstract partial class Ship
                 case TaskState.Complete:
                     if (ActiveNavTask is JumpTask jumpTask && StarSystem.SystemId == jumpTask._targetSystemId)
                     {
-                        Launcher.ActiveUniverse.JumpRoute.Remove(jumpTask._targetSystemId);
+                        StarSystem.Universe.JumpRoute.Remove(jumpTask._targetSystemId);
                         CurrentFuelLevel--;
                     }
                     ActiveNavTask = null;

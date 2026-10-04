@@ -1,5 +1,6 @@
 ﻿using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
+using Strange_Universe.Game.Systems;
 using Strange_Universe;
 using Strange_Universe.Game.Entities;
 using System;
@@ -36,7 +37,7 @@ public class Universe : IDisposable
                 if (StarSystemNodes.Count == 0)
                 {
                     // If there are no star systems nodes, create a default one and add it to the universe.
-                    StarSystemNode defaultNode = new StarSystemNode(position: new Vector2(0,0), backConnection: null);
+                    StarSystemNode defaultNode = new StarSystemNode(Seed, position: new Vector2(0,0), backConnection: null, existingNodes: StarSystemNodes);
                     StarSystemNodes.Add(defaultNode);
                 }
                 StarSystemNode currentSystemNode = StarSystemNodes.FirstOrDefault(s => s.SystemId == Player.CurrentStarSystemID);
@@ -46,7 +47,8 @@ public class Universe : IDisposable
                     currentSystemNode = StarSystemNodes.FirstOrDefault(n => n.Name == "Sol") ?? StarSystemNodes.FirstOrDefault();
                     Player.CurrentStarSystemID = currentSystemNode.SystemId; // Update player's current star system ID
                 }
-                _activeStarSystem = new StarSystem(currentSystemNode);
+                _activeStarSystem = new StarSystem(currentSystemNode, this, _services);
+                Player.StarSystem = _activeStarSystem;
             }
             return _activeStarSystem;
         }
@@ -55,6 +57,9 @@ public class Universe : IDisposable
     public List<StarSystemNode> StarSystemNodes { get; set; } = new();
 
     private const int NebulaPoolSize = 6;
+
+    // Runtime services; null after deserialization until Generate(services) is called.
+    private GameServices _services;
 
     // Nebulae finished on a background thread, waiting to be uploaded on the main thread.
     private readonly ConcurrentQueue<Nebula> _pendingNebulae = new();
@@ -132,12 +137,19 @@ public class Universe : IDisposable
         ActiveStarSystem.Update(deltaTime, input);
     }
 
-    public void Generate()
+    public void Generate(GameServices services)
     {
+        _services = services;
         _activeStarSystem = null;
         GenerateNebulaPool();
-        Player.Generate();
+        Player.Generate(services);
     }
+
+    /// <summary>
+    /// Rebuilds the active star system (e.g. after a jump) using the services supplied to
+    /// <see cref="Generate(GameServices)"/>. The player is re-attached to the new system.
+    /// </summary>
+    public void Regenerate() => Generate(_services);
 
     public void GenerateNebulaPool()
     {
@@ -146,9 +158,7 @@ public class Universe : IDisposable
         {
             string id = $"nebula_pool_{NebulaPool.Count}";
             var nebula = new Nebula($"{Seed}_{id}");
-            nebula.CreateTexture();
-            Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
-            NebulaPool.Add(nebula);
+            UploadNebula(nebula);
         }
 
         // Generate remaining nebulae asynchronously in the background
@@ -183,11 +193,17 @@ public class Universe : IDisposable
     private void DrainPendingNebulae()
     {
         while (_pendingNebulae.TryDequeue(out var nebula))
+            UploadNebula(nebula);
+    }
+
+    private void UploadNebula(Nebula nebula)
+    {
+        if (_services?.GraphicsDevice != null)
         {
-            nebula.CreateTexture();
-            Launcher.TextureCache.Register(nebula.Id, nebula.Texture);
-            NebulaPool.Add(nebula);
+            nebula.CreateTexture(_services.GraphicsDevice);
+            _services.TextureCache.Register(nebula.Id, nebula.Texture);
         }
+        NebulaPool.Add(nebula);
     }
 
     /// <summary>
