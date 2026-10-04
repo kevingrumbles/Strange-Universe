@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -72,7 +72,7 @@ namespace Strange_Universe.Game.NavSystem
                         }
 
                         // Speed management - slow down when approaching patrol point
-                        if (distanceToTarget < ArrivalThreshold * 3f && Owner.Speed > Owner.ShipStats.MaxSpeed * 0.3f)
+                        if (distanceToTarget < ArrivalThreshold * 3f && Owner.Speed > Owner.ShipType.MaxSpeed * 0.3f)
                         {
                             // Decelerate when close to waypoint
                             Vector2 velocityDir = Owner.Velocity;

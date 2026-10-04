@@ -1,5 +1,5 @@
-using Microsoft.Xna.Framework;
-using StrangeUniverse;
+﻿using Microsoft.Xna.Framework;
+using Strange_Universe;
 using System;
 
 namespace Strange_Universe.Game.Entities;
@@ -13,7 +13,7 @@ public class GravityWell
     /// <summary>
     /// Fraction of player thrust force used as maximum gravity force.
     /// </summary>
-    public const float GravityThrustRatio = 1.7f; 
+    public const float GravityThrustRatio = 0f; 
 
     /// <summary>
     /// Center position of the gravity well in world space.
@@ -34,7 +34,7 @@ public class GravityWell
     public float Strength {
         get
         {
-            return _strength * Launcher.ActiveUniverse.Player.ShipStats.ThrustForce * GravityWell.GravityThrustRatio;
+            return _strength * Launcher.ActiveUniverse.Player.ShipType.ThrustForce * GravityWell.GravityThrustRatio;
         }
         private set
         {

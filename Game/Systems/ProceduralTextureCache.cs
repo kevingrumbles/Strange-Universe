@@ -11,11 +11,14 @@ public sealed class ProceduralTextureCache : IDisposable
 
     public void Register(string id, Texture2D texture)
     {
-        if (_textures.TryGetValue(id, out var existing))
+        if (id is not null)
         {
-            existing.Dispose();
+            if (_textures.TryGetValue(id, out var existing))
+            {
+                existing.Dispose();
+            }
+            _textures[id] = texture;
         }
-        _textures[id] = texture;
     }
 
     public Texture2D Get(string id) =>

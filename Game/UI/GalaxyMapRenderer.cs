@@ -1,19 +1,21 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Systems;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strange_Universe.Game.Systems;
+namespace Strange_Universe.Game.UI;
 
 /// <summary>
 /// Handles all drawing for the Galaxy Map overlay.
-/// Operates entirely in screen space — no camera transform applied.
+/// Operates entirely in screen space - no camera transform applied.
 /// </summary>
 public class GalaxyMapRenderer
 {
-    // ── Layout ────────────────────────────────────────────────────────────
+    // -- Layout ------------------------------------------------------------
     private const int   PanelPadding   = 60;    // space between screen edge and map panel
     private const int   NodeRadius     = 8;
     private const int   CurrentRing    = 14;    // ring radius around current system
@@ -24,7 +26,7 @@ public class GalaxyMapRenderer
     private const float LabelOffsetY   = -8f;
     private const float LabelScale     = 0.65f; // render system names smaller than the base font
 
-    // ── Colours ───────────────────────────────────────────────────────────
+    // -- Colours -----------------------------------------------------------
     private static readonly Color BgColor         = new Color(4,  8, 20)  * 0.92f;
     private static readonly Color LineColor        = new Color(60, 90, 130) * 0.7f;
     private static readonly Color ReachableLineC   = new Color(80, 160, 220) * 0.55f;
@@ -39,28 +41,27 @@ public class GalaxyMapRenderer
     private static readonly Color CloseXColor      = new Color(220, 100, 80);
     private static readonly Color PanelBorderC     = new Color(60,  80, 120) * 0.8f;
 
-    private readonly SpriteBatch _sb;
+    private SpriteBatch _sb => Launcher.RenderService.SpriteBatch;
     private readonly Texture2D   _pixel;
     private readonly SpriteFont  _font;
 
-    // Computed each Draw call — shared between helpers
+    // Computed each Draw call - shared between helpers
     private int    _panelX, _panelY, _panelW, _panelH;
     private float  _scaleX, _scaleY;
     private Vector2 _galaxyMin, _galaxyMax;
 
-    public GalaxyMapRenderer(SpriteBatch spriteBatch, GraphicsDevice gd, SpriteFont font)
+    public GalaxyMapRenderer(SpriteFont font)
     {
-        _sb   = spriteBatch;
         _font = font;
 
-        _pixel = new Texture2D(gd, 1, 1);
+        _pixel = new Texture2D(Launcher.GD, 1, 1);
         _pixel.SetData(new[] { Color.White });
     }
 
-    // ── Public entry point ────────────────────────────────────────────────
+    // -- Public entry point ------------------------------------------------
 
     /// <summary>
-    /// Draw the full overlay.  SpriteBatch must NOT have been begun — this method
+    /// Draw the full overlay.  SpriteBatch must NOT have been begun - this method
     /// begins and ends its own batch (no transform, alpha blend).
     /// Returns the screen-space centre of each node so GalaxyMapInput can do hit tests.
     /// </summary>
@@ -72,7 +73,7 @@ public class GalaxyMapRenderer
     {
         ComputeLayout(universe, screenW, screenH);
 
-        _sb.Begin(blendState: BlendState.AlphaBlend);
+        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
 
         DrawBackground(screenW, screenH);
         var positions = ComputeNodeScreenPositions(universe);
@@ -82,8 +83,6 @@ public class GalaxyMapRenderer
         DrawLabels(universe, positions);
         DrawJumpTargetHint(universe, screenW, screenH);
         DrawCloseButton(screenW, screenH);
-
-        _sb.End();
 
         return positions;
     }
@@ -104,7 +103,7 @@ public class GalaxyMapRenderer
         return new Rectangle(x, y, buttonWidth, buttonHeight);
     }
 
-    // ── Layout helpers ────────────────────────────────────────────────────
+    // -- Layout helpers ----------------------------------------------------
 
     private void ComputeLayout(Universe universe, int screenW, int screenH)
     {
@@ -160,7 +159,7 @@ public class GalaxyMapRenderer
         return result;
     }
 
-    // ── Draw helpers ──────────────────────────────────────────────────────
+    // -- Draw helpers ------------------------------------------------------
 
     private void DrawBackground(int screenW, int screenH)
     {
@@ -395,7 +394,7 @@ public class GalaxyMapRenderer
             CloseXColor);
     }
 
-    // ── Pixel-art primitives ──────────────────────────────────────────────
+    // -- Pixel-art primitives ----------------------------------------------
 
     /// <summary>Bresenham line using 1×1 pixel draws.</summary>
     private void DrawLine(Vector2 a, Vector2 b, Color color)
@@ -469,5 +468,6 @@ public class GalaxyMapRenderer
     public void Dispose()
     {
         _pixel?.Dispose();
+        _sb?.Dispose();
     }
 }

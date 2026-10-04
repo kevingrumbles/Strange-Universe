@@ -1,13 +1,13 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse.Game.Components;
+using Strange_Universe.Game.Components;
 using System;
 using System.Text.Json.Serialization;
-using static StrangeUniverse.StaticHelpers;
+using static Strange_Universe.NameGenerator;
 
-namespace StrangeUniverse.Game.Entities;
+namespace Strange_Universe.Game.Entities;
 
 public class Planet
 {
@@ -52,14 +52,14 @@ public class Planet
     public Planet(string planetId, float minPlanetRadius, float maxPlanetRadius, float minOrbit, float maxOrbit, int planetNumber, int totalPlanets)
     {
         Id = planetId;
-        Random planetRng = new Random(StaticHelpers.SeedHash(Id));
-        Name = StaticHelpers.GenerateCelestialName(StaticHelpers.CelestialNameType.Planet, random: planetRng);
+        Random planetRng = new Random(ProceduralHelpers.SeedHash(Id));
+        Name = NameGenerator.GenerateCelestialName(CelestialNameType.Planet, random: planetRng);
 
         int PlanetTypes = ((PlanetType[])Enum.GetValues(typeof(PlanetType))).Length;
         Type = (PlanetType)planetRng.Next(PlanetTypes);  
         Radius = MathHelper.Lerp(minPlanetRadius, maxPlanetRadius, (float)planetRng.NextDouble());
 
-        var tex = Generate(Launcher.GD, Type, StaticHelpers.SeedHash(Id));
+        var tex = Generate(Launcher.GD, Type, ProceduralHelpers.SeedHash(Id));
         Launcher.TextureCache.Register(Id, tex);
 
         float orbit = MathHelper.Lerp(minOrbit, maxOrbit,

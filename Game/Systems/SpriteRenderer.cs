@@ -1,8 +1,8 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse;
-using StrangeUniverse.Game.Entities;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 
@@ -14,22 +14,18 @@ namespace Strange_Universe.Game.Systems;
 /// </summary>
 public class SpriteRenderer
 {
-    private readonly SpriteBatch           _spriteBatch;
-    private readonly ProceduralTextureCache _cache;
+    private SpriteBatch _spriteBatch => Launcher.RenderService.SpriteBatch;
     private readonly Texture2D             _pixel;      // 1×1 white texture for dots
     private readonly SpriteFont            _font;       // Font for HUD text
 
-    public SpriteRenderer(SpriteBatch spriteBatch, GraphicsDevice gd, ProceduralTextureCache cache, SpriteFont font)
+    public SpriteRenderer(SpriteFont font)
     {
-        _spriteBatch = spriteBatch;
-        _cache       = cache;
         _font        = font;
-
-        _pixel = new Texture2D(gd, 1, 1);
+        _pixel = new Texture2D(Launcher.GD, 1, 1);
         _pixel.SetData(new[] { Color.White });
     }
 
-    // ── World-space pass (SpriteBatch already began with camera matrix) ──────
+    // -- World-space pass (SpriteBatch already began with camera matrix) ------
 
     /// <summary>
     /// Draws an infinite scrolling nebula background using a seamless tileable texture.
@@ -38,12 +34,14 @@ public class SpriteRenderer
     public void DrawNebula(string nebulaId, int screenWidth, int screenHeight, 
                           Vector2 cameraPos, float cameraZoom, bool debugMode = false)
     {
-        if (!_cache.TryGet(nebulaId, out var tex) || tex is null) return;
+        if (!Launcher.TextureCache.TryGet(nebulaId, out var tex) || tex is null) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
 
         int textureSize = tex.Width; // Should be 4096 from Nebula.Size
 
         // Apply parallax (slower movement than camera for depth)
-        const float parallax = StrangeUniverse.Game.Entities.Nebula.ParallaxFactor;
+        const float parallax = Strange_Universe.Game.Entities.Nebula.ParallaxFactor;
         float parallaxOffsetX = cameraPos.X * parallax;
         float parallaxOffsetY = cameraPos.Y * parallax;
 
@@ -93,6 +91,8 @@ public class SpriteRenderer
     {
         // Background stars render in screen space and maintain constant appearance
         // regardless of zoom level. They provide atmosphere without cluttering the view.
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
 
         // Define the base tile size for background stars (matches typical screen resolution)
         const float tileWidth = 1920f;
@@ -165,7 +165,9 @@ public class SpriteRenderer
     /// <summary>Draws any entity that has a position, rotation, scale, and texture ID.</summary>
     public void DrawEntity(string textureId, Vector2 position, float rotation, float radius)
     {
-        if (!_cache.TryGet(textureId, out var tex) || tex is null) return;
+        if (!Launcher.TextureCache.TryGet(textureId, out var tex) || tex is null) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
 
         float scale = radius * 2f / Math.Max(tex.Width, tex.Height);
         var origin  = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
@@ -180,18 +182,129 @@ public class SpriteRenderer
     public void DrawPlanet(Planet planet) =>
         DrawEntity(planet.Id, planet.Position, planet.Rotation, planet.Radius);
 
-    public void DrawAsteroid(Asteroid asteroid) =>
-        DrawEntity(asteroid.TextureId, asteroid.Position, asteroid.Rotation, asteroid.Radius);
+    public void DrawAsteroid(Asteroid asteroid)
+    {
+        // A destroyed asteroid lingers only to play out its debris.
+        if (!asteroid.IsDestroyed)
+            DrawEntity(asteroid.TextureId, asteroid.Position, asteroid.Rotation, asteroid.Radius);
 
-    public void DrawPlayer(Player player) =>
-            DrawEntity(player.ShipName, player.Position,
-                       player.Rotation + player.ShipStats.SpriteRotationOffset,
-                       player.Radius * 2.2f * player.ShipStats.SpriteScale);
+        foreach (var shard in asteroid.Shards)
+            DrawShard(shard);
+    }
 
-    public void DrawNPC(Nonplayer npc) =>
-            DrawEntity(npc.ShipName, npc.Position,
-                       npc.Rotation + npc.ShipStats.SpriteRotationOffset,
-                       npc.Radius * 2.2f * npc.ShipStats.SpriteScale);
+    /// <summary>Draws a single asteroid fragment, fading out as it expires.</summary>
+    private void DrawShard(AsteroidShard shard)
+    {
+        if (!Launcher.TextureCache.TryGet(shard.TextureId, out var tex) || tex is null) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+
+        float scale = shard.Radius * 2f / Math.Max(tex.Width, tex.Height);
+        var origin  = new Vector2(tex.Width * 0.5f, tex.Height * 0.5f);
+
+        _spriteBatch.Draw(tex, shard.Position, null, Color.White * shard.Alpha,
+            shard.Rotation, origin, scale, SpriteEffects.None, 0f);
+    }
+
+    public void DrawPlayer(Player player)
+    {
+        DrawEntity(player.ShipType.ShipTypeName, player.Position,
+                   player.Rotation + player.ShipType.SpriteRotationOffset,
+                   player.Radius * 2.2f * player.ShipType.SpriteScale);
+
+        DrawShipImpacts(player);
+    }
+
+    public void DrawNPC(Nonplayer npc)
+    {
+        DrawEntity(npc.ShipType.ShipTypeName, npc.Position,
+                   npc.Rotation + npc.ShipType.SpriteRotationOffset,
+                   npc.Radius * 2.2f * npc.ShipType.SpriteScale);
+
+        DrawShipImpacts(npc);
+    }
+
+    /// <summary>
+    /// Draws a ship's active hit visuals: shield flares, hull scorch flashes and
+    /// blasted hull fragments.
+    /// </summary>
+    private void DrawShipImpacts(Ship ship)
+    {
+        if (ship.Impacts.Count == 0 && ship.Debris.Count == 0) return;
+
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+
+        foreach (var impact in ship.Impacts)
+        {
+            if (impact.ShieldHit)
+                DrawShieldArc(ship, impact);
+            else
+                DrawHullFlash(impact);
+        }
+
+        foreach (var debris in ship.Debris)
+        {
+            float size = Math.Max(1f, debris.Size);
+
+            _spriteBatch.Draw(_pixel, debris.Position, null,
+                debris.Color * debris.Alpha,
+                debris.Rotation,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(size, size),
+                SpriteEffects.None, 0f);
+        }
+    }
+
+    /// <summary>
+    /// Draws a curved glow hugging the shield surface, brightest at the point of
+    /// impact and tapering toward the edges of the arc.
+    /// </summary>
+    private void DrawShieldArc(Ship ship, ShipImpact impact)
+    {
+        const int Segments = 18;
+
+        // Flares outward slightly then fades as it dissipates.
+        float expand = 1f + impact.Progress * 0.12f;
+        float radius = impact.Radius * expand;
+        float alpha  = impact.Alpha * impact.Alpha;
+
+        float step = (impact.ArcWidth * 2f) / Segments;
+        float start = impact.Angle - impact.ArcWidth;
+
+        for (int i = 0; i < Segments; i++)
+        {
+            float a1 = start + step * i;
+            float a2 = start + step * (i + 1);
+
+            // Taper toward the arc edges so the flare peaks at the impact point.
+            float mid   = (a1 + a2) * 0.5f;
+            float t     = Math.Abs(mid - impact.Angle) / Math.Max(impact.ArcWidth, 0.0001f);
+            float taper = 1f - (t * t);
+
+            if (taper <= 0.01f) continue;
+
+            Vector2 p1 = ship.Position + new Vector2(MathF.Cos(a1), MathF.Sin(a1)) * radius;
+            Vector2 p2 = ship.Position + new Vector2(MathF.Cos(a2), MathF.Sin(a2)) * radius;
+
+            // Wide soft band underneath, tight bright core on top.
+            DrawLineF(p1, p2, impact.Color * (alpha * taper * 0.35f), 7f);
+            DrawLineF(p1, p2, impact.Color * (alpha * taper), 2.5f);
+        }
+    }
+
+    /// <summary>Draws the brief scorch flash left by an unshielded hit.</summary>
+    private void DrawHullFlash(ShipImpact impact)
+    {
+        float size  = impact.Radius * (1f + impact.Progress);
+        float alpha = impact.Alpha * impact.Alpha;
+
+        _spriteBatch.Draw(_pixel, impact.Position, null,
+            impact.Color * alpha,
+            impact.Angle,
+            new Vector2(0.5f, 0.5f),
+            new Vector2(size, size),
+            SpriteEffects.None, 0f);
+    }
 
     /// <summary>
     /// Draws a circle outline (ring) for debug visualization.
@@ -199,6 +312,8 @@ public class SpriteRenderer
     /// </summary>
     public void DrawDebugCircle(Vector2 center, float radius, Color color, int segments = 32)
     {
+        Launcher.RenderService.Begin(BatchMode.WorldAlpha, Launcher.Camera.GetTransformMatrix());
+
         float angleStep = MathHelper.TwoPi / segments;
         for (int i = 0; i < segments; i++)
         {
@@ -235,10 +350,30 @@ public class SpriteRenderer
             0);
     }
 
-    // ── HUD pass (no camera transform) ───────────────────────────────────────
+    /// <summary>
+    /// Draws a line between two points at sub-pixel precision. Used for smooth
+    /// curves where the integer-rectangle overload would leave gaps.
+    /// </summary>
+    private void DrawLineF(Vector2 start, Vector2 end, Color color, float thickness)
+    {
+        Vector2 edge = end - start;
+        float length = edge.Length();
+        if (length <= 0.0001f) return;
+
+        float angle = MathF.Atan2(edge.Y, edge.X);
+
+        _spriteBatch.Draw(_pixel, start, null, color, angle,
+            new Vector2(0f, 0.5f),
+            new Vector2(length, thickness),
+            SpriteEffects.None, 0f);
+    }
+
+    // -- HUD pass (no camera transform) ---------------------------------------
 
     public void DrawSpeedBar(Player player, int screenWidth, int screenHeight, float maxSpeed)
     {
+        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
+
         // Speed bar in bottom-left
         float speed     = player.Speed;
         float barW      = 140;
@@ -255,10 +390,12 @@ public class SpriteRenderer
             fillColor * 0.8f);
     }
 
-    // ── HUD ───────────────────────────────────────────────────────────────
+    // -- HUD ---------------------------------------------------------------
 
     public void DrawHud(Universe universe, int screenWidth, int screenHeight)
     {
+        Launcher.RenderService.Begin(BatchMode.ScreenAlpha);
+
         const int MapSize = 180;
         const int Margin  = 14;
         const int Border  = 1;
@@ -269,7 +406,7 @@ public class SpriteRenderer
         float halfMap   = MapSize * 0.5f;
         float scale     = halfMap / universe.ActiveStarSystem.SystemRadius;   // world unit → minimap pixel
 
-        // ── Local helpers ────────────────────────────────────────────────────
+        // -- Local helpers ----------------------------------------------------
 
         // Converts a world-space position to a screen-space position on the minimap.
         Vector2 WorldToMap(Vector2 world) => new(
@@ -286,23 +423,23 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(x, y, size, size), color);
         }
 
-        // ── HUD Panel Background ─────────────────────────────────────────────
+        // -- HUD Panel Background ---------------------------------------------
         _spriteBatch.Draw(_pixel,
             new Rectangle(mapLeft, mapTop, MapSize, hudPanelHeight),
             new Color(0, 5, 18) * 0.84f);
 
-        // ── Minimap Background (darker inset within panel) ──────────────────
+        // -- Minimap Background (darker inset within panel) ------------------
         _spriteBatch.Draw(_pixel,
             new Rectangle(mapLeft, mapTop, MapSize, MapSize),
             new Color(0, 5, 18) * 0.95f);
 
-        // ── Asteroids (drawn first — smallest, dimmest) ───────────────────
+        // -- Asteroids (drawn first - smallest, dimmest) -------------------
         foreach (var asteroid in universe.ActiveStarSystem.Asteroids)
             Dot(WorldToMap(asteroid.Position), 1, new Color(85, 85, 90, 170));
 
-        // ── Planets ───────────────────────────────────────────────────────
+        // -- Planets -------------------------------------------------------
         foreach (var planet in universe.ActiveStarSystem.Planets)
-            Dot(WorldToMap(planet.Position), 4, StaticHelpers.PlanetMinimapColor(planet.Type));
+            Dot(WorldToMap(planet.Position), 4, ProceduralHelpers.PlanetMinimapColor(planet.Type));
 
         // Stars
         foreach (var star in universe.ActiveStarSystem.Stars)
@@ -313,37 +450,54 @@ public class SpriteRenderer
             Dot(starMap,  3, Color.White * 0.90f);          // bright core
         }
 
-        // ── Player ────────────────────────────────────────────────────────
+        // -- Player --------------------------------------------------------
             Vector2 playerMap = WorldToMap(universe.Player.Position);
             Dot(playerMap, 4, new Color(55, 215, 255));                // cyan body
 
-            // Heading pip — white dot ahead of the player indicating facing direction
+            // Heading pip - white dot ahead of the player indicating facing direction
             Vector2 pip = playerMap + universe.Player.Forward * 5f;
             Dot(pip, 2, Color.White);
 
-        // ── NPCs ──────────────────────────────────────────────────────────
+        // -- NPCs ----------------------------------------------------------
         foreach (var npc in universe.ActiveStarSystem.Npcs)
         {
             Vector2 npcMap = WorldToMap(npc.Position);
             Dot(npcMap, 3, new Color(255, 180, 80));  // orange body for NPCs
         }
 
-        // ── Minimap Border (drawn to separate minimap from HUD info) ────
+        // -- Target Highlight -----------------------------------------------------
+        if (universe.Player.Target != null && universe.Player.IsTargetValid(universe.Player.Target))
+        {
+            Vector2 targetMap = WorldToMap(universe.Player.Target.Position);
+
+            // Draw pulsing highlight rings around the target
+            float pulseTime = (float)(DateTime.Now.Millisecond / 1000.0);
+            float pulse = 0.5f + 0.5f * MathF.Sin(pulseTime * MathF.PI * 4f); // Pulse between 0.5 and 1.0
+
+            // Outer ring (larger, dimmer)
+            Dot(targetMap, 10, new Color(255, 50, 50) * (0.3f + pulse * 0.3f));
+            // Middle ring
+            Dot(targetMap, 8, new Color(255, 100, 100) * (0.5f + pulse * 0.3f));
+            // Inner highlight (brightest)
+            Dot(targetMap, 6, new Color(255, 150, 150) * (0.7f + pulse * 0.3f));
+        }
+
+        // -- Minimap Border (drawn to separate minimap from HUD info) ----
         Color border = Color.White * 0.30f;
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    MapSize, Border),  border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop + MapSize - Border, MapSize, Border),  border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,              mapTop,                    Border,  MapSize), border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border, mapTop,              Border,  MapSize), border);
 
-        // ── HUD Panel Border (outer border for entire panel) ────────────
+        // -- HUD Panel Border (outer border for entire panel) ------------
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop,                             MapSize, Border),           border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop + hudPanelHeight - Border,   MapSize, Border),           border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft,                      mapTop,                             Border,  hudPanelHeight),   border);
         _spriteBatch.Draw(_pixel, new Rectangle(mapLeft + MapSize - Border,   mapTop,                             Border,  hudPanelHeight),   border);
 
-        // ── HUD Content Layout ──────────────────────────────────────────────
+        // -- HUD Content Layout ----------------------------------------------
         int currentY = mapTop + MapSize + 12;
-        const int SectionSpacing = 15;
+        const int SectionSpacing = 3;
         const int BarHeight = 12;
         const int BarSpacing = 8;
         const int ContentMargin = 10;
@@ -386,7 +540,7 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(barX + barWidth - 1, barY, 1, BarHeight), border);
         }
 
-        // ── Player Status Bars ───────────────────────────────────────────────
+        // -- Player Status Bars -----------------------------------------------
         // Shields (placeholder: 75%)
         DrawBar("SHIELDS", universe.Player.CurrentShieldPercentage, 100f, new Color(100, 150, 255), currentY);
         currentY += 14 + BarHeight + BarSpacing;
@@ -399,11 +553,11 @@ public class SpriteRenderer
         DrawBar("FUEL", universe.Player.CurrentFuelPercentage, 100f, new Color(255, 200, 50), currentY);
         currentY += 14 + BarHeight + SectionSpacing;
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Jump Target Display (no label) ───────────────────────────────────
+        // -- Jump Target Display (no label) -----------------------------------
         if (universe.JumpRoute.Count > 0)
         {
             string targetSystemId = universe.JumpRoute[0];
@@ -439,11 +593,11 @@ public class SpriteRenderer
             currentY += (int)textSize.Y + SectionSpacing;
         }
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Secondary Weapon Display (no label) ──────────────────────────────
+        // -- Secondary Weapon Display (no label) ------------------------------
         string weaponText = "No Secondary Weapon";
         Vector2 weaponSize = _font.MeasureString(weaponText) * FontScale;
         _spriteBatch.DrawString(_font, weaponText, 
@@ -451,23 +605,65 @@ public class SpriteRenderer
             new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
         currentY += (int)weaponSize.Y + SectionSpacing;
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Selection Display (no label) ─────────────────────────────────────
-        string selectionText = "Nothing Selected";
-        Vector2 selectionSize = _font.MeasureString(selectionText) * FontScale;
-        _spriteBatch.DrawString(_font, selectionText, 
-            new Vector2(mapLeft + ContentMargin, currentY), 
-            new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
-        currentY += (int)selectionSize.Y + SectionSpacing;
+        // -- Selection Display (no label) -------------------------------------
+        const int SelectionSectionHeight = 80;
 
-        // ── Section Divider ──────────────────────────────────────────────────
+        if (universe.Player.Target != null && universe.Player.IsTargetValid(universe.Player.Target))
+        {
+            var target = universe.Player.Target;
+
+            // Splash art -- centered in the panel, filling most of the section height
+            const int SplashSize = 72;
+            int splashX = mapLeft + (MapSize - SplashSize) / 2;
+            int splashY = currentY + (SelectionSectionHeight - SplashSize) / 2;
+            if (Launcher.TextureCache.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
+            {
+                float splashScale = (float)SplashSize / Math.Max(splashTex.Width, splashTex.Height);
+                var splashOrigin = new Vector2(splashTex.Width * 0.5f, splashTex.Height * 0.5f);
+                var splashCenter = new Vector2(splashX + SplashSize * 0.5f, splashY + SplashSize * 0.5f);
+                _spriteBatch.Draw(splashTex,
+                    splashCenter, null, Color.White * 0.85f,
+                    -MathF.PI, splashOrigin, splashScale, SpriteEffects.FlipVertically, 0f);
+            }
+
+            // Name -- centered horizontally, flush to top of section, drawn over splash
+            string nameText = target.Name ?? "Unknown";
+            Vector2 nameSize = _font.MeasureString(nameText) * FontScale;
+            float nameX = mapLeft + (MapSize - nameSize.X) / 2f;
+            _spriteBatch.DrawString(_font, nameText,
+                new Vector2(nameX, currentY + 1),
+                new Color(220, 220, 220), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+
+            // Hull -- bottom left, flush to bottom of section, drawn over splash
+            string hullText = $"Hull: {target.CurrentHullPercentage:F0}%";
+            Vector2 hullSize = _font.MeasureString(hullText) * FontScale;
+            float hullY = currentY + SelectionSectionHeight - hullSize.Y - 1;
+            _spriteBatch.DrawString(_font, hullText,
+                new Vector2(mapLeft + ContentMargin, hullY),
+                new Color(100, 220, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+        }
+        else
+        {
+            // Nothing selected -- vertically center the label in the fixed-height section
+            string selectionText = "Nothing Selected";
+            Vector2 selectionSize = _font.MeasureString(selectionText) * FontScale;
+            float labelY = currentY + (SelectionSectionHeight - selectionSize.Y) / 2f;
+            _spriteBatch.DrawString(_font, selectionText,
+                new Vector2(mapLeft + ContentMargin, labelY),
+                new Color(100, 100, 100), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+        }
+
+        currentY += SelectionSectionHeight + SectionSpacing;
+
+        // -- Section Divider --------------------------------------------------
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // ── Player Stats Display (no label) ──────────────────────────────────
+        // -- Player Stats Display (no label) ----------------------------------
         string[] stats = new[]
         {
             "Speed: 450 m/s",

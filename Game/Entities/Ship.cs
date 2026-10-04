@@ -1,15 +1,14 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Game.Systems;
-using StrangeUniverse;
-using StrangeUniverse.Game.Components;
-using StrangeUniverse.Game.Entities;
+using Strange_Universe;
+using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Entities;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
-using static StrangeUniverse.StaticHelpers;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -18,20 +17,31 @@ namespace Strange_Universe.Game.Entities;
 /// Contains shared functionality: movement, physics, rendering, ship statistics, and resources.
 /// Does not contain player input or AI logic.
 /// </summary>
-public abstract class Ship
+public abstract partial class Ship
 {
-    public string ShipName { get; set; }
+    private ShipStats _shipType;
+
+    /// <summary>
+    /// Only <see cref="ShipStats.ShipTypeName"/> is persisted, so on assignment the
+    /// full preset is resolved by name to restore the remaining stats.
+    /// </summary>
+    public ShipStats ShipType
+    {
+        get => _shipType;
+        set => _shipType = value is null ? null : ShipStats.FromName(value.ShipTypeName);
+    }
+
+    public string Name { get; set; }
     public int? CurrentHullStrength { get; set; } = null;
     public int? CurrentShieldStrength { get; set; } = null;
     public int? CurrentFuelLevel { get; set; } = null;
-    [JsonIgnore] public bool HasActiveNavTask => ActiveNavTask is not null;
-    [JsonIgnore] private NavTask ActiveNavTask { get; set; } = null;
-    [JsonIgnore] private Queue<NavTask> NavTaskQueue { get; set; } = new Queue<NavTask>();
+    [JsonConverter(typeof(EquipmentListConverter))]
+    public List<Equipment> Equipment { get; set; } = new();
+    [JsonIgnore] public List<Equipment> PrimaryWeapons { get => Equipment.Where(e => e.PrimaryWeapon).ToList(); }
     [JsonIgnore] public string Id { get; set; }
-    [JsonIgnore] public string Name { get; set; }
+    [JsonIgnore] public Ship Target { get; set; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.CalculateGravityAtLocation(Transform.Position);
-    [JsonIgnore] public ShipStats ShipStats { get; set; } = new();
-    [JsonIgnore] public float Radius { get => CalculateRadius() ; }
+    [JsonIgnore] public float Radius => ShipType.Radius;
     [JsonIgnore] public StarSystem StarSystem { get { return Launcher.ActiveUniverse.ActiveStarSystem; } }
     [JsonIgnore] private PhysicsBody Physics { get; set; }
     private Transform Transform { get; set; } = new();
@@ -60,10 +70,10 @@ public abstract class Ship
         get => Transform.Forward;
     }
     [JsonIgnore] public float Speed => Velocity.Length();
-    [JsonIgnore] public float MaxSpeed => CalculateMaxSpeed();
-    [JsonIgnore] public int MaxHullStrength => CalculateMaxHull();
-    [JsonIgnore] public int MaxShieldStrength => CalculateMaxShield();
-    [JsonIgnore] public int MaxFuelLevel => CalculateMaxFuel();
+    [JsonIgnore] public float MaxSpeed => ShipType.MaxSpeed;
+    [JsonIgnore] public int MaxHullStrength => ShipType.MaxHull;
+    [JsonIgnore] public int MaxShieldStrength => ShipType.MaxShield;
+    [JsonIgnore] public int MaxFuelLevel => ShipType.MaxFuel;
     [JsonIgnore] public float CurrentHullPercentage => CurrentHullStrength.HasValue && MaxHullStrength > 0 
         ? (float)CurrentHullStrength.Value / MaxHullStrength * 100f 
         : 0f;
@@ -76,25 +86,49 @@ public abstract class Ship
     [JsonIgnore] public float MandevilleRadius => StarSystem == null ? 0f : StarSystem.MandevilleRadius;
     [JsonIgnore] public float DistanceFromSystemCenter => DistanceTo(Vector2.Zero);
 
-    protected Ship(string shipName)
+    protected Ship(string name, string shipType)
     {
-        ShipStats = ShipStats.GetShipStats(shipName);
-        ShipName = shipName ?? ShipStats.ShipName;
+        Name = name;
+        ShipType = ShipStats.FromName(shipType);
 
         Physics = new PhysicsBody
         {
-            Mass = CalculateMass(),
+            Mass = ShipType.Mass,
         };
     }
 
     /// <summary>
+    /// Parameterless constructor used by System.Text.Json. Physics state is created
+    /// here because <see cref="Physics"/> is not persisted.
+    /// </summary>
+    protected Ship()
+    {
+        Physics = new PhysicsBody();
+    }
+
+    /// <summary>
     /// Loads the ship's sprite texture and registers it in the texture cache.
+    /// Also loads the splash art (portrait) used in the HUD target panel,
+    /// falling back to the standard sprite if no splash art is defined or found.
     /// </summary>
     public virtual void Generate()
     {
-        var tex = ArtLoader.TryLoad(Launcher.GD, ShipStats.SpriteName);
-        Launcher.TextureCache.Register(ShipStats.ShipName, tex);
+        // Mass depends on ShipType and Equipment, which are not available to the
+        // JSON constructor, so it is (re)computed once everything is populated.
+        Physics.Mass = ShipType.Mass;
+
+        var tex = ArtLoader.TryLoad(Launcher.GD, ShipType.SpriteName);
+        Launcher.TextureCache.Register(ShipType.ShipTypeName, tex);
+
+        // Splash art -- fall back to the standard sprite if not provided or not found
+        Texture2D splashTex = null;
+        if (!string.IsNullOrEmpty(ShipType.SplashName))
+            splashTex = ArtLoader.TryLoad(Launcher.GD, ShipType.SplashName);
+        Launcher.TextureCache.Register(SplashArtKey, splashTex ?? tex);
     }
+
+    /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>
+    [JsonIgnore] public string SplashArtKey => $"splash_{ShipType.ShipTypeName}";
 
     /// <summary>
     /// Applies thrust force in the ship's current facing direction.
@@ -103,7 +137,7 @@ public abstract class Ship
     /// </summary>
     public void ApplyThrust(float deltaTime)
     {
-        Vector2 thrustForce = Forward * ShipStats.ThrustForce;
+        Vector2 thrustForce = Forward * ShipType.ThrustForce;
         float currentSpeed = Velocity.Length();
 
         if (currentSpeed > 0f)
@@ -114,9 +148,9 @@ public abstract class Ship
             // Only reduce thrust that would push speed higher (positive parallel component)
             if (parallelMag > 0f)
             {
-                float softStart = ShipStats.MaxSpeed * ShipStats.SoftCapStart;
+                float softStart = ShipType.MaxSpeed * ShipType.SoftCapStart;
 
-                if (currentSpeed >= ShipStats.MaxSpeed)
+                if (currentSpeed >= ShipType.MaxSpeed)
                 {
                     // At or above max: strip the forward component entirely.
                     // The ship can still turn — lateral thrust is unaffected.
@@ -125,7 +159,7 @@ public abstract class Ship
                 else if (currentSpeed > softStart)
                 {
                     // Soft zone: linearly fade the forward component to zero.
-                    float t = (currentSpeed - softStart) / (ShipStats.MaxSpeed - softStart);
+                    float t = (currentSpeed - softStart) / (ShipType.MaxSpeed - softStart);
                     thrustForce -= velDir * (parallelMag * t);
                 }
                 // Below softStart: full thrust, no reduction
@@ -142,8 +176,12 @@ public abstract class Ship
     /// </summary>
     public bool RotateTowards(float targetAngle, float deltaTime, float threshold = float.MaxValue)
     {
-        float diff = StaticHelpers.WrapAngle(targetAngle - Transform.Rotation);
-        float maxDelta = ShipStats.RotationSpeed * deltaTime;
+        if (float.IsNaN(targetAngle) || float.IsInfinity(targetAngle)) return false;
+        if (float.IsNaN(Transform.Rotation) || float.IsInfinity(Transform.Rotation))
+            Transform.Rotation = 0f;
+
+        float diff = MathHelpers.WrapAngle(targetAngle - Transform.Rotation);
+        float maxDelta = ShipType.RotationSpeed * deltaTime;
 
         if (Math.Abs(diff) <= Math.Min(maxDelta, threshold))
         {
@@ -163,10 +201,10 @@ public abstract class Ship
         switch (d)
         {
             case Direction.Left:
-                Transform.Rotation -= ShipStats.RotationSpeed * deltaTime;
+                Transform.Rotation -= ShipType.RotationSpeed * deltaTime;
                 break;
             case Direction.Right:
-                Transform.Rotation += ShipStats.RotationSpeed * deltaTime;
+                Transform.Rotation += ShipType.RotationSpeed * deltaTime;
                 break;
             default:
                 break;
@@ -179,68 +217,135 @@ public abstract class Ship
     /// </summary>
     public void Update(float deltaTime)
     {
-        if (ActiveNavTask is not null)
+        UpdateImpactEffects(deltaTime);
+
+        // Clear target if it becomes invalid
+        if (Target != null && !IsTargetValid(Target))
         {
-            ActiveNavTask.Update(deltaTime);
-            switch (ActiveNavTask.CurrentState)
-            {
-                case TaskState.Complete:
-                    if (ActiveNavTask is JumpTask jumpTask && StarSystem.SystemId == jumpTask._targetSystemId)
-                    {
-                        Launcher.ActiveUniverse.JumpRoute.Remove(jumpTask._targetSystemId);
-                        CurrentFuelLevel--;
-                    }
-                    ActiveNavTask = null;
-                    break;
-                case TaskState.Invalid:
-                    ActiveNavTask = null;
-                    break;
-            }
-        }
-        if (ActiveNavTask is null && NavTaskQueue.Count > 0)
-        {
-            ActiveNavTask = NavTaskQueue.Dequeue();
+            ClearTarget();
         }
 
-        // Apply gravitational forces from celestial bodies
+        UpdateNavigation(deltaTime);
+
+        // Apply gravitational forces
         // Gravity is not capped by MaxSpeed - it can push ships beyond their normal limits
         Physics.ApplyForce(StarSystem.CalculateGravityAtLocation(Transform.Position), deltaTime);
         Physics.Integrate(Transform, deltaTime);
-    }
-    public void EnqueueNavTask(NavTask task)
-    {
-        NavTaskQueue.Enqueue(task);
+
+        if (!MathHelpers.IsFinite(Velocity))
+            Velocity = Vector2.Zero;
+        if (!MathHelpers.IsFinite(Position))
+            Position = Vector2.Zero;
+        if (!float.IsFinite(Transform.Rotation))
+            Transform.Rotation = 0f;
+
+        // Advance weapon cooldowns
+        foreach (Equipment weapon in PrimaryWeapons)
+            weapon.UpdateCooldown(deltaTime);
     }
 
-    #region Ship Stats Calculations
-    private float CalculateMass()
+    /// <summary>
+    /// Fires all installed weapons
+    /// to the current StarSystem's Projectiles list.
+    /// </summary>
+    public void FireWeapons()
     {
-        return ShipStats.Mass;
+        if (StarSystem == null)
+            return;
+
+        foreach (Equipment weapon in PrimaryWeapons)
+        {
+            float attackSpeedBonus   = CalculateBaseAttackSpeed();
+            float attackRangeBonus   = CalculateBaseAttackRange();
+            float accuracyBonus      = CalculateBaseAccuracyBonus();
+            Projectile projectile = weapon.TryFire(this, attackSpeedBonus, attackRangeBonus, accuracyBonus);
+            if (projectile != null)
+                StarSystem.Projectiles.Add(projectile);
+        }
     }
 
-    private int CalculateMaxHull()
+    /// <summary>
+    /// Applies an incoming projectile, depleting shields first and then hull.
+    /// Destruction is handled by the owning system once <see cref="IsDestroyed"/> is observed.
+    /// </summary>
+    public void ApplyDamage(Projectile projectile)
     {
-        return ShipStats.MaxHull;
+        if (projectile == null || IsDestroyed)
+            return;
+
+        // Captured before damage lands so the effect reflects the shield state
+        // that actually took the hit.
+        bool shieldWasUp = CurrentShieldStrength is > 0;
+
+        ApplyDamage(projectile.Damage, projectile.Owner);
+        SpawnImpactEffect(projectile, shieldWasUp);
     }
 
-    private int CalculateMaxShield()
+    /// <summary>
+    /// Applies raw damage, depleting shields first and then hull.
+    /// </summary>
+    public void ApplyDamage(int damage, Ship source = null)
     {
-        return ShipStats.MaxShield;
+        if (damage <= 0 || IsDestroyed)
+            return;
+
+        int remaining = damage;
+
+        if (CurrentShieldStrength is > 0)
+        {
+            int absorbed = Math.Min(CurrentShieldStrength.Value, remaining);
+            CurrentShieldStrength -= absorbed;
+            remaining             -= absorbed;
+        }
+
+        if (remaining > 0 && CurrentHullStrength.HasValue)
+            CurrentHullStrength = Math.Max(0, CurrentHullStrength.Value - remaining);
+
+        LastDamageSource = source;
     }
 
-    private int CalculateMaxFuel()
+    /// <summary>True once the hull has been fully depleted.</summary>
+    [JsonIgnore] public bool IsDestroyed => CurrentHullStrength is <= 0;
+
+    /// <summary>The most recent ship to damage this one. Used for kill attribution.</summary>
+    [JsonIgnore] public Ship LastDamageSource { get; private set; }
+
+    #region Equipment Bonuses
+    private float CalculateBaseAttackSpeed()
     {
-        return ShipStats.MaxFuel;
+        float baseAttackSpeed = 0f; // Additive attacks-per-second bonus from utility gear
+        foreach (var equipment in Equipment)
+        {
+            if (equipment.EquipmentType == EquipmentType.Utility)
+            {
+                baseAttackSpeed += equipment.FireRate ?? 0f;
+            }
+        }
+        return baseAttackSpeed;
     }
 
-    private float CalculateRadius()
+    private float CalculateBaseAttackRange()
     {
-        return ShipStats.Radius;
+        float baseAttackRange = 0f; // Additive attack-range bonus from utility gear
+        foreach (var equipment in Equipment)
+        {
+            if (equipment.EquipmentType == EquipmentType.Utility)
+            {
+                baseAttackRange += equipment.Range ?? 0f;
+            }
+        }
+        return baseAttackRange;
     }
-    
-    private float CalculateMaxSpeed()
+
+    private float CalculateBaseAccuracyBonus()
     {
-        return ShipStats.MaxSpeed;
+        float bonus = 0f; // Additive accuracy bonus from utility gear
+        foreach (var equipment in Equipment)
+        {
+            if (equipment.EquipmentType == EquipmentType.Utility)
+                bonus += equipment.Accuracy ?? 0f;
+        }
+        return bonus;
     }
     #endregion
     #region Sensors
@@ -251,6 +356,93 @@ public abstract class Ship
     {
         return Vector2.Distance(Transform.Position, position);
     }
+
+    #region Targeting
+    /// <summary>
+    /// Sets the current target. Does not allow targeting self.
+    /// </summary>
+    public void SetTarget(Ship target)
+    {
+        if (target == this)
+            return;
+
+        Target = target;
+    }
+
+    /// <summary>
+    /// Clears the current target.
+    /// </summary>
+    public void ClearTarget()
+    {
+        Target = null;
+    }
+
+    /// <summary>
+    /// Gets the nearest ship in the current system, excluding self.
+    /// </summary>
+    public Ship GetNearestTarget()
+    {
+        if (StarSystem == null)
+            return null;
+
+        var allShips = GetAllShipsInSystem();
+        Ship nearest = null;
+        float nearestDistance = float.MaxValue;
+
+        foreach (var ship in allShips)
+        {
+            if (ship == this)
+                continue;
+
+            float distance = DistanceTo(ship.Position);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = ship;
+            }
+        }
+
+        return nearest;
+    }
+
+    /// <summary>
+    /// Checks if a target is valid (not null, not self, still in system).
+    /// </summary>
+    public bool IsTargetValid(Ship target)
+    {
+        if (target == null || target == this)
+            return false;
+
+        if (StarSystem == null)
+            return false;
+
+        var allShips = GetAllShipsInSystem();
+        return allShips.Contains(target);
+    }
+
+    /// <summary>
+    /// Gets all ships in the current system (NPCs and player).
+    /// </summary>
+    private List<Ship> GetAllShipsInSystem()
+    {
+        var ships = new List<Ship>();
+
+        if (StarSystem == null)
+            return ships;
+
+        // Add all NPCs
+        ships.AddRange(StarSystem.Npcs);
+
+        // Add player
+        if (StarSystem.ActivePlayer != null)
+        {
+            ships.Add(StarSystem.ActivePlayer);
+        }
+
+        return ships;
+    }
+    #endregion
+
     /// <summary>
     /// Gets all nearby ships within sensor range.
     /// </summary>

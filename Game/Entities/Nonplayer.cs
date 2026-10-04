@@ -1,7 +1,7 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
 using Strange_Universe.Game.NavSystem;
-using StrangeUniverse.Game.Entities;
+using Strange_Universe.Game.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
@@ -20,10 +20,9 @@ public class Nonplayer : Ship
     [JsonIgnore] public bool Remove { get; set; }
 
 
-    public Nonplayer(string npcId, string shipName = "Shuttle", string npcName = "NPC", bool jumpSpawn = false) : base(shipName)
+    public Nonplayer(string npcId, string shipType = "Shuttle", string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType)
     {
         Id = npcId;
-        Name = npcName;
         if (jumpSpawn)
         {
             EnqueueNavTask(new JumpTask(this, currentState: TaskState.SystemTranslation));
@@ -32,6 +31,12 @@ public class Nonplayer : Ship
         {
             EnqueueNavTask(new SpawnTask(this));
         }
+    }
+
+    /// <summary>Used by System.Text.Json when loading a saved universe.</summary>
+    [JsonConstructor]
+    public Nonplayer() : base()
+    {
     }
 
     public new void Update(float deltaTime)

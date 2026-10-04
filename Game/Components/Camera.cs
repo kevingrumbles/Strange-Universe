@@ -11,25 +11,27 @@ public class Camera
     public Vector2 Position     { get; private set; }
     public float   Zoom         { get; private set; }
     public Vector2 ScreenCenter { get; private set; }
+    public float DefaultZoom { get; set; } = 1.0f;
+    public float MinZoom { get; set; } = 0.04f;
+    public float MaxZoom { get; set; } = 5.0f;
+    public float ZoomSpeed { get; set; } = 0.12f;
 
-    private readonly CameraSettings _settings;
-
-    public Camera(CameraSettings settings, int screenWidth, int screenHeight)
+    public Camera(int screenWidth, int screenHeight)
     {
-        _settings    = settings;
-        Zoom         = settings.DefaultZoom;
+        Zoom = DefaultZoom;
         ScreenCenter = new Vector2(screenWidth * 0.5f, screenHeight * 0.5f);
     }
 
     public void Update(Vector2 target, float deltaTime, InputState input)
     {
-        Position = target;
+        if (float.IsFinite(target.X) && float.IsFinite(target.Y))
+            Position = target;
 
         // Zoom
         if (input.ZoomIn)
-            Zoom = MathHelper.Clamp(Zoom + Zoom * _settings.ZoomSpeed, _settings.MinZoom, _settings.MaxZoom);
+            Zoom = MathHelper.Clamp(Zoom + Zoom * ZoomSpeed, MinZoom, MaxZoom);
         if (input.ZoomOut)
-            Zoom = MathHelper.Clamp(Zoom - Zoom * _settings.ZoomSpeed, _settings.MinZoom, _settings.MaxZoom);
+            Zoom = MathHelper.Clamp(Zoom - Zoom * ZoomSpeed, MinZoom, MaxZoom);
     }
 
     /// <summary>Returns the SpriteBatch transform matrix for world-space drawing.</summary>

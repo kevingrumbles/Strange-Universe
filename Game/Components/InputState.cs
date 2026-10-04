@@ -11,4 +11,7 @@ public class InputState
     public bool OpenMap     { get; set; }
     public bool Jump        { get; set; }
     public bool Exit        { get; set; }
+    public bool TargetNearest { get; set; }
+    public bool CycleTarget   { get; set; }
+    public bool Fire          { get; set; }
 }

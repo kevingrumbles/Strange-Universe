@@ -1,7 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
-using StrangeUniverse.Game.Entities;
 using System;
 using System.Collections.Generic;
 
@@ -19,13 +18,13 @@ namespace Strange_Universe.Game.EventSystem
         {
             foreach (Planet p in system.Planets)
             {
-                Nonplayer npc = new Nonplayer(npcId:$"Npc_defender_{system.Npcs.Count+1}");
+                Nonplayer npc = new Nonplayer(npcId:$"Npc_defender_{system.Npcs.Count+1}", shipType: "Shuttle", jumpSpawn: false, npcName: $"Defending Shuttle");
                 npc.EnqueueNavTask(new GuardTask(npc, p.Position, p.Radius * 2));
                 system.Npcs.Add(npc);
             }
             for (int i = 0; i < 5; i++)
             {
-                Nonplayer npc = new Nonplayer(npcId: $"Npc_patroler_{system.Npcs.Count + 1}",jumpSpawn: true);
+                Nonplayer npc = new Nonplayer(npcId: $"Npc_patroler_{system.Npcs.Count + 1}", shipType: "Shuttle",jumpSpawn: true, npcName: $"Patrolling Shuttle");
 
                 // Generate random patrol points outside the asteroid belt
                 List<Vector2> patrolPoints = new List<Vector2>();

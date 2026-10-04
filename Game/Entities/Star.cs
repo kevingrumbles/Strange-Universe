@@ -1,11 +1,11 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Entities;
-using StrangeUniverse.Game.Components;
+using Strange_Universe.Game.Components;
 using System;
 using System.Text.Json.Serialization;
 
-namespace StrangeUniverse.Game.Entities;
+namespace Strange_Universe.Game.Entities;
 
 public class Star
 {
@@ -59,7 +59,7 @@ public class Star
         OrbitRadius = orbitRadius;
         OrbitAngle = orbitAngle;
         OrbitSpeed = orbitSpeed;
-        Random starRng = new Random(StaticHelpers.SeedHash($"{Id}_{Name}"));
+        Random starRng = new Random(ProceduralHelpers.SeedHash($"{Id}_{Name}"));
 
 
         // Create gravity well based on star size
@@ -107,7 +107,7 @@ public class Star
                 float rayContrib = 0f;
                 foreach (float ra in rayAngles)
                 {
-                    float angleDiff = Math.Abs(StaticHelpers.StarDeltaAngle(angle, ra));
+                    float angleDiff = Math.Abs(MathHelpers.StarDeltaAngle(angle, ra));
                     float rayWidth = 0.04f + normDist * 0.03f;
                     if (angleDiff < rayWidth)
                     {

@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using Microsoft.Xna.Framework;
 
-namespace StrangeUniverse.Game.Components;
+namespace Strange_Universe.Game.Components;
 
 /// <summary>Stores world position, rotation (radians), and uniform scale for any entity.</summary>
 public class Transform

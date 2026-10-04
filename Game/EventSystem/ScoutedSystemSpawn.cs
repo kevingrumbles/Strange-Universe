@@ -1,8 +1,7 @@
 ﻿using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
-using StrangeUniverse;
-using StrangeUniverse.Game.Entities;
+using Strange_Universe;
 using System;
 using System.Collections.Generic;
 
@@ -20,7 +19,7 @@ namespace Strange_Universe.Game.EventSystem
         {
             for (int i = 0; i < 1; i++)
             {
-                Nonplayer npc = new Nonplayer(npcId: $"Npc_patroler_{system.Npcs.Count + 1}", jumpSpawn: true);
+                Nonplayer npc = new Nonplayer(npcId: $"Npc_patroler_{system.Npcs.Count + 1}", shipType: "Shuttle", jumpSpawn: true, npcName: $"Patrolling Shuttle");
 
                 // Generate random patrol points outside the asteroid belt
                 List<Vector2> patrolPoints = new List<Vector2>();

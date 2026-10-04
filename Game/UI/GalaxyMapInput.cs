@@ -1,10 +1,10 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Strange_Universe.Game.Entities;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Strange_Universe.Game.Systems;
+namespace Strange_Universe.Game.UI;
 
 /// <summary>
 /// Handles mouse hit-detection and selection logic for the Galaxy Map.

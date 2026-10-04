@@ -1,12 +1,11 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.EventSystem;
 using Strange_Universe.Game.NavSystem;
-using StrangeUniverse;
-using StrangeUniverse.Game.Components;
-using StrangeUniverse.Game.Entities;
-using StrangeUniverse.Game.Systems;
+using Strange_Universe;
+using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Systems;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,7 +40,7 @@ public class StarSystemNode
     public StarSystemNode() { }
     public StarSystemNode(Vector2 position, StarSystemNode backConnection = null)
     {
-        Name = StaticHelpers.GetStarSystemName(Universe.Seed);
+        Name = NameGenerator.GetStarSystemName(Universe.Seed);
         SystemId = $"{Universe.Seed}_{Name}";
         GalaxyPosition = position;
 
@@ -85,12 +84,13 @@ public class StarSystem
     [JsonIgnore] public List<Planet>         Planets         { get; }      = new();
     [JsonIgnore] public List<Asteroid>       Asteroids       { get; }      = new();
     [JsonIgnore] public List<BackgroundStar> BackgroundStars { get; }      = new();
-    [JsonIgnore] public List<Nonplayer>            Npcs            { get; }      = new();
+    [JsonIgnore] public List<Nonplayer> Npcs            { get; }      = new();
+    [JsonIgnore] public List<Projectile> Projectiles     { get; }      = new();
     [JsonIgnore] public string        NebulaId        { get; private set; }
 
     private readonly EventController _eventController;
-    private readonly PhysicsSystem   _physics   = new();
     private readonly CollisionSystem _collision = new();
+    private readonly ProjectileCollisionSystem _projectileCollision = new();
 
     public StarSystem() 
     {
@@ -104,7 +104,7 @@ public class StarSystem
         Node.Discovered = true;
 
         _eventController = new EventController(this);
-        Random _systemRandom = new Random(StaticHelpers.SeedHash(Node.SystemId));
+        Random _systemRandom = new Random(ProceduralHelpers.SeedHash(Node.SystemId));
         PlanetCount = _systemRandom.Next(0, 7);
         AsteroidCount = _systemRandom.Next(0, 120);
         StarCount = _systemRandom.Next(1, 3);
@@ -189,7 +189,8 @@ public class StarSystem
         _eventController.Update(deltaTime);
 
         UpdateStarOrbits(deltaTime);
-        _physics.Update(Asteroids, deltaTime);
+        foreach (var asteroid in Asteroids)
+            asteroid.Update(deltaTime);
 
         // Player collisions with static objects
         _collision.Resolve(ActivePlayer, Planets, Asteroids);
@@ -202,6 +203,20 @@ public class StarSystem
 
         // Ship-to-ship collisions (player vs NPCs and NPC vs NPC)
         _collision.ResolveShipToShip(ActivePlayer, Npcs);
+
+        // Move projectiles, then test for impacts before despawning.
+        foreach (var projectile in Projectiles)
+            projectile.Update(deltaTime);
+
+        _projectileCollision.Resolve(Projectiles, ActivePlayer, Npcs, Asteroids, deltaTime);
+
+        // Remove projectiles that expired or struck something
+        Projectiles.RemoveAll(p => p.IsExpired);
+
+        // Sweep up anything destroyed by this frame's impacts.
+        // Asteroids linger until their debris has finished playing.
+        Asteroids.RemoveAll(a => a.IsGone);
+        Npcs.RemoveAll(npc => npc.Remove || npc.IsDestroyed);
     }
 
     private void UpdateStarOrbits(float deltaTime)
@@ -221,7 +236,7 @@ public class StarSystem
 
     private void GenerateConnections()
     {
-        Random rng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Connections"));
+        Random rng = new Random(ProceduralHelpers.SeedHash($"{Node.SystemId}_Connections"));
 
         List<Point> directions = ProceduralHelpers.GalaxyConnectionPreferredDirections.ToList();
 
@@ -342,12 +357,12 @@ public class StarSystem
         for (int i = 0; i < StarCount; i++)
         {
             string starId = $"{Node.SystemId}_Star_{i}";
-            Random starRandom = new Random(StaticHelpers.SeedHash(starId));
-            Color starColor = StaticHelpers.StarColors[starRandom.Next(StaticHelpers.StarColors.Length)];
+            Random starRandom = new Random(ProceduralHelpers.SeedHash(starId));
+            Color starColor = ProceduralHelpers.StarColors[starRandom.Next(ProceduralHelpers.StarColors.Length)];
             string name = null;
             while (name is null || Stars.Contains(Stars.Find(s => s.Name == name)))
             {
-                name = StaticHelpers.GenerateCelestialName(StaticHelpers.CelestialNameType.Star, random: starRandom);
+                name = NameGenerator.GenerateCelestialName(CelestialNameType.Star, random: starRandom);
             }
             
             float initialAngle = MathHelper.TwoPi * i / StarCount;
@@ -392,7 +407,7 @@ public class StarSystem
     private void GenerateAsteroids()
     {
         // Pre-generate a small palette of asteroid textures and reuse them
-        Random asteroidsRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Asteroids"));
+        Random asteroidsRng = new Random(ProceduralHelpers.SeedHash($"{Node.SystemId}_Asteroids"));
         const int PaletteSize = 15;
         var paletteIds = new string[PaletteSize];
         for (int i = 0; i < PaletteSize; i++)
@@ -416,7 +431,7 @@ public class StarSystem
 
     private void GenerateBackgroundStars()
     {
-        Random backgroundStarsRng = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_BackgroundStars"));
+        Random backgroundStarsRng = new Random(ProceduralHelpers.SeedHash($"{Node.SystemId}_BackgroundStars"));
 
         // Positions are in virtual space that matches the tile size used for parallax scrolling
         // Must match tileWidth and tileHeight in SpriteRenderer.DrawBackgroundStars
@@ -440,7 +455,7 @@ public class StarSystem
 
     private void GenerateNebula()
     {
-        Random nebulaRandom = new Random(StaticHelpers.SeedHash($"{Node.SystemId}_Nebula"));
+        Random nebulaRandom = new Random(ProceduralHelpers.SeedHash($"{Node.SystemId}_Nebula"));
 
         // Select a nebula from the pool deterministically
         var pool = Node.Universe.NebulaPool;

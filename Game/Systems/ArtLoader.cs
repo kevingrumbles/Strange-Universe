@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using Microsoft.Xna.Framework.Graphics;
 
 namespace Strange_Universe.Game.Systems;
@@ -17,13 +17,15 @@ public static class ArtLoader
     /// </summary>
     public static Texture2D TryLoad(GraphicsDevice gd, string relativePath)
     {
-        if (!File.Exists(relativePath))
+        string fullPath = Strange_Universe.Persistence.ResolveDataPath(relativePath);
+
+        if (!File.Exists(fullPath))
         {
-            System.Console.WriteLine($"[ArtLoader] File not found: {relativePath}");
+            System.Console.WriteLine($"[ArtLoader] File not found: {fullPath}");
             return null;
         }
 
-        using var stream = File.OpenRead(relativePath);
+        using var stream = File.OpenRead(fullPath);
         return Texture2D.FromStream(gd, stream);
     }
 }
