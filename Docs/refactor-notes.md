@@ -311,3 +311,12 @@ None needed. There is no production behavior change.
 ### Open questions
 
 - Should the golden fingerprint include `NebulaId` going forward?
+
+### Follow-up (maintainer request): wait for the nebula instead of drawing without it
+
+- `Universe` now holds one `Task<Nebula>` per pool slot. `GenerateNebulaPool()` starts any slot not already started, so calling it again on each jump/`Regenerate` no longer starts duplicate loops (this also covers Phase 2 step 2).
+- Entering a system (`ActiveStarSystem` creating the system) calls `WaitForNebula(NebulaId)`. It blocks on that slot's task and uploads it on the main thread before the system is returned, so a system is never drawn without its nebula. Other finished slots are still uploaded each frame in `Update`.
+- Headless (`_assets == null`), the wait is skipped.
+- Removed the old "first nebula synchronous" path and the `ConcurrentQueue`.
+- **Behavior change:** if a system is entered before its nebula has finished generating (mainly right after launch, or a fast jump early in a session), the game pauses until it is ready. Previously it showed no nebula until it was ready (Phase 1) or picked a different one (before Phase 1). Startup cost is about the same as before: one nebula, as before.
+- Test: `EnteringSystem_WaitsForItsNebula`. This test generates real nebula pixels, so the full test run now takes about 28 s.

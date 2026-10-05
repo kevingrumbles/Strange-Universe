@@ -52,6 +52,7 @@ public class Universe : IDisposable
                 }
                 _activeStarSystem = new StarSystem(currentSystemNode, this, _assets);
                 Player.StarSystem = _activeStarSystem;
+                WaitForNebula(_activeStarSystem.NebulaId);
             }
             return _activeStarSystem;
         }
@@ -82,8 +83,10 @@ public class Universe : IDisposable
     [JsonIgnore]
     public IMessageSink Messages { get; private set; } = NullMessageSink.Instance;
 
-    // Nebulae finished on a background thread, waiting to be uploaded on the main thread.
-    private readonly ConcurrentQueue<Nebula> _pendingNebulae = new();
+    // One background generation task per pool slot, started at most once per launch.
+    // Results are uploaded on the main thread (UploadFinishedNebulae / WaitForNebula).
+    private readonly Task<Nebula>[] _nebulaTasks = new Task<Nebula>[NebulaPoolSize];
+    private readonly bool[] _nebulaUploaded = new bool[NebulaPoolSize];
     private volatile bool _disposed;
 
     /// <summary>Shared nebula textures generated once per universe launch. Each StarSystem samples a crop of one of these.</summary>
@@ -133,7 +136,7 @@ public class Universe : IDisposable
 
     public void Update(float deltaTime, InputState input)
     {
-        DrainPendingNebulae();
+        UploadFinishedNebulae();
 
         ActiveStarSystem.Update(deltaTime, input);
     }
@@ -154,49 +157,59 @@ public class Universe : IDisposable
     /// </summary>
     public void Regenerate() => Generate(_assets, Messages);
 
+    /// <summary>
+    /// Starts background generation of every pool slot not already started. Safe to call
+    /// repeatedly (e.g. on every jump): each slot is generated at most once per launch.
+    /// </summary>
     public void GenerateNebulaPool()
     {
-        // Generate first nebula synchronously so game can start
-        if (NebulaPool.Count < NebulaPoolSize)
-        {
-            var nebula = new Nebula(NebulaPoolId(Seed, NebulaPool.Count));
-            UploadNebula(nebula);
-        }
-
-        // Generate remaining nebulae asynchronously in the background
-        _ = GenerateRemainingNebulaPoolAsync();
+        for (int i = 0; i < NebulaPoolSize; i++)
+            StartNebula(i);
     }
 
     /// <summary>
-    /// Computes pixel data on background threads only. Textures, the texture cache and
-    /// <see cref="NebulaPool"/> are touched exclusively on the main thread in
-    /// <see cref="DrainPendingNebulae"/>, because MonoGame has no synchronization
-    /// context and await continuations would otherwise run on the thread pool.
+    /// Pixel data is computed on the thread pool only. Textures, the texture cache and
+    /// <see cref="NebulaPool"/> are touched exclusively on the main thread, because MonoGame
+    /// has no synchronization context.
     /// </summary>
-    private async Task GenerateRemainingNebulaPoolAsync()
+    private Task<Nebula> StartNebula(int index)
     {
-        int start = NebulaPool.Count;
-        for (int i = start; i < NebulaPoolSize && !_disposed; i++)
+        string id = NebulaPoolId(Seed, index);
+        return _nebulaTasks[index] ??= Task.Run(() => new Nebula(id));
+    }
+
+    /// <summary>
+    /// Blocks until the nebula <paramref name="nebulaId"/> is generated and uploaded, so a system
+    /// never renders without its nebula. Main thread only. No-op without assets (headless/tests).
+    /// </summary>
+    private void WaitForNebula(string nebulaId)
+    {
+        if (_assets == null || nebulaId == null) return;
+
+        for (int i = 0; i < NebulaPoolSize; i++)
         {
-            int index = i;
-            var nebula = await Task.Run(() => new Nebula(NebulaPoolId(Seed, index)));
+            if (NebulaPoolId(Seed, i) != nebulaId) continue;
+            if (_nebulaUploaded[i]) return;
 
-            if (_disposed)
-                return;
-
-            _pendingNebulae.Enqueue(nebula);
+            StartNebula(i).Wait();
+            UploadNebula(i);
+            return;
         }
     }
 
-    /// <summary>Uploads finished nebulae to the GPU. Main thread only.</summary>
-    private void DrainPendingNebulae()
+    /// <summary>Uploads nebulae whose background generation has finished. Main thread only.</summary>
+    private void UploadFinishedNebulae()
     {
-        while (_pendingNebulae.TryDequeue(out var nebula))
-            UploadNebula(nebula);
+        for (int i = 0; i < NebulaPoolSize; i++)
+            if (!_nebulaUploaded[i] && _nebulaTasks[i]?.IsCompletedSuccessfully == true)
+                UploadNebula(i);
     }
 
-    private void UploadNebula(Nebula nebula)
+    private void UploadNebula(int index)
     {
+        if (_disposed) return;
+        var nebula = _nebulaTasks[index].Result;
+        _nebulaUploaded[index] = true;
         _assets?.RegisterNebula(nebula);
         NebulaPool.Add(nebula);
     }
@@ -206,7 +219,6 @@ public class Universe : IDisposable
         _disposed = true;
 
         // Nebula textures are owned by the render-side texture cache; only drop data here.
-        _pendingNebulae.Clear();
         NebulaPool.Clear();
     }
 }

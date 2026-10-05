@@ -102,6 +102,20 @@ public class GenerationCharacterizationTests
     }
 
     [Fact]
+    public void EnteringSystem_WaitsForItsNebula()
+    {
+        var universe = new Universe("Char", Seed);
+        var assets = new RecordingAssetRequests();
+        universe.Generate(assets);
+
+        var system = universe.ActiveStarSystem;
+
+        Assert.Contains(("RegisterNebula", system.NebulaId), assets.Calls);
+        Assert.Contains(universe.NebulaPool, n => n.Id == system.NebulaId);
+        universe.Dispose();
+    }
+
+    [Fact]
     public void ConstructingSameSystemTwice_DoesNotChangeUniverse()
     {
         var (universe, node) = BuildUniverse();
