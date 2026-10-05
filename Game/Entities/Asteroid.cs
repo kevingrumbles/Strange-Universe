@@ -74,6 +74,12 @@ public class Asteroid
 
     private static readonly Random _impactRng = new();
 
+    /// <summary>
+    /// Strength of the pull toward the system centre (G*M). Chosen at spawn so the
+    /// initial tangential speed gives a circular orbit; impact kicks make it elliptical.
+    /// </summary>
+    private readonly float _orbitMu;
+
     /// <summary>True once the asteroid's hull has been fully depleted.</summary>
     [JsonIgnore] public bool IsDestroyed => CurrentHullStrength <= 0;
 
@@ -274,9 +280,20 @@ public class Asteroid
             (float)Math.Cos(perpAngle) * speed,
             (float)Math.Sin(perpAngle) * speed);
         AngularVelocity = MathHelper.Lerp(-0.4f, 0.4f, (float)asteroidsRng.NextDouble());
+
+        // Circular orbit: v^2 / r = mu / r^2  =>  mu = v^2 * r
+        _orbitMu = speed * speed * orbit;
     }
     public void Update(float deltaTime)
     {
+        // Semi-implicit Euler: update velocity from the central pull, then position.
+        float r2 = Position.LengthSquared();
+        if (_orbitMu > 0f && r2 > 1f)
+        {
+            float r = MathF.Sqrt(r2);
+            Velocity -= Position / r * (_orbitMu / r2 * deltaTime);
+        }
+
         Physics.Integrate(Transform, deltaTime);
 
         for (int i = Shards.Count - 1; i >= 0; i--)
