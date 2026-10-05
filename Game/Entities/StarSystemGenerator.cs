@@ -183,11 +183,15 @@ public static class StarSystemGenerator
 
     private static void SelectNebula(StarSystem s)
     {
-        Random nebulaRandom = new Random(ProceduralHelpers.SeedHash($"{s.SystemId}_Nebula"));
-
         // Index into the fixed pool size (not the current fill level, which depends on background
-        // generation timing). The renderer draws nothing until that nebula's texture is uploaded.
-        int index = nebulaRandom.Next(Universe.NebulaPoolSize);
-        s.NebulaId = Universe.NebulaPoolId(s.Universe.Seed, index);
+        // generation timing).
+        s.NebulaId = Universe.NebulaPoolId(s.Universe.Seed, NebulaIndexFor(s.SystemId));
     }
+
+    /// <summary>
+    /// Pool slot used by the system <paramref name="systemId"/>. Pure, so the universe can
+    /// prioritize loading that nebula before the system is built.
+    /// </summary>
+    public static int NebulaIndexFor(string systemId) =>
+        new Random(ProceduralHelpers.SeedHash($"{systemId}_Nebula")).Next(Universe.NebulaPoolSize);
 }

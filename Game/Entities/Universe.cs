@@ -1,4 +1,4 @@
-﻿using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text.Json.Serialization;
+using System.Threading;
 using System.Threading.Tasks;
 using MgVector2 = Microsoft.Xna.Framework.Vector2;
 
@@ -158,24 +159,53 @@ public class Universe : IDisposable
     public void Regenerate() => Generate(_assets, Messages);
 
     /// <summary>
-    /// Starts background generation of every pool slot not already started. Safe to call
-    /// repeatedly (e.g. on every jump): each slot is generated at most once per launch.
+    /// Starts background generation of every pool slot not already started. The nebula of the
+    /// system the player is in is generated first; the rest start only once it has finished, so
+    /// they don't compete with it for CPU. Safe to call repeatedly: each slot is generated at most
+    /// once per launch.
     /// </summary>
     public void GenerateNebulaPool()
     {
+        int? first = CurrentSystemNebulaIndex();
+        if (first is int f)
+        {
+            StartNebula(f).ContinueWith(_ => StartRemainingNebulae(), TaskScheduler.Default);
+            return;
+        }
+        StartRemainingNebulae();
+    }
+
+    private void StartRemainingNebulae()
+    {
+        if (_disposed) return;
         for (int i = 0; i < NebulaPoolSize; i++)
             StartNebula(i);
     }
 
     /// <summary>
+    /// Pool slot of the system the player will enter, using the same fallback as
+    /// <see cref="ActiveStarSystem"/> (Sol, then the first node) without creating anything.
+    /// </summary>
+    private int? CurrentSystemNebulaIndex()
+    {
+        string systemId = Galaxy.FindById(Player?.CurrentStarSystemID)?.SystemId
+            ?? (StarSystemNodes.FirstOrDefault(n => n.Name == "Sol") ?? StarSystemNodes.FirstOrDefault())?.SystemId;
+        return systemId == null ? null : StarSystemGenerator.NebulaIndexFor(systemId);
+    }
+
+    /// <summary>
     /// Pixel data is computed on the thread pool only. Textures, the texture cache and
     /// <see cref="NebulaPool"/> are touched exclusively on the main thread, because MonoGame
-    /// has no synchronization context.
+    /// has no synchronization context. Thread-safe: slots may be started from a continuation.
     /// </summary>
     private Task<Nebula> StartNebula(int index)
     {
         string id = NebulaPoolId(Seed, index);
-        return _nebulaTasks[index] ??= Task.Run(() => new Nebula(id));
+        var created = new Task<Nebula>(() => new Nebula(id));
+        var existing = Interlocked.CompareExchange(ref _nebulaTasks[index], created, null);
+        if (existing != null) return existing;
+        created.Start(TaskScheduler.Default);
+        return created;
     }
 
     /// <summary>
@@ -201,7 +231,7 @@ public class Universe : IDisposable
     private void UploadFinishedNebulae()
     {
         for (int i = 0; i < NebulaPoolSize; i++)
-            if (!_nebulaUploaded[i] && _nebulaTasks[i]?.IsCompletedSuccessfully == true)
+            if (!_nebulaUploaded[i] && Volatile.Read(ref _nebulaTasks[i])?.IsCompletedSuccessfully == true)
                 UploadNebula(i);
     }
 

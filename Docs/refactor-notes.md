@@ -320,3 +320,9 @@ None needed. There is no production behavior change.
 - Removed the old "first nebula synchronous" path and the `ConcurrentQueue`.
 - **Behavior change:** if a system is entered before its nebula has finished generating (mainly right after launch, or a fast jump early in a session), the game pauses until it is ready. Previously it showed no nebula until it was ready (Phase 1) or picked a different one (before Phase 1). Startup cost is about the same as before: one nebula, as before.
 - Test: `EnteringSystem_WaitsForItsNebula`. This test generates real nebula pixels, so the full test run now takes about 28 s.
+
+cd C:\repo\Strange-Universe; git status --short; git log --oneline -2; Select-String -Path Docs\refactor-notes.md -Pattern 'current system''s nebula first' | Measure | % Count; Select-String -Path Tests\GenerationCharacterizationTests.cs -Pattern 'Skip =' | Measure | % Count- New `StarSystemGenerator.NebulaIndexFor(systemId)` (pure). `SelectNebula` uses it, so the slot is unchanged.
+- `Universe.GenerateNebulaPool()` works out the player's system the same way `ActiveStarSystem` does (current id, then Sol, then the first node) without creating anything. It starts that nebula first and starts the other five only after it finishes, so they don't compete for CPU while the player waits on entry.
+- `StartNebula` is now thread-safe (`Interlocked.CompareExchange`), because the remaining slots are started from a continuation.
+- Test: `NebulaIndexFor_MatchesSelectedNebula`. 76/76 pass.
+- Note: the editor's stale copy of `GenerationCharacterizationTests.cs` re-added the Phase 0 `Skip` attributes twice. They were removed again and checked before committing.

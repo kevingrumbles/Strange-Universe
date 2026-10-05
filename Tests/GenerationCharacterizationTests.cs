@@ -116,6 +116,14 @@ public class GenerationCharacterizationTests
     }
 
     [Fact]
+    public void NebulaIndexFor_MatchesSelectedNebula()
+    {
+        var (universe, node) = BuildUniverse();
+        var s = new StarSystem(node, universe, null);
+        Assert.Equal(Universe.NebulaPoolId(Seed, StarSystemGenerator.NebulaIndexFor(node.SystemId)), s.NebulaId);
+    }
+
+    [Fact]
     public void ConstructingSameSystemTwice_DoesNotChangeUniverse()
     {
         var (universe, node) = BuildUniverse();
