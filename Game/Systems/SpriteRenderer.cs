@@ -21,6 +21,9 @@ public class SpriteRenderer
     private readonly Texture2D             _pixel;      // 1�1 white texture for dots
     private readonly SpriteFont            _font;       // Font for HUD text
 
+    /// <summary>Render-side ship hit visuals (shield flares, hull debris).</summary>
+    public ShipImpactEffects ImpactEffects { get; } = new();
+
     public SpriteRenderer(SpriteFont font, GameServices services, RenderService renderService, Camera camera)
     {
         _font        = font;
@@ -236,11 +239,12 @@ public class SpriteRenderer
     /// </summary>
     private void DrawShipImpacts(Ship ship)
     {
-        if (ship.Impacts.Count == 0 && ship.Debris.Count == 0) return;
+        var fx = ImpactEffects.For(ship);
+        if (fx.IsEmpty) return;
 
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
-        foreach (var impact in ship.Impacts)
+        foreach (var impact in fx.Impacts)
         {
             if (impact.ShieldHit)
                 DrawShieldArc(ship, impact);
@@ -248,7 +252,7 @@ public class SpriteRenderer
                 DrawHullFlash(impact);
         }
 
-        foreach (var debris in ship.Debris)
+        foreach (var debris in fx.Debris)
         {
             float size = Math.Max(1f, debris.Size);
 

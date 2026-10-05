@@ -1,6 +1,6 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// A short-lived visual produced when a projectile strikes a ship.

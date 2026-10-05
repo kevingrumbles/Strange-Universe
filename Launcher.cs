@@ -200,6 +200,7 @@ namespace Strange_Universe
             ActiveUniverse = universe;
             _hud.Clear();
             ActiveUniverse.Generate(_services.Assets, _hud);
+            _starsystemRenderer.ImpactEffects.Attach(ActiveUniverse.ActiveStarSystem);
 
             IsMouseVisible = false;
             _state = GameState.Playing;
@@ -252,8 +253,16 @@ namespace Strange_Universe
             }
 
             _hud.Update(deltaTime);
+
+            // Age existing hit visuals before this frame's impacts, so new hits draw at full life
+            // (matches the previous in-Ship ordering).
+            _starsystemRenderer.ImpactEffects.Update(deltaTime);
+
             ActiveUniverse.Update(deltaTime, input);
             Camera.Update(ActiveUniverse.Player.CameraTarget, deltaTime, input);
+
+            // Hit visuals follow the active system (re-subscribes after a jump).
+            _starsystemRenderer.ImpactEffects.Attach(ActiveUniverse.ActiveStarSystem);
 
             // Update projectile particles (must happen after projectiles are moved)
             if (ActiveUniverse.ActiveStarSystem != null)

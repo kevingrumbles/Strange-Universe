@@ -133,6 +133,15 @@ public class StarSystem
         }
     }
 
+    /// <summary>
+    /// Raised when a projectile damages a ship. Arguments: ship hit, projectile, whether shields were up.
+    /// Presentation code subscribes to show hit effects; the simulation keeps no visual state.
+    /// </summary>
+    public event Action<Ship, Projectile, bool> ShipHit;
+
+    internal void RaiseShipHit(Ship ship, Projectile projectile, bool shieldWasUp)
+        => ShipHit?.Invoke(ship, projectile, shieldWasUp);
+
     /// <summary>Adds an NPC to this system and attaches the system to it.</summary>
     public void AddNpc(Nonplayer npc)
     {
