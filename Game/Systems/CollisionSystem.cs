@@ -9,12 +9,21 @@ public class CollisionSystem
 {
     private const float Restitution = 0.35f;
 
+    private readonly GameSettings _settings;
+
+    public CollisionSystem(GameSettings settings = null)
+    {
+        _settings = settings;
+    }
+
+    private bool PlanetCollision => _settings?.PlanetCollision == true;
+
     /// <summary>
     /// Resolves collisions for the player against static objects (planets, asteroids).
     /// </summary>
     public void Resolve(Player player, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
     {
-        if (Launcher.PlanetColision)
+        if (PlanetCollision)
         {
             foreach (var planet in planets)
                 ResolveShipStatic(player, planet.Position, planet.Radius);
@@ -32,7 +41,7 @@ public class CollisionSystem
     /// </summary>
     public void ResolveNPC(Nonplayer npc, IReadOnlyList<Planet> planets, IReadOnlyList<Asteroid> asteroids)
     {
-        if (Launcher.PlanetColision)
+        if (PlanetCollision)
         {
             foreach (var planet in planets)
                 ResolveShipStatic(npc, planet.Position, planet.Radius);

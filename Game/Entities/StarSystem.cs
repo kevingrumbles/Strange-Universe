@@ -49,11 +49,12 @@ public class StarSystem
     [JsonIgnore] public string        NebulaId        { get; internal set; }
 
     private readonly EventController _eventController;
-    private readonly CollisionSystem _collision = new();
+    private readonly CollisionSystem _collision;
     private readonly ProjectileCollisionSystem _projectileCollision = new();
 
     public StarSystem() 
     {
+        _collision = new CollisionSystem();
 
     }
 
@@ -63,6 +64,7 @@ public class StarSystem
         Universe = universe;
         Assets = assets;
         Node.Discovered = true;
+        _collision = new CollisionSystem(universe?.Settings);
 
         _eventController = new EventController(this);
         Spatial = new SystemSpatialQueries(this, random);

@@ -27,16 +27,21 @@ public enum BatchMode
 /// session only when the requested mode (or camera transform) actually changes, so callers
 /// never need to worry about opening or closing batches themselves.
 /// </summary>
-public class RenderService
+public class RenderService : System.IDisposable
 {
     private readonly GraphicsDevice _graphicsDevice;
 
     public RenderService(GraphicsDevice graphicsDevice)
     {
         _graphicsDevice = graphicsDevice;
+        Pixel = new Texture2D(graphicsDevice, 1, 1);
+        Pixel.SetData(new[] { Color.White });
     }
 
     public SpriteBatch SpriteBatch { get; private set; }
+
+    /// <summary>Shared 1x1 white texture for rects, lines and bars. Owned and disposed by this service.</summary>
+    public Texture2D Pixel { get; }
 
     private BatchMode? _activeMode;
     private Matrix _activeTransform;
@@ -105,5 +110,13 @@ public class RenderService
 
         _batchOpen = false;
         _activeMode = null;
+    }
+
+    public void Dispose()
+    {
+        End();
+        SpriteBatch?.Dispose();
+        SpriteBatch = null;
+        Pixel.Dispose();
     }
 }

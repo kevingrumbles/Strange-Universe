@@ -43,7 +43,7 @@ public class GalaxyMapRenderer
 
     private readonly RenderService _renderService;
     private SpriteBatch _sb => _renderService.SpriteBatch;
-    private readonly Texture2D   _pixel;
+    private Texture2D _pixel => _renderService.Pixel;
     private readonly SpriteFont  _font;
 
     // Computed each Draw call - shared between helpers
@@ -55,9 +55,6 @@ public class GalaxyMapRenderer
     {
         _font = font;
         _renderService = renderService;
-
-        _pixel = new Texture2D(graphicsDevice, 1, 1);
-        _pixel.SetData(new[] { Color.White });
     }
 
     // -- Public entry point ------------------------------------------------
@@ -467,9 +464,6 @@ public class GalaxyMapRenderer
         }
     }
 
-    public void Dispose()
-    {
-        _pixel?.Dispose();
-        _sb?.Dispose();
-    }
+    // The pixel and SpriteBatch are shared and owned by RenderService.
+    public void Dispose() { }
 }

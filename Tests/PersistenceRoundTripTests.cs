@@ -63,4 +63,27 @@ public class PersistenceRoundTripTests
             if (File.Exists(tmp)) File.Delete(tmp);
         }
     }
+
+    [Fact]
+    public void CorruptFile_IsBackedUp_AndNotOverwrittenBySave()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"su-corrupt-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(dir);
+        string file = Path.Combine(dir, "universe-settings.json");
+        try
+        {
+            const string garbage = "[{ \"Name\": broken";
+            File.WriteAllText(file, garbage);
+
+            Assert.Empty(Persistence.LoadExisting(file));
+            Assert.Single(Directory.GetFiles(dir, "*.corrupt-*.bak"));
+
+            Persistence.Persist(new Universe("X"), file);
+            Assert.Equal(garbage, File.ReadAllText(file));
+        }
+        finally
+        {
+            Directory.Delete(dir, recursive: true);
+        }
+    }
 }

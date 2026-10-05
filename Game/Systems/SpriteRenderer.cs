@@ -18,7 +18,7 @@ public class SpriteRenderer
     private readonly RenderService _renderService;
     private readonly Camera _camera;
     private SpriteBatch _spriteBatch => _renderService.SpriteBatch;
-    private readonly Texture2D             _pixel;      // 1�1 white texture for dots
+    private Texture2D _pixel => _renderService.Pixel;
     private readonly SpriteFont            _font;       // Font for HUD text
 
     /// <summary>Render-side ship hit visuals (shield flares, hull debris).</summary>
@@ -30,8 +30,6 @@ public class SpriteRenderer
         _services = services;
         _renderService = renderService;
         _camera = camera;
-        _pixel = new Texture2D(services.GraphicsDevice, 1, 1);
-        _pixel.SetData(new[] { Color.White });
     }
 
     // -- World-space pass (SpriteBatch already began with camera matrix) ------
@@ -314,50 +312,6 @@ public class SpriteRenderer
             new Vector2(0.5f, 0.5f),
             new Vector2(size, size),
             SpriteEffects.None, 0f);
-    }
-
-    /// <summary>
-    /// Draws a circle outline (ring) for debug visualization.
-    /// Uses line segments to approximate a circle.
-    /// </summary>
-    public void DrawDebugCircle(Vector2 center, float radius, Color color, int segments = 32)
-    {
-        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
-
-        float angleStep = MathHelper.TwoPi / segments;
-        for (int i = 0; i < segments; i++)
-        {
-            float angle1 = i * angleStep;
-            float angle2 = (i + 1) * angleStep;
-
-            Vector2 p1 = center + new Vector2(
-                MathF.Cos(angle1) * radius,
-                MathF.Sin(angle1) * radius);
-            Vector2 p2 = center + new Vector2(
-                MathF.Cos(angle2) * radius,
-                MathF.Sin(angle2) * radius);
-
-            DrawLine(p1, p2, color, 2f);
-        }
-    }
-
-    /// <summary>
-    /// Draws a line between two points using a stretched pixel.
-    /// </summary>
-    private void DrawLine(Vector2 start, Vector2 end, Color color, float thickness)
-    {
-        Vector2 edge = end - start;
-        float length = edge.Length();
-        float angle = MathF.Atan2(edge.Y, edge.X);
-
-        _spriteBatch.Draw(_pixel,
-            new Rectangle((int)start.X, (int)start.Y, (int)length, (int)thickness),
-            null,
-            color,
-            angle,
-            new Vector2(0, 0.5f),
-            SpriteEffects.None,
-            0);
     }
 
     /// <summary>

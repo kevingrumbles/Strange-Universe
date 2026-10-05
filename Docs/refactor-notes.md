@@ -174,3 +174,52 @@ The test was not blocked by Phase 2, because a `null` `GraphicsDevice` is suppor
 
 - `Launcher.PlanetColision` const is still referenced from `CollisionSystem`.
 - A ship loaded from JSON has a `null` `StarSystem` until the first `Universe.ActiveStarSystem` access. `Universe.Update` does this first.
+
+## Phase 5 - Launcher cleanup and screens
+
+### Result
+
+`Launcher.cs` went from 522 to 104 lines. It now only creates and disposes the shared resources and forwards `Update`/`Draw` to a `ScreenManager`.
+
+### Changes
+
+Added:
+- `Game/Screens/ScreenManager.cs` (`IScreen`, `ScreenManager`)
+- `Game/Screens/ScreenContext.cs` (shared resources, navigation callbacks, rect/text helpers)
+- `Game/Screens/KeyTracker.cs` (detects new key presses; reset in `OnEnter`)
+- `Game/Screens/MenuScreen.cs`, `NamingScreen.cs`, `PlayingScreen.cs`
+- `Game/Systems/WorldRenderer.cs` (layer order)
+- `Game/Systems/DebugRenderer.cs` (gravity wells; new: asteroid/player/NPC hitbox circles)
+- `Game/Systems/GameSettings.cs` (`ShowDebug`, `PlanetCollision`)
+
+Modified:
+- `Launcher.cs`: rewritten. `GameState`, `debug` and `PlanetColision` were removed.
+- `RenderService`: owns a shared 1x1 `Pixel` and is now `IDisposable` (SpriteBatch + pixel).
+- `SpriteRenderer`, `GalaxyMapRenderer`: use `RenderService.Pixel`. `DrawDebugCircle` was moved to `DebugRenderer`. `GalaxyMapRenderer.Dispose` no longer disposes the shared SpriteBatch.
+- `CollisionSystem`: reads `GameSettings` (planet collision still off by default).
+- `StarSystem`, `Universe`: settings are passed through `[JsonIgnore] Universe.Settings`, so nothing serialized changed.
+- `Persistence`: parse failures are logged (stderr + `Trace`) and the bad file is copied to `<file>.corrupt-<timestamp>.bak`. Save and remove refuse to overwrite a file that can't be parsed. Writes go to a `.tmp` file that then replaces the original. The file format is unchanged.
+
+Resource lifetime: `LoadContent` calls `CreateResources()`, and `UnloadContent` calls `DisposeResources()`. Each play session's resources are created in `PlayingScreen.OnEnter`. `PlayingScreen.OnExit` saves the universe and disposes them. Both exit-to-menu and closing the window go through `OnExit`.
+
+### Tests
+
+65/65 pass. One test was added: `CorruptFile_IsBackedUp_AndNotOverwrittenBySave`.
+
+### Manual smoke test
+
+**Not performed by the agent** (no interactive display). Please verify:
+1. Menu: Up/Down/Enter/Delete work, and Esc quits.
+2. Naming: typing and backspace work, Esc goes back to the menu, and Enter creates the universe and starts it.
+3. Play: Esc returns to the menu, and the same Esc press does **not** also quit from the menu.
+4. Galaxy map: M opens it, and Esc, M or the close button closes it. Closing it with Esc does **not** also exit to the menu.
+5. Leave play and re-enter (same or a different universe). Textures are recreated and nothing crashes on dispose.
+6. Close the window during play. The universe is saved.
+
+### Open questions
+
+- Every save and delete still rewrites the whole file. Avoiding that would mean changing the file format (for example, one file per universe). Do you want that?
+- `ShowDebug` has no key binding. Should one be added (for example F3)?
+- Hitbox circles in debug mode are new (they only show in debug mode).
+- This file has no Phase 2-4 sections; those phases were only reported in chat.
+- Resolves the Phase 1 deferred item: `Launcher.PlanetColision` is gone.
