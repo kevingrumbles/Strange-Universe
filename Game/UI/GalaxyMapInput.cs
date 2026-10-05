@@ -38,7 +38,7 @@ public class GalaxyMapInput
             ? universe.JumpRoute[^1] 
             : currentId;
 
-        var lastNode = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == lastRouteSystem);
+        var lastNode = universe.Galaxy.FindById(lastRouteSystem);
         var reachableConnections = lastNode?.SystemConnectionIds ?? new HashSet<string>();
 
         // Hover: find the closest reachable node within hit radius

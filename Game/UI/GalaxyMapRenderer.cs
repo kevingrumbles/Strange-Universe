@@ -245,7 +245,7 @@ public class GalaxyMapRenderer
         string lastRouteSystem = universe.JumpRoute.Count > 0 
             ? universe.JumpRoute[^1] 
             : currentId;
-        var lastNode = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == lastRouteSystem);
+        var lastNode = universe.Galaxy.FindById(lastRouteSystem);
         var nextReachable = lastNode?.SystemConnectionIds ?? new HashSet<string>();
 
         foreach (var node in universe.StarSystemNodes)
@@ -327,7 +327,7 @@ public class GalaxyMapRenderer
             string line1 = $"JUMP ROUTE ({universe.JumpRoute.Count} systems)";
 
             // Show first system name
-            var firstNode = universe.StarSystemNodes.FirstOrDefault(n => n.SystemId == universe.JumpRoute[0]);
+            var firstNode = universe.Galaxy.FindById(universe.JumpRoute[0]);
 
 
 

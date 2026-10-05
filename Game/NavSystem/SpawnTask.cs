@@ -24,7 +24,7 @@ namespace Strange_Universe.Game.NavSystem
             switch (CurrentState)
             {
                 case TaskState.Spawning:
-                    Owner.Position = Owner.StarSystem.GetSafeEntryTransform().Position;
+                    Owner.Position = Owner.StarSystem.Spatial.GetSafeEntryTransform().Position;
                     Owner.Velocity = Vector2.Zero; // Reset velocity after spawning
                     CurrentState = TaskState.Complete; // Transition to complete state after spawning
                     break;

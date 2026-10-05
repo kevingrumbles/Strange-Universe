@@ -38,7 +38,7 @@ public abstract partial class Ship
     [JsonIgnore] public List<Equipment> PrimaryWeapons { get => Equipment.Where(e => e.PrimaryWeapon).ToList(); }
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public Ship Target { get; set; }
-    [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.CalculateGravityAtLocation(Transform.Position);
+    [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Transform.Position);
     [JsonIgnore] public float Radius => ShipType.Radius;
     /// <summary>The system this ship is in. Null until attached (see <see cref="Entities.StarSystem.AddNpc"/> / <see cref="Universe"/>).</summary>
     [JsonIgnore] public StarSystem StarSystem { get; set; }
@@ -221,7 +221,7 @@ public abstract partial class Ship
 
         // Apply gravitational forces
         // Gravity is not capped by MaxSpeed - it can push ships beyond their normal limits
-        Physics.ApplyForce(StarSystem.CalculateGravityAtLocation(Transform.Position), deltaTime);
+        Physics.ApplyForce(StarSystem.Spatial.CalculateGravityAtLocation(Transform.Position), deltaTime);
         Physics.Integrate(Transform, deltaTime);
 
         if (!MathHelpers.IsFinite(Velocity))

@@ -40,7 +40,7 @@ public class Universe : IDisposable
                     StarSystemNode defaultNode = new StarSystemNode(Seed, position: new Vector2(0,0), backConnection: null, existingNodes: StarSystemNodes);
                     StarSystemNodes.Add(defaultNode);
                 }
-                StarSystemNode currentSystemNode = StarSystemNodes.FirstOrDefault(s => s.SystemId == Player.CurrentStarSystemID);
+                StarSystemNode currentSystemNode = Galaxy.FindById(Player.CurrentStarSystemID);
                 if (currentSystemNode == null)
                 {
                     // If the player's current star system ID is not found, return the first star system as a fallback.
@@ -54,7 +54,18 @@ public class Universe : IDisposable
         }
     }
 
-    public List<StarSystemNode> StarSystemNodes { get; set; } = new();
+    private List<StarSystemNode> _starSystemNodes = new();
+    private GalaxyGraph _galaxy;
+
+    public List<StarSystemNode> StarSystemNodes
+    {
+        get => _starSystemNodes;
+        set { _starSystemNodes = value ?? new(); _galaxy = null; }
+    }
+
+    /// <summary>Indexed view over <see cref="StarSystemNodes"/> with connection generation.</summary>
+    [JsonIgnore]
+    public GalaxyGraph Galaxy => _galaxy ??= new GalaxyGraph(_starSystemNodes);
 
     private const int NebulaPoolSize = 6;
 

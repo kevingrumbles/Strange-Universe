@@ -25,7 +25,7 @@ namespace Strange_Universe.Game.EventSystem
                 List<Vector2> patrolPoints = new List<Vector2>();
                 for (int j = 0; j < random.Next(3, 6); j++)
                 {
-                    patrolPoints.Add(system.GetRandomSafeLocationOutsideAsteroidBelt());
+                    patrolPoints.Add(system.Spatial.GetRandomSafeLocationOutsideAsteroidBelt());
                 }
 
                 if (patrolPoints.Count == 0)

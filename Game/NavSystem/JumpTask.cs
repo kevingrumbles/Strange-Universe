@@ -20,7 +20,7 @@ namespace Strange_Universe.Game.NavSystem
             _targetSystemId = targetSystemId;
             _originGalaxyPosition = originGalaxyPosition;
             CurrentState = currentState ?? TaskState.MoveToMandeville;
-            if (Owner is Player && (_targetSystemId == null || Owner.StarSystem?.Universe?.StarSystemNodes.FirstOrDefault(n => n.SystemId == _targetSystemId) == null))
+            if (Owner is Player && (_targetSystemId == null || Owner.StarSystem?.Universe?.Galaxy.FindById(_targetSystemId) == null))
             {
                 CurrentState = TaskState.Invalid;
             }
@@ -177,7 +177,7 @@ namespace Strange_Universe.Game.NavSystem
                     }
 
                     // Set ship position at system edge entry point
-                    Owner.Position = Owner.StarSystem.GetSystemEdgeEntryPosition(_originGalaxyPosition);
+                    Owner.Position = Owner.StarSystem.Spatial.GetSystemEdgeEntryPosition(_originGalaxyPosition);
 
                     // Calculate inward direction (toward system center)
                     Vector2 inwardDirection = MathHelpers.SafeNormalize(-Owner.Position, -Vector2.UnitX);

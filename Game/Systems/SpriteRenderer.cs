@@ -567,7 +567,7 @@ public class SpriteRenderer
         if (universe.JumpRoute.Count > 0)
         {
             string targetSystemId = universe.JumpRoute[0];
-            var targetNode = universe.StarSystemNodes.Find(n => n.SystemId == targetSystemId);
+            var targetNode = universe.Galaxy.FindById(targetSystemId);
 
             if (targetNode != null)
             {
