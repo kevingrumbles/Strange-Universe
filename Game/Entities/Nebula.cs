@@ -42,6 +42,15 @@ public class Nebula
         Generate();
     }
 
+    private Nebula(string id, bool generate)
+    {
+        Id = id;
+        if (generate) Generate();
+    }
+
+    /// <summary>Test seam: a nebula with an id but no pixel data (skips the expensive generation).</summary>
+    internal static Nebula CreateWithoutPixels(string id) => new(id, generate: false);
+
     /// <summary>Drops the pixel buffer once the render side has uploaded it.</summary>
     public void ReleasePixels() => Pixels = null;
 

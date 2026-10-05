@@ -1,0 +1,92 @@
+using System.Linq;
+using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Entities;
+using Strange_Universe.Tests.Fakes;
+using Xunit;
+
+namespace Strange_Universe.Tests;
+
+/// <summary>
+/// Round 2, Phase 0: characterization of the real (asset-backed) generation path.
+/// Skipped tests document known bugs; they are un-skipped by the phase that fixes them.
+/// </summary>
+public class GenerationCharacterizationTests
+{
+    private const string Seed = "char-seed";
+
+    private static (Universe universe, StarSystemNode node) BuildUniverse(string seed = Seed)
+    {
+        var universe = new Universe("Char", seed);
+        var node = new StarSystemNode(seed, Vector2.Zero, existingNodes: universe.StarSystemNodes);
+        universe.StarSystemNodes.Add(node);
+        universe.Player.CurrentStarSystemID = node.SystemId;
+        return (universe, node);
+    }
+
+    private static Vector2[] AsteroidLayout(IAssetRequestsFactory make)
+    {
+        var (universe, node) = BuildUniverse();
+        var system = new StarSystem(node, universe, make());
+        return system.Asteroids.Select(a => a.Position).ToArray();
+    }
+
+    private delegate Strange_Universe.Game.Components.IAssetRequests IAssetRequestsFactory();
+
+    [Fact]
+    public void Fake_DrawsSeedOnlyForNewPalettes()
+    {
+        var (universe, node) = BuildUniverse();
+        var fresh = new RecordingAssetRequests();
+        _ = new StarSystem(node, universe, fresh);
+
+        Assert.Equal(15, fresh.Calls.Count(c => c.Method == "EnsureAsteroidTexture"));
+        Assert.Equal(15, fresh.CreatedPaletteIds.Count);
+    }
+
+    [Fact(Skip = "bug: asteroid layout depends on visit order. See REFACTOR_PLAN_ROUND2 Phase 1a")]
+    public void AsteroidLayout_IndependentOfVisitOrder()
+    {
+        var firstVisit  = AsteroidLayout(() => new RecordingAssetRequests());
+        var laterVisit  = AsteroidLayout(RecordingAssetRequests.WithAllPalettesCreated);
+
+        Assert.Equal(firstVisit, laterVisit);
+    }
+
+    [Fact(Skip = "bug: headless generation differs from game path once palettes exist. See Phase 1a")]
+    public void AsteroidLayout_HeadlessMatchesGamePath()
+    {
+        var headless = AsteroidLayout(() => null);
+        var game     = AsteroidLayout(RecordingAssetRequests.WithAllPalettesCreated);
+
+        Assert.Equal(headless, game);
+    }
+
+    [Fact(Skip = "bug: nebula choice depends on how much of the pool is filled. See Phase 1b")]
+    public void NebulaSelection_IndependentOfPoolFill()
+    {
+        string Select(int poolCount)
+        {
+            var (universe, node) = BuildUniverse();
+            for (int i = 0; i < poolCount; i++)
+                universe.NebulaPool.Add(Nebula.CreateWithoutPixels($"{Seed}_nebula_pool_{i}"));
+            return new StarSystem(node, universe, null).NebulaId;
+        }
+
+        Assert.Equal(Select(6), Select(1));
+    }
+
+    [Fact]
+    public void ConstructingSameSystemTwice_DoesNotChangeUniverse()
+    {
+        var (universe, node) = BuildUniverse();
+        _ = new StarSystem(node, universe, null);
+
+        string before = Snapshot(universe);
+        _ = new StarSystem(node, universe, null);
+
+        Assert.Equal(before, Snapshot(universe));
+    }
+
+    private static string Snapshot(Universe u) => string.Join("|", u.StarSystemNodes.Select(n =>
+        $"{n.SystemId}@{n.GalaxyPosition}:{n.Discovered}:[{string.Join(",", n.SystemConnectionIds.OrderBy(x => x))}]"));
+}

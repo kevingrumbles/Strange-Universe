@@ -223,3 +223,49 @@ Resource lifetime: `LoadContent` calls `CreateResources()`, and `UnloadContent` 
 - Hitbox circles in debug mode are new (they only show in debug mode).
 - This file has no Phase 2-4 sections; those phases were only reported in chat.
 - Resolves the Phase 1 deferred item: `Launcher.PlanetColision` is gone.
+
+---
+
+# Round 2
+
+Plan: `REFACTOR_PLAN_ROUND2.md`. Baseline `56138e4`. All work is on branch `Refactor-Round-2` (no per-phase branches, at the maintainer's request).
+
+## Round 2 / Phase 0 - Test seams and baselines
+
+### Files read (from the plan's "not reviewed" list)
+
+`ProceduralTextureCache`, `NavTask`/`JumpTask`, `GalaxyGraph`, `StarSystemNode`, `Nebula`, `Persistence`, `Tests/StarSystemGoldenTests.cs`, `Tests/StarSystemConstructionTests.cs`.
+
+### Corrections to the plan
+
+- **1c (texture leak):** `ProceduralTextureCache.Register` already disposes the texture it replaces, so there is no leak. The guard in 1c is still worth adding (it avoids regenerating planet/star textures on every system entry), but it is an optimization, not a leak fix.
+- **1b (nebula ids):** confirmed. Pool ids are `$"{Seed}_nebula_pool_{i}"` in both `GenerateNebulaPool` and `GenerateRemainingNebulaPoolAsync`.
+- **1a (headless path):** confirmed. With `Assets == null` the generator always draws 15 seeds, which equals the *first-visit* game path but not later visits. "Headless vs game" therefore only differs when palettes already exist, and the test compares headless against the pre-seeded fake.
+- **Phase 0 step 4 (idempotent expansion):** constructing the same system twice does **not** change universe/galaxy state today. `GenerateConnections` stops once the node already has its target connection count. The test passes, so there is no known issue to carry into Phase 4. It now guards against regressions.
+
+### Changes
+
+Added:
+- `Tests/Fakes/RecordingAssetRequests.cs`: records calls and mimics `AssetService.EnsureAsteroidTexture` (seed drawn only for new palette ids). It can be pre-seeded with all 15 palette ids.
+- `Tests/GenerationCharacterizationTests.cs`:
+  - `Fake_DrawsSeedOnlyForNewPalettes` (passes)
+  - `AsteroidLayout_IndependentOfVisitOrder` (skipped, bug, Phase 1a)
+  - `AsteroidLayout_HeadlessMatchesGamePath` (skipped, bug, Phase 1a)
+  - `NebulaSelection_IndependentOfPoolFill` (skipped, bug, Phase 1b)
+  - `ConstructingSameSystemTwice_DoesNotChangeUniverse` (passes)
+
+Production (test seams only, no behavior change):
+- `Nebula.CreateWithoutPixels(id)` (internal): a nebula with an id and no 4096x4096 pixel generation, used to fill the pool cheaply in tests.
+- `Strange Universe.csproj`: `InternalsVisibleTo Strange-Universe.Tests`.
+
+### Tests
+
+69 passed, 3 skipped (72 total). The three skipped tests were temporarily un-skipped and confirmed to **fail** against the current code, so they reproduce the bugs.
+
+### Manual smoke test
+
+None needed. There is no production behavior change.
+
+### Open questions
+
+- None blocking Phase 1. Phase 1a changes asteroid appearance and layout for existing universes (approved in the plan); golden values for asteroid fields will be regenerated and listed.
