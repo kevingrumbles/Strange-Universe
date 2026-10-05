@@ -70,7 +70,10 @@ public class Universe : IDisposable
     [JsonIgnore]
     public GalaxyGraph Galaxy => _galaxy ??= new GalaxyGraph(_starSystemNodes);
 
-    private const int NebulaPoolSize = 6;
+    public const int NebulaPoolSize = 6;
+
+    /// <summary>Texture id of nebula <paramref name="index"/> in the pool of the universe with <paramref name="seed"/>.</summary>
+    public static string NebulaPoolId(string seed, int index) => $"{seed}_nebula_pool_{index}";
 
     // Runtime services; null after deserialization until Generate(...) is called.
     private IAssetRequests _assets;
@@ -156,8 +159,7 @@ public class Universe : IDisposable
         // Generate first nebula synchronously so game can start
         if (NebulaPool.Count < NebulaPoolSize)
         {
-            string id = $"nebula_pool_{NebulaPool.Count}";
-            var nebula = new Nebula($"{Seed}_{id}");
+            var nebula = new Nebula(NebulaPoolId(Seed, NebulaPool.Count));
             UploadNebula(nebula);
         }
 
@@ -177,7 +179,7 @@ public class Universe : IDisposable
         for (int i = start; i < NebulaPoolSize && !_disposed; i++)
         {
             int index = i;
-            var nebula = await Task.Run(() => new Nebula($"{Seed}_nebula_pool_{index}"));
+            var nebula = await Task.Run(() => new Nebula(NebulaPoolId(Seed, index)));
 
             if (_disposed)
                 return;

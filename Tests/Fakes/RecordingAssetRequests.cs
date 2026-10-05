@@ -7,7 +7,7 @@ namespace Strange_Universe.Tests.Fakes;
 
 /// <summary>
 /// Records every <see cref="IAssetRequests"/> call. Asteroid palette handling mirrors
-/// <c>AssetService.EnsureAsteroidTexture</c>: <c>nextSeed</c> is invoked only for ids not created yet.
+/// <c>AssetService.EnsureAsteroidTexture</c>: a texture (and its seed) is only recorded for ids not created yet.
 /// </summary>
 public sealed class RecordingAssetRequests : IAssetRequests
 {
@@ -30,11 +30,13 @@ public sealed class RecordingAssetRequests : IAssetRequests
 
     public void EnsureShipArt(ShipStats shipType) => Calls.Add((nameof(EnsureShipArt), shipType?.ShipTypeName));
 
-    public void EnsureAsteroidTexture(string paletteId, Func<int> nextSeed)
+    public List<int> AsteroidSeeds { get; } = new();
+
+    public void EnsureAsteroidTexture(string paletteId, int seed)
     {
         Calls.Add((nameof(EnsureAsteroidTexture), paletteId));
         if (CreatedPaletteIds.Add(paletteId))
-            nextSeed();
+            AsteroidSeeds.Add(seed);
     }
 
     public void EnsurePlanetTexture(Planet planet) => Calls.Add((nameof(EnsurePlanetTexture), planet.Id));

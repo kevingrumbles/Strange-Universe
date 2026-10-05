@@ -269,3 +269,45 @@ None needed. There is no production behavior change.
 ### Open questions
 
 - None blocking Phase 1. Phase 1a changes asteroid appearance and layout for existing universes (approved in the plan); golden values for asteroid fields will be regenerated and listed.
+
+## Round 2 / Phase 1 - Determinism fixes
+
+### Changes
+
+- `IAssetRequests.EnsureAsteroidTexture(string paletteId, int seed)` replaces the `Func<int> nextSeed` overload. `AssetService` and the test fake were updated.
+- `StarSystemGenerator.GenerateAsteroids`:
+  - Always draws one value per palette slot (15) from `asteroidsRng` before placement, whether or not a texture is created.
+  - Palette texture seeds are now `SeedHash($"{universe.Seed}_asteroid_tex_{i}")`, so palette art is the same no matter which system creates it first. The per-system stream is used for placement only.
+- `StarSystemGenerator.SelectNebula`: picks `index = rng.Next(Universe.NebulaPoolSize)` and sets `NebulaId = Universe.NebulaPoolId(seed, index)`. It no longer reads `NebulaPool`, so the choice doesn't depend on timing and `NebulaId` is never null.
+- `Universe`: `NebulaPoolSize` is now `public const`. New `Universe.NebulaPoolId(seed, index)` is the single place the id format lives (format unchanged).
+- `AssetService.EnsurePlanetTexture`/`EnsureStarTexture`: `TryGet` guards, matching `EnsureShipArt`. As noted in Phase 0, `Register` already disposed the replaced texture, so this only avoids regenerating textures on each system entry. No leak existed.
+- 1b.3 renderer guard: `SpriteRenderer.DrawNebula` already returns early when the texture isn't in the cache, so no change was needed. A system whose nebula is still generating shows no nebula until it is uploaded. It then appears on the next frame without needing a re-entry.
+- 1c.3: `AssetService` needs a real `GraphicsDevice`, so it isn't unit-tested. Its behavior is covered through the fake.
+
+### Behavior changes
+
+- **Asteroid layout:** for a system generated when *no* palette textures existed yet (the first system of a launch), the layout is **unchanged**. That path already drew 15 values. For systems entered later in a launch, the layout changes: it previously skipped the 15 draws and now matches the first-visit layout. Net result: each system now always has the layout it would get as the first system of a launch.
+- **Asteroid appearance:** palette textures are now seeded from the universe seed, so asteroid art differs from before in every universe.
+- **Nebula:** a system may show a different nebula than before (selection was `Next(pool.Count)` against a partially filled pool). It is now stable across launches.
+- No serialized properties changed. Saves load as before.
+
+### Golden data
+
+**No golden values changed.** The golden tests run headless (`Assets == null`), and the old headless path already drew 15 values, the same as the new code. `StarSystemGoldenData.cs` is untouched. The golden fingerprint doesn't include `NebulaId`.
+
+### Tests
+
+74/74 pass. The three Phase 0 bug tests were un-skipped and now pass. New tests:
+- `PaletteSeeds_DependOnUniverseSeedOnly`
+- `NebulaId_IsAlwaysSet_EvenWithEmptyPool`
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify:
+1. New game: asteroids and nebula render.
+2. Jump A -> B -> C, then start a new launch and go A -> C -> B. C's asteroid layout should match.
+3. Immediately after launch, jump before all nebulae finish. The nebula appears once uploaded, with no crash.
+
+### Open questions
+
+- Should the golden fingerprint include `NebulaId` going forward?

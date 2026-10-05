@@ -16,9 +16,12 @@ public interface IAssetRequests
 
     /// <summary>
     /// Ensures the asteroid palette texture <paramref name="paletteId"/> exists.
-    /// <paramref name="nextSeed"/> is invoked only when the texture has to be created.
+    /// <summary>
+    /// Ensures the asteroid palette texture <paramref name="paletteId"/> exists, generating it from
+    /// <paramref name="seed"/> if missing. The seed is supplied by the caller so generation never
+    /// depends on whether the texture already existed.
     /// </summary>
-    void EnsureAsteroidTexture(string paletteId, Func<int> nextSeed);
+    void EnsureAsteroidTexture(string paletteId, int seed);
 
     /// <summary>Ensures the procedural texture for <paramref name="planet"/> exists.</summary>
     void EnsurePlanetTexture(Planet planet);

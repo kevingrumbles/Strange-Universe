@@ -138,12 +138,14 @@ public static class StarSystemGenerator
         {
             paletteIds[i] = $"asteroid_tex_{i}";
 
-            // A seed is drawn only when a texture is actually created; this matches the
-            // original order of RNG draws exactly, keeping asteroid layout deterministic.
-            if (s.Assets != null)
-                s.Assets.EnsureAsteroidTexture(paletteIds[i], asteroidsRng.Next);
-            else
-                asteroidsRng.Next();
+            // Always consume one draw per palette slot so placement below never depends on
+            // which textures already exist (visit order) or whether assets are attached.
+            asteroidsRng.Next();
+
+            // Palette art is a universe-wide resource, so its seed comes from the universe seed,
+            // not from whichever system happens to request it first.
+            s.Assets?.EnsureAsteroidTexture(paletteIds[i],
+                ProceduralHelpers.SeedHash($"{s.Universe.Seed}_asteroid_tex_{i}"));
         }
 
         for (int i = 0; i < s.AsteroidCount; i++)
@@ -183,8 +185,9 @@ public static class StarSystemGenerator
     {
         Random nebulaRandom = new Random(ProceduralHelpers.SeedHash($"{s.SystemId}_Nebula"));
 
-        var pool = s.Universe.NebulaPool;
-        if (pool.Count == 0) return;
-        s.NebulaId = pool[nebulaRandom.Next(pool.Count)].Id;
+        // Index into the fixed pool size (not the current fill level, which depends on background
+        // generation timing). The renderer draws nothing until that nebula's texture is uploaded.
+        int index = nebulaRandom.Next(Universe.NebulaPoolSize);
+        s.NebulaId = Universe.NebulaPoolId(s.Universe.Seed, index);
     }
 }

@@ -43,7 +43,7 @@ public class GenerationCharacterizationTests
         Assert.Equal(15, fresh.CreatedPaletteIds.Count);
     }
 
-    [Fact(Skip = "bug: asteroid layout depends on visit order. See REFACTOR_PLAN_ROUND2 Phase 1a")]
+    [Fact]
     public void AsteroidLayout_IndependentOfVisitOrder()
     {
         var firstVisit  = AsteroidLayout(() => new RecordingAssetRequests());
@@ -52,7 +52,7 @@ public class GenerationCharacterizationTests
         Assert.Equal(firstVisit, laterVisit);
     }
 
-    [Fact(Skip = "bug: headless generation differs from game path once palettes exist. See Phase 1a")]
+    [Fact]
     public void AsteroidLayout_HeadlessMatchesGamePath()
     {
         var headless = AsteroidLayout(() => null);
@@ -61,7 +61,7 @@ public class GenerationCharacterizationTests
         Assert.Equal(headless, game);
     }
 
-    [Fact(Skip = "bug: nebula choice depends on how much of the pool is filled. See Phase 1b")]
+    [Fact]
     public void NebulaSelection_IndependentOfPoolFill()
     {
         string Select(int poolCount)
@@ -73,6 +73,32 @@ public class GenerationCharacterizationTests
         }
 
         Assert.Equal(Select(6), Select(1));
+    }
+
+    [Fact]
+    public void PaletteSeeds_DependOnUniverseSeedOnly()
+    {
+        var (u1, n1) = BuildUniverse();
+        var a = new RecordingAssetRequests();
+        _ = new StarSystem(n1, u1, a);
+
+        // A different system in the same universe requests the same palette seeds.
+        var (u2, _) = BuildUniverse();
+        var other = new StarSystemNode { SystemId = $"{Seed}_Other", Name = "Other", GalaxyPosition = new Vector2(3, 3) };
+        u2.StarSystemNodes.Add(other);
+        var b = new RecordingAssetRequests();
+        _ = new StarSystem(other, u2, b);
+
+        Assert.Equal(15, a.AsteroidSeeds.Count);
+        Assert.Equal(a.AsteroidSeeds, b.AsteroidSeeds);
+    }
+
+    [Fact]
+    public void NebulaId_IsAlwaysSet_EvenWithEmptyPool()
+    {
+        var (universe, node) = BuildUniverse();
+        var s = new StarSystem(node, universe, null);
+        Assert.StartsWith($"{Seed}_nebula_pool_", s.NebulaId);
     }
 
     [Fact]
