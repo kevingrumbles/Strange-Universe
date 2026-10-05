@@ -124,6 +124,19 @@ public class GenerationCharacterizationTests
     }
 
     [Fact]
+    public void NewUniverse_PredictsStartingSystemNebula()
+    {
+        var universe = new Universe("Fresh", "fresh-seed");
+        Assert.Empty(universe.StarSystemNodes);
+
+        int? predicted = universe.CurrentSystemNebulaIndex();
+        var system = universe.ActiveStarSystem; // creates the default node (headless, no wait)
+
+        Assert.NotNull(predicted);
+        Assert.Equal(Universe.NebulaPoolId("fresh-seed", predicted.Value), system.NebulaId);
+    }
+
+    [Fact]
     public void ConstructingSameSystemTwice_DoesNotChangeUniverse()
     {
         var (universe, node) = BuildUniverse();

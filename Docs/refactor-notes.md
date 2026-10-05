@@ -326,3 +326,5 @@ cd C:\repo\Strange-Universe; git status --short; git log --oneline -2; Select-St
 - `StartNebula` is now thread-safe (`Interlocked.CompareExchange`), because the remaining slots are started from a continuation.
 - Test: `NebulaIndexFor_MatchesSelectedNebula`. 76/76 pass.
 - Note: the editor's stale copy of `GenerationCharacterizationTests.cs` re-added the Phase 0 `Skip` attributes twice. They were removed again and checked before committing.
+
+- New universes: with no nodes yet, `CurrentSystemNebulaIndex` predicts the default node id with the same rule as the `StarSystemNode` constructor (`{Seed}_{GetStarSystemName(Seed, [])}`, i.e. Sol), so a brand-new universe also generates its starting nebula first. Test: `NewUniverse_PredictsStartingSystemNebula`. 77/77 pass.

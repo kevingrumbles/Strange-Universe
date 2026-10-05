@@ -186,10 +186,16 @@ public class Universe : IDisposable
     /// Pool slot of the system the player will enter, using the same fallback as
     /// <see cref="ActiveStarSystem"/> (Sol, then the first node) without creating anything.
     /// </summary>
-    private int? CurrentSystemNebulaIndex()
+    internal int? CurrentSystemNebulaIndex()
     {
         string systemId = Galaxy.FindById(Player?.CurrentStarSystemID)?.SystemId
             ?? (StarSystemNodes.FirstOrDefault(n => n.Name == "Sol") ?? StarSystemNodes.FirstOrDefault())?.SystemId;
+
+        // New universe: no nodes yet. ActiveStarSystem will create the default node with the
+        // same naming rule (StarSystemNode ctor), so predict its id the same way.
+        if (systemId == null && StarSystemNodes.Count == 0)
+            systemId = $"{Seed}_{NameGenerator.GetStarSystemName(Seed, StarSystemNodes)}";
+
         return systemId == null ? null : StarSystemGenerator.NebulaIndexFor(systemId);
     }
 
