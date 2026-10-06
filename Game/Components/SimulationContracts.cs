@@ -33,6 +33,17 @@ public interface IAssetRequests
     void RegisterNebula(Nebula nebula);
 }
 
+/// <summary>Ignores all asset requests. Used headless (tests) and before Generate supplies real services.</summary>
+public sealed class NullAssetRequests : IAssetRequests
+{
+    public static readonly NullAssetRequests Instance = new();
+    public void EnsureShipArt(ShipStats shipType) { }
+    public void EnsureAsteroidTexture(string paletteId, int seed) { }
+    public void EnsurePlanetTexture(Planet planet) { }
+    public void EnsureStarTexture(Star star) { }
+    public void RegisterNebula(Nebula nebula) => nebula.ReleasePixels();
+}
+
 /// <summary>Destination for short on-screen notifications.</summary>
 public interface IMessageSink
 {

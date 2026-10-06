@@ -101,7 +101,7 @@ public static class StarSystemGenerator
 
             float initialAngle = MathHelper.TwoPi * i / s.StarCount;
             Star newStar = new Star(starId, s.StarRadius, name, colorIndex, s.StarOrbitRadius, initialAngle, s.StarOrbitSpeed);
-            s.Assets?.EnsureStarTexture(newStar);
+            s.Assets.EnsureStarTexture(newStar);
             newStar.Position = s.StarCount == 1
                 ? Vector2.Zero
                 : new Vector2(
@@ -124,7 +124,7 @@ public static class StarSystemGenerator
                                     planetNumber: i,
                                     totalPlanets: s.PlanetCount);
             s.Planets.Add(planet);
-            s.Assets?.EnsurePlanetTexture(planet);
+            s.Assets.EnsurePlanetTexture(planet);
         }
     }
 
@@ -144,7 +144,7 @@ public static class StarSystemGenerator
 
             // Palette art is a universe-wide resource, so its seed comes from the universe seed,
             // not from whichever system happens to request it first.
-            s.Assets?.EnsureAsteroidTexture(paletteIds[i],
+            s.Assets.EnsureAsteroidTexture(paletteIds[i],
                 ProceduralHelpers.SeedHash($"{s.Universe.Seed}_asteroid_tex_{i}"));
         }
 

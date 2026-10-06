@@ -1,17 +1,13 @@
 using Strange_Universe.Game.Components;
+using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
-using Strange_Universe;
-using Strange_Universe.Game.Entities;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-using MgVector2 = Microsoft.Xna.Framework.Vector2;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -31,32 +27,39 @@ public class Universe : IDisposable
     [JsonIgnore] public Strange_Universe.Game.Systems.GameSettings Settings { get; set; } = new();
 
     private StarSystem _activeStarSystem;
+
+    /// <summary>The system the player is in. Set by <see cref="Generate"/> and <see cref="EnterSystem"/>; has no side effects.</summary>
     [JsonIgnore]
-    public StarSystem ActiveStarSystem
+    public StarSystem ActiveStarSystem => _activeStarSystem
+        ?? throw new InvalidOperationException("No star system has been entered. Call Generate(...) first.");
+
+    /// <summary>
+    /// Builds the system for <paramref name="node"/>, makes it active, attaches the player and records
+    /// it as the player's current system. Blocks until the system's nebula is uploaded.
+    /// </summary>
+    public StarSystem EnterSystem(StarSystemNode node)
     {
-        get
-        {
-            if (_activeStarSystem == null)
-            {
-                if (StarSystemNodes.Count == 0)
-                {
-                    // If there are no star systems nodes, create a default one and add it to the universe.
-                    StarSystemNode defaultNode = new StarSystemNode(Seed, position: new Vector2(0,0), backConnection: null, existingNodes: StarSystemNodes);
-                    StarSystemNodes.Add(defaultNode);
-                }
-                StarSystemNode currentSystemNode = Galaxy.FindById(Player.CurrentStarSystemID);
-                if (currentSystemNode == null)
-                {
-                    // If the player's current star system ID is not found, return the first star system as a fallback.
-                    currentSystemNode = StarSystemNodes.FirstOrDefault(n => n.Name == "Sol") ?? StarSystemNodes.FirstOrDefault();
-                    Player.CurrentStarSystemID = currentSystemNode.SystemId; // Update player's current star system ID
-                }
-                _activeStarSystem = new StarSystem(currentSystemNode, this, _assets);
-                Player.StarSystem = _activeStarSystem;
-                WaitForNebula(_activeStarSystem.NebulaId);
-            }
-            return _activeStarSystem;
-        }
+        ArgumentNullException.ThrowIfNull(node);
+
+        _activeStarSystem = new StarSystem(node, this, _assets);
+        Player.StarSystem = _activeStarSystem;
+        Player.CurrentStarSystemID = node.SystemId;
+        WaitForNebula(_activeStarSystem.NebulaId);
+        return _activeStarSystem;
+    }
+
+    /// <summary>
+    /// The node the player starts in: their saved system, else Sol, else the first node.
+    /// Creates the default (Sol) node for a brand-new universe.
+    /// </summary>
+    private StarSystemNode ResolveStartNode()
+    {
+        if (StarSystemNodes.Count == 0)
+            StarSystemNodes.Add(new StarSystemNode(Seed, position: Vector2.Zero, backConnection: null, existingNodes: StarSystemNodes));
+
+        return Galaxy.FindById(Player.CurrentStarSystemID)
+            ?? StarSystemNodes.FirstOrDefault(n => n.Name == "Sol")
+            ?? StarSystemNodes[0];
     }
 
     private List<StarSystemNode> _starSystemNodes = new();
@@ -77,8 +80,8 @@ public class Universe : IDisposable
     /// <summary>Texture id of nebula <paramref name="index"/> in the pool of the universe with <paramref name="seed"/>.</summary>
     public static string NebulaPoolId(string seed, int index) => $"{seed}_nebula_pool_{index}";
 
-    // Runtime services; null after deserialization until Generate(...) is called.
-    private IAssetRequests _assets;
+    // Runtime services; a no-op until Generate(...) supplies the real ones.
+    private IAssetRequests _assets = NullAssetRequests.Instance;
 
     /// <summary>Sink for on-screen notifications. Never null (no-op until Generate supplies one).</summary>
     [JsonIgnore]
@@ -89,6 +92,9 @@ public class Universe : IDisposable
     private readonly Task<Nebula>[] _nebulaTasks = new Task<Nebula>[NebulaPoolSize];
     private readonly bool[] _nebulaUploaded = new bool[NebulaPoolSize];
     private volatile bool _disposed;
+
+    /// <summary>Creates nebula pixel data. Test seam: tests swap in a cheap factory.</summary>
+    internal Func<string, Nebula> NebulaFactory { get; set; } = id => new Nebula(id);
 
     /// <summary>Shared nebula textures generated once per universe launch. Each StarSystem samples a crop of one of these.</summary>
     [JsonIgnore]
@@ -142,37 +148,38 @@ public class Universe : IDisposable
         ActiveStarSystem.Update(deltaTime, input);
     }
 
+    /// <summary>
+    /// Starts a play session: attaches runtime services, starts nebula generation (the starting
+    /// system's nebula first) and enters the player's starting system.
+    /// </summary>
     public void Generate(IAssetRequests assets, IMessageSink messages = null)
     {
+        assets ??= NullAssetRequests.Instance;
+
+        // A new asset owner (new session) or a disposed universe needs its nebulae uploaded again;
+        // uploaded pixels were released, so they are regenerated.
+        if (_disposed || !ReferenceEquals(assets, _assets))
+            ResetNebulaState();
+        _disposed = false;
+
         _assets = assets;
         Messages = messages ?? NullMessageSink.Instance;
-        _activeStarSystem = null;
-        GenerateNebulaPool();
+
+        StarSystemNode start = ResolveStartNode();
+        GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId));
         Player.Generate();
-        _assets?.EnsureShipArt(Player.ShipType);
+        _assets.EnsureShipArt(Player.ShipType);
+        EnterSystem(start);
     }
 
     /// <summary>
-    /// Rebuilds the active star system (e.g. after a jump) reusing the services supplied to
-    /// <see cref="Generate"/>. The player is re-attached to the new system.
+    /// Starts background generation of every pool slot not already started. <paramref name="firstIndex"/>
+    /// is generated first; the rest start once it has finished so they don't compete with it for CPU.
+    /// Each slot is generated at most once per session.
     /// </summary>
-    public void Regenerate() => Generate(_assets, Messages);
-
-    /// <summary>
-    /// Starts background generation of every pool slot not already started. The nebula of the
-    /// system the player is in is generated first; the rest start only once it has finished, so
-    /// they don't compete with it for CPU. Safe to call repeatedly: each slot is generated at most
-    /// once per launch.
-    /// </summary>
-    public void GenerateNebulaPool()
+    private void GenerateNebulaPool(int firstIndex)
     {
-        int? first = CurrentSystemNebulaIndex();
-        if (first is int f)
-        {
-            StartNebula(f).ContinueWith(_ => StartRemainingNebulae(), TaskScheduler.Default);
-            return;
-        }
-        StartRemainingNebulae();
+        StartNebula(firstIndex).ContinueWith(_ => StartRemainingNebulae(), TaskScheduler.Default);
     }
 
     private void StartRemainingNebulae()
@@ -182,21 +189,14 @@ public class Universe : IDisposable
             StartNebula(i);
     }
 
-    /// <summary>
-    /// Pool slot of the system the player will enter, using the same fallback as
-    /// <see cref="ActiveStarSystem"/> (Sol, then the first node) without creating anything.
-    /// </summary>
-    internal int? CurrentSystemNebulaIndex()
+    private void ResetNebulaState()
     {
-        string systemId = Galaxy.FindById(Player?.CurrentStarSystemID)?.SystemId
-            ?? (StarSystemNodes.FirstOrDefault(n => n.Name == "Sol") ?? StarSystemNodes.FirstOrDefault())?.SystemId;
-
-        // New universe: no nodes yet. ActiveStarSystem will create the default node with the
-        // same naming rule (StarSystemNode ctor), so predict its id the same way.
-        if (systemId == null && StarSystemNodes.Count == 0)
-            systemId = $"{Seed}_{NameGenerator.GetStarSystemName(Seed, StarSystemNodes)}";
-
-        return systemId == null ? null : StarSystemGenerator.NebulaIndexFor(systemId);
+        for (int i = 0; i < NebulaPoolSize; i++)
+        {
+            Volatile.Write(ref _nebulaTasks[i], null);
+            _nebulaUploaded[i] = false;
+        }
+        NebulaPool.Clear();
     }
 
     /// <summary>
@@ -207,7 +207,8 @@ public class Universe : IDisposable
     private Task<Nebula> StartNebula(int index)
     {
         string id = NebulaPoolId(Seed, index);
-        var created = new Task<Nebula>(() => new Nebula(id));
+        var factory = NebulaFactory;
+        var created = new Task<Nebula>(() => factory(id));
         var existing = Interlocked.CompareExchange(ref _nebulaTasks[index], created, null);
         if (existing != null) return existing;
         created.Start(TaskScheduler.Default);
@@ -216,12 +217,10 @@ public class Universe : IDisposable
 
     /// <summary>
     /// Blocks until the nebula <paramref name="nebulaId"/> is generated and uploaded, so a system
-    /// never renders without its nebula. Main thread only. No-op without assets (headless/tests).
+    /// never renders without its nebula. Main thread only.
     /// </summary>
     private void WaitForNebula(string nebulaId)
     {
-        if (_assets == null || nebulaId == null) return;
-
         for (int i = 0; i < NebulaPoolSize; i++)
         {
             if (NebulaPoolId(Seed, i) != nebulaId) continue;
@@ -231,6 +230,14 @@ public class Universe : IDisposable
             UploadNebula(i);
             return;
         }
+    }
+
+    /// <summary>Test hook: waits for every pool slot and uploads it. Main thread only.</summary>
+    internal void WaitForAllNebulae()
+    {
+        for (int i = 0; i < NebulaPoolSize; i++)
+            StartNebula(i).Wait();
+        UploadFinishedNebulae();
     }
 
     /// <summary>Uploads nebulae whose background generation has finished. Main thread only.</summary>
@@ -246,7 +253,7 @@ public class Universe : IDisposable
         if (_disposed) return;
         var nebula = _nebulaTasks[index].Result;
         _nebulaUploaded[index] = true;
-        _assets?.RegisterNebula(nebula);
+        _assets.RegisterNebula(nebula);
         NebulaPool.Add(nebula);
     }
 

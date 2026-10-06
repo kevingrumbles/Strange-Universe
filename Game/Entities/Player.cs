@@ -89,7 +89,7 @@ public class Player : Ship
 
     private void HandleJump(float deltaTime, InputState input)
     {
-        if (HasActiveNavTask) return;
+        if (HasActiveNavTask || StarSystem == null) return;
 
         if (input.Jump && StarSystem.Universe.JumpRoute?.Count > 0 && CanJump())
         {

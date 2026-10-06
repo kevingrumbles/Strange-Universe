@@ -165,15 +165,12 @@ namespace Strange_Universe.Game.NavSystem
                     break;
 
                 case TaskState.SystemTranslation:
-                    // GOAL: Set arrival location and generate new system
-                    // Update the player's current system ID so the StarSystem reference is correct
+                    // GOAL: Set arrival location and enter the new system
                     if (Owner is Player player)
                     {
                         Universe universe = player.StarSystem.Universe;
-                        player.CurrentStarSystemID = _targetSystemId;
-                        universe.Regenerate();
-                        // Builds the new system and re-attaches the player to it.
-                        _ = universe.ActiveStarSystem;
+                        // Builds the new system, attaches the player and updates CurrentStarSystemID.
+                        universe.EnterSystem(universe.Galaxy.FindById(_targetSystemId));
                     }
 
                     // Set ship position at system edge entry point

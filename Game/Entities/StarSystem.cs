@@ -1,5 +1,4 @@
 ﻿using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.EventSystem;
 using Strange_Universe.Game.Systems;
@@ -19,7 +18,7 @@ public class StarSystem
     [JsonIgnore] public StarSystemNode Node { get; set; }
     [JsonIgnore] public Player ActivePlayer => Universe?.Player;
     [JsonIgnore] public Universe Universe { get; }
-    /// <summary>Render-side art requests; null when running without graphics.</summary>
+    /// <summary>Render-side art requests. Never null (<see cref="NullAssetRequests"/> when headless).</summary>
     [JsonIgnore] public IAssetRequests Assets { get; }
     [JsonIgnore] public string DisplayName { get { return Node.DisplayName; } }
     [JsonIgnore] public bool Discovered { get { return Node.Discovered; } }
@@ -52,17 +51,11 @@ public class StarSystem
     private readonly CollisionSystem _collision;
     private readonly ProjectileCollisionSystem _projectileCollision = new();
 
-    public StarSystem() 
-    {
-        _collision = new CollisionSystem();
-
-    }
-
     public StarSystem(StarSystemNode node, Universe universe, IAssetRequests assets, Random random = null)
     {
         Node = node;
         Universe = universe;
-        Assets = assets;
+        Assets = assets ?? NullAssetRequests.Instance;
         Node.Discovered = true;
         _collision = new CollisionSystem(universe?.Settings);
 
@@ -148,7 +141,7 @@ public class StarSystem
     public void AddNpc(Nonplayer npc)
     {
         npc.StarSystem = this;
-        Assets?.EnsureShipArt(npc.ShipType);
+        Assets.EnsureShipArt(npc.ShipType);
         Npcs.Add(npc);
     }
 }

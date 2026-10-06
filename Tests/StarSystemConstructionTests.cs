@@ -59,17 +59,6 @@ public class StarSystemConstructionTests
     }
 
     [Fact]
-    public void ActiveStarSystem_AttachesPlayer()
-    {
-        var universe = new Universe("Test", "attach-seed");
-        Assert.Null(universe.Player.StarSystem);
-
-        var system = universe.ActiveStarSystem;
-
-        Assert.Same(system, universe.Player.StarSystem);
-    }
-
-    [Fact]
     public void AddNpc_AttachesSystem()
     {
         var (universe, node) = BuildUniverse("npc-seed");

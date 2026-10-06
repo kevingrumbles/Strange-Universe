@@ -321,10 +321,34 @@ None needed. There is no production behavior change.
 - **Behavior change:** if a system is entered before its nebula has finished generating (mainly right after launch, or a fast jump early in a session), the game pauses until it is ready. Previously it showed no nebula until it was ready (Phase 1) or picked a different one (before Phase 1). Startup cost is about the same as before: one nebula, as before.
 - Test: `EnteringSystem_WaitsForItsNebula`. This test generates real nebula pixels, so the full test run now takes about 28 s.
 
-cd C:\repo\Strange-Universe; git status --short; git log --oneline -2; Select-String -Path Docs\refactor-notes.md -Pattern 'current system''s nebula first' | Measure | % Count; Select-String -Path Tests\GenerationCharacterizationTests.cs -Pattern 'Skip =' | Measure | % Count- New `StarSystemGenerator.NebulaIndexFor(systemId)` (pure). `SelectNebula` uses it, so the slot is unchanged.
+### Follow-up: load the current system's nebula first
+
+- New
 - `Universe.GenerateNebulaPool()` works out the player's system the same way `ActiveStarSystem` does (current id, then Sol, then the first node) without creating anything. It starts that nebula first and starts the other five only after it finishes, so they don't compete for CPU while the player waits on entry.
 - `StartNebula` is now thread-safe (`Interlocked.CompareExchange`), because the remaining slots are started from a continuation.
 - Test: `NebulaIndexFor_MatchesSelectedNebula`. 76/76 pass.
 - Note: the editor's stale copy of `GenerationCharacterizationTests.cs` re-added the Phase 0 `Skip` attributes twice. They were removed again and checked before committing.
 
-- New universes: with no nodes yet, `CurrentSystemNebulaIndex` predicts the default node id with the same rule as the `StarSystemNode` constructor (`{Seed}_{GetStarSystemName(Seed, [])}`, i.e. Sol), so a brand-new universe also generates its starting nebula first. Test: `NewUniverse_PredictsStartingSystemNebula`. 77/77 pass.
+Test: `NewUniverse_PredictsStartingSystemNebula`. 77/77 pass.
+
+## Round 2 / Phase 2 - Lifecycle correctness
+
+### Changes
+
+- `Universe.ActiveStarSystem` no longer builds systems lazily. It throws until a system has been entered.
+- `Universe.EnterSystem(node)` is now the only way to enter a system. `Generate` and `JumpTask` both use it, and `JumpTask` no longer calls `Regenerate()`.
+- `ResolveStartNode()` picks the starting node before entry, so its nebula is requested first.
+- Nebula generation uses one task per pool slot, so no loop is ever started twice. Added a `NebulaFactory` test seam and `WaitForAllNebulae()`.
+- `NullAssetRequests.Instance` replaces the `null` asset checks. Removed the parameterless `StarSystem()` constructor.
+- Ships and players not in a system (`StarSystem == null`) no longer throw from `Update`, `FireWeapons` or jump input (`Player.HandleJump`).
+- Housekeeping: checked that there are no duplicate `using` lines in `StarSystem.cs` or `Universe.cs`. `Universe.cs` uses only the XNA `Vector2`.
+
+### Tests
+
+- New `UniverseLifecycleTests`.
+- Removed `ActiveStarSystem_AttachesPlayer`, which tested the old lazy getter. `Generate_EntersStartingSystem` now covers that behavior.
+- 83 pass, 3 skipped.
+
+### Manual smoke test
+
+**Not performed.** Please verify: new game, load a save, and several jumps in a row.
