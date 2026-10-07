@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
@@ -149,25 +151,17 @@ public struct ProjectileVisual
 public static class ProjectileVisuals
 {
     // Projectiles are drawn many times a frame, so resolved visuals are cached per repository.
-    private static DefinitionRepository _cachedFor;
-    private static readonly Dictionary<string, ProjectileVisual> Cache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly ConditionalWeakTable<DefinitionRepository, ConcurrentDictionary<string, ProjectileVisual>> Caches = new();
 
     public static ProjectileVisual For(string weaponName) => For(DefinitionRepository.Default, weaponName);
 
     public static ProjectileVisual For(DefinitionRepository repository, string weaponName)
     {
-        if (!ReferenceEquals(repository, _cachedFor))
-        {
-            Cache.Clear();
-            _cachedFor = repository;
-        }
-
-        string key = weaponName ?? string.Empty;
-        if (!Cache.TryGetValue(key, out var visual))
+        var cache = Caches.GetValue(repository, _ => new ConcurrentDictionary<string, ProjectileVisual>(StringComparer.OrdinalIgnoreCase));
+        return cache.GetOrAdd(weaponName ?? string.Empty, _ =>
         {
             var style = repository.StyleForWeapon(weaponName);
-            Cache[key] = visual = style == null ? ProjectileVisual.Default : ProjectileVisual.From(style);
-        }
-        return visual;
+            return style == null ? ProjectileVisual.Default : ProjectileVisual.From(style);
+        });
     }
 }

@@ -193,6 +193,10 @@ namespace Strange_Universe.Game.NavSystem
                     // Keep the high velocity from the Jump state, but ensure it's pointing inward
                     Owner.Velocity = inwardDirection * (Owner.ShipType.MaxSpeed * 8f);
 
+                    // Face the direction of travel immediately; otherwise the ship keeps its outbound
+                    // heading from the jump and only turns gradually while arriving.
+                    Owner.Rotation = (float)Math.Atan2(inwardDirection.Y, inwardDirection.X);
+
                     // Transition to the arrival deceleration phase
                     CurrentState = TaskState.ArriveInSystem;
                     break;

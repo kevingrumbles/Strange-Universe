@@ -508,3 +508,9 @@ None intended. Weapons, projectile looks and event behavior are the same; the me
 Behavior changes: none intended. Tests: 119/119 pass (new `NavTaskWorldTests`, shared `FakeWorld`).
 
 Manual smoke test (not performed): jump to another system, merchants dock and leave, patrols avoid planets and stars, new game spawn position.
+
+## Fix: facing on jump arrival
+
+`JumpTask` (state `SystemTranslation`) set the arrival position and velocity but never the heading, in the original code as well, so the ship arrived pointing along its outbound jump heading and only turned gradually during `ArriveInSystem`. It now sets `Owner.Rotation` to the inward direction on arrival. **Behavior change** (requested). Test: `JumpTask_SystemTranslation_EntersTargetAndPlacesShipAtEdge` checks the rotation.
+
+Also: `ProjectileVisuals` now caches per repository in a thread-safe table. The old single static cache could race between parallel tests and caused one intermittent test failure.

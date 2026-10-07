@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
@@ -52,7 +53,7 @@ public class NavTaskWorldTests
     [Fact]
     public void JumpTask_SystemTranslation_EntersTargetAndPlacesShipAtEdge()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", "Shuttle") { Rotation = 0f }; // outbound heading from the jump
         var world = new FakeWorld { EdgeEntry = new Vector2(5000, 0) };
         world.KnownSystems.Add("target");
         var task = new JumpTask(player, null, "target") { World = world }; // constructor validates against the owner's own system, so set the state afterwards
@@ -63,6 +64,7 @@ public class NavTaskWorldTests
         Assert.Equal(new[] { "target" }, world.Entered);
         Assert.Equal(new Vector2(5000, 0), player.Position);
         Assert.True(player.Velocity.X < 0); // heading inward
+        Assert.Equal(MathF.PI, MathF.Abs(player.Rotation), 3); // and facing inward (toward -X) on arrival
         Assert.Equal(TaskState.ArriveInSystem, task.CurrentState);
     }
 }
