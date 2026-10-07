@@ -25,86 +25,6 @@ public class Equipment
 {
     // -- Weapons -----------------------------------------------------------------
 
-    public static Equipment LightLaser => new()
-    {
-        EquipmentName    = "Light Laser",
-        EquipmentType    = EquipmentType.FixedProjectile,
-        Damage           = 15,
-        Speed            = 2000f,
-        Range            = 1500f,
-        FireRate         = 3f,
-        EnergyCost       = 10f,
-        Mass             = 50f,
-        Accuracy         = 0.9f,
-        ProjectileVisual = ProjectileVisual.LightLaser,
-    };
-
-    public static Equipment HeavyLaser => new()
-    {
-        EquipmentName    = "Heavy Laser",
-        EquipmentType    = EquipmentType.FixedProjectile,
-        Damage           = 35,
-        Speed            = 1800f,
-        Range            = 2000f,
-        FireRate         = 1.5f,
-        EnergyCost       = 25f,
-        Mass             = 120f,
-        Accuracy         = 0.85f,
-        ProjectileVisual = ProjectileVisual.HeavyLaser,
-    };
-
-    public static Equipment PulseCannon => new()
-    {
-        EquipmentName    = "Pulse Cannon",
-        EquipmentType    = EquipmentType.TurretProjectile,
-        Damage           = 20,
-        Speed            = 1500f,
-        Range            = 1200f,
-        FireRate         = 4f,
-        EnergyCost       = 12f,
-        Mass             = 80f,
-        Accuracy         = 0.9f,
-        ProjectileVisual = ProjectileVisual.PulseCannon,
-    };
-
-    public static Equipment GatlingGun => new()
-    {
-        EquipmentName    = "Gatling Gun",
-        EquipmentType    = EquipmentType.FixedProjectile,
-        Damage           = 8,
-        Speed            = 2500f,
-        Range            = 1000f,
-        FireRate         = 10f,
-        EnergyCost       = 5f,
-        Mass             = 60f,
-        Accuracy         = 0.95f,
-        ProjectileVisual = ProjectileVisual.GatlingGun,
-    };
-
-    public static Equipment PlasmaBeam => new()
-    {
-        EquipmentName    = "Plasma Beam",
-        EquipmentType    = EquipmentType.FixedBeam,
-        Damage           = 50,
-        Range            = 2500f,
-        EnergyCost       = 40f,
-        Mass             = 150f,
-        Accuracy         = 0.8f,
-        ProjectileVisual = ProjectileVisual.PlasmaBeam,
-    };
-
-    public static Equipment MiningBeam => new()
-    {
-        EquipmentName    = "Mining Beam",
-        EquipmentType    = EquipmentType.TurretBeam,
-        Damage           = 5,
-        Range            = 800f,
-        EnergyCost       = 15f,
-        Mass             = 90f,
-        Accuracy         = 0.95f,
-        ProjectileVisual = ProjectileVisual.MiningBeam,
-    };
-
     public static Equipment LightMissile => new()
     {
         EquipmentName = "Light Missile",
@@ -245,14 +165,14 @@ public class Equipment
     };
 
     /// <summary>All built-in equipment definitions.</summary>
-    public static List<Equipment> Presets { get; } = new()
+    public static List<Equipment> Presets { get; } = BuildPresets();
+
+    /// <summary>Weapons come from <see cref="DefinitionRepository.Default"/>; everything else is defined here.</summary>
+    private static List<Equipment> BuildPresets()
     {
-        LightLaser,
-        HeavyLaser,
-        PulseCannon,
-        GatlingGun,
-        PlasmaBeam,
-        MiningBeam,
+        var presets = DefinitionRepository.Default.CreateWeapons();
+        presets.AddRange(new[]
+        {
         LightMissile,
         HeavyTorpedo,
         BasicShieldGenerator,
@@ -267,11 +187,13 @@ public class Equipment
         CargoExpander,
         SensorArray,
         AutoRepairModule,
-    };
+        });
+        return presets;
+    }
 
     /// <summary>
     /// Resolves a preset by name. Only <see cref="EquipmentName"/> is persisted, so this
-    /// restores the full stat set (including <see cref="ProjectileVisual"/>) on load.
+    /// restores the full stat set (including <see cref="ImpactLingerSeconds"/>) on load.
     /// Returns an inert <see cref="EquipmentType.Unkown"/> item if the name is unrecognized.
     /// </summary>
     public static Equipment FromName(string equipmentName)
@@ -313,8 +235,8 @@ public class Equipment
     public float FiringOffset       { get; set; } = 20f;
     public float ProjectileRadius   { get; set; } = 4f;
 
-    /// <summary>Rendering style for projectiles fired by this weapon.</summary>
-    [JsonIgnore] public ProjectileVisual ProjectileVisual { get; set; } = ProjectileVisual.Default;
+    /// <summary>Seconds a spent projectile stays in the world after impact (gameplay; the renderer plays its burst over this time).</summary>
+    [JsonIgnore] public float ImpactLingerSeconds { get; set; } = 0.18f;
     private static readonly Random _rng = new();
     private float _cooldown = 0f;
 
@@ -380,7 +302,7 @@ public class Equipment
             Rotation   = owner.Rotation + spreadAngle,
             Lifetime   = lifetime,
             Radius     = ProjectileRadius,
-            Visual     = ProjectileVisual,
+            ImpactLingerSeconds = ImpactLingerSeconds,
             Damage     = Damage ?? 0,
             WeaponType = EquipmentType,
             WeaponName = EquipmentName,

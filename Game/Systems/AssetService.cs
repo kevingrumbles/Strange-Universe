@@ -35,20 +35,22 @@ public sealed class AssetService : IAssetRequests
         _cache.Register(Ship.SplashArtKeyFor(shipType), splashTex ?? tex);
     }
 
-    public void EnsureAsteroidTexture(string paletteId, Func<int> nextSeed)
+    public void EnsureAsteroidTexture(string paletteId, int seed)
     {
         if (_cache.TryGet(paletteId, out _)) return;
-        _cache.Register(paletteId, ProceduralTextures.Asteroid(_graphicsDevice, nextSeed()));
+        _cache.Register(paletteId, ProceduralTextures.Asteroid(_graphicsDevice, seed));
     }
 
     public void EnsurePlanetTexture(Planet planet)
     {
+        if (_cache.TryGet(planet.Id, out _)) return;
         _cache.Register(planet.Id,
             ProceduralTextures.Planet(_graphicsDevice, planet.Type, ProceduralHelpers.SeedHash(planet.Id)));
     }
 
     public void EnsureStarTexture(Star star)
     {
+        if (_cache.TryGet(star.Id, out _)) return;
         _cache.Register(star.Id,
             ProceduralTextures.Star(_graphicsDevice, ProceduralHelpers.StarColors[star.ColorIndex], star.CreateTextureRandom()));
     }

@@ -1,4 +1,4 @@
-﻿using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Helpers;
 using System;
 using System.Threading.Tasks;
 
@@ -28,7 +28,7 @@ public class Nebula
     public float Brightness = 0.80f;      // Color brightness multiplier
 
     /// <summary>
-    /// Packed RGBA pixels (R in the low byte, matching <see cref="Color.PackedValue"/>),
+    /// Packed RGBA pixels (R in the low byte, matching <see cref="Rgba.Pack"/>),
     /// <see cref="Size"/> x <see cref="Size"/>. Null once released after upload.
     /// </summary>
     public uint[] Pixels { get; private set; }
@@ -41,6 +41,15 @@ public class Nebula
         Id = id;
         Generate();
     }
+
+    private Nebula(string id, bool generate)
+    {
+        Id = id;
+        if (generate) Generate();
+    }
+
+    /// <summary>Test seam: a nebula with an id but no pixel data (skips the expensive generation).</summary>
+    internal static Nebula CreateWithoutPixels(string id) => new(id, generate: false);
 
     /// <summary>Drops the pixel buffer once the render side has uploaded it.</summary>
     public void ReleasePixels() => Pixels = null;
@@ -55,9 +64,9 @@ public class Nebula
 
         // Pick 3 strongly-contrasting hues for this nebula
         int[]  triplet = ProceduralHelpers.NebulaTriplets[rng.Next(ProceduralHelpers.NebulaTriplets.Length)];
-        Color  c0      = ProceduralHelpers.NebulaColorPool[triplet[0]];
-        Color  c1      = ProceduralHelpers.NebulaColorPool[triplet[1]];
-        Color  c2      = ProceduralHelpers.NebulaColorPool[triplet[2]];
+        Rgba   c0      = ProceduralHelpers.NebulaColorPool[triplet[0]];
+        Rgba   c1      = ProceduralHelpers.NebulaColorPool[triplet[1]];
+        Rgba   c2      = ProceduralHelpers.NebulaColorPool[triplet[2]];
 
         // Pre-normalise to [0,1] float so the inner loop avoids repeated division
         float r0f = c0.R / 255f;  float g0f = c0.G / 255f;  float b0f = c0.B / 255f;
@@ -113,11 +122,11 @@ public class Nebula
                 // Alpha based on density, using BaseOpacity constant
                 byte alpha = (byte)(maxDens * 255f * BaseOpacity);
 
-                pixels[py * Size + px] = new Color(
+                pixels[py * Size + px] = Rgba.Pack(
                     (byte)Math.Min(255, (int)(r * 255f)),
                     (byte)Math.Min(255, (int)(g * 255f)),
                     (byte)Math.Min(255, (int)(b * 255f)),
-                    alpha).PackedValue;
+                    alpha);
             }
         });
 

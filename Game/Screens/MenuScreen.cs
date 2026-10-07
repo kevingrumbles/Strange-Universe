@@ -48,7 +48,7 @@ public sealed class MenuScreen : IScreen
         {
             var toDelete = universes[_index];
             universes.RemoveAt(_index);
-            Persistence.Remove(toDelete, ScreenContext.UniverseFilePath);
+            _ctx.Saves.Delete(toDelete);
             if (_index >= universes.Count && _index > 0)
                 _index = universes.Count - 1;
         }

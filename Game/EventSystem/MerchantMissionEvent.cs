@@ -4,6 +4,7 @@ using Strange_Universe.Game.NavSystem;
 using System;
 using System.Collections.Generic;
 
+using Strange_Universe.Game.Components;
 namespace Strange_Universe.Game.EventSystem
 {
     public class MerchantMissionEvent : SystemEvent
@@ -14,18 +15,18 @@ namespace Strange_Universe.Game.EventSystem
             type = EventType.StandardEvent;
         }
 
-        public override void ExcuteEvent(StarSystem system)
+        public override void ExcuteEvent(IWorldContext system)
         {
             if (system.Planets.Count == 0)
             {
                 return;
             }
 
-            Nonplayer merchant = new Nonplayer(npcId: $"Npc_merchant_{system.Npcs.Count + 1}", shipType: "Shuttle", jumpSpawn: true, npcName: $"Merchant Shuttle");
+            Nonplayer merchant = new Nonplayer(npcId: $"Npc_merchant_{system.NpcCount + 1}", shipType: "Shuttle", jumpSpawn: true, npcName: $"Merchant Shuttle");
             merchant.EnqueueNavTask(new DockTask(merchant, system.Planets[random.Next(0, system.Planets.Count)].Position));
             merchant.EnqueueNavTask(new JumpTask(merchant));
             system.AddNpc(merchant);
-            system.Universe.Messages.Post("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
+            system.PostMessage("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
         }
     }
 }

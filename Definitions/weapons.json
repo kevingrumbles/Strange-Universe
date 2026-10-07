@@ -1,0 +1,54 @@
+{
+  "weapons": [
+    { "name": "Light Laser",  "type": "FixedProjectile",  "damage": 15, "speed": 2000, "range": 1500, "fireRate": 3,   "energyCost": 10, "mass": 50,  "accuracy": 0.9,  "impactLingerSeconds": 0.16, "visualStyle": "lightLaser" },
+    { "name": "Heavy Laser",  "type": "FixedProjectile",  "damage": 35, "speed": 1800, "range": 2000, "fireRate": 1.5, "energyCost": 25, "mass": 120, "accuracy": 0.85, "impactLingerSeconds": 0.26, "visualStyle": "heavyLaser" },
+    { "name": "Pulse Cannon", "type": "TurretProjectile", "damage": 20, "speed": 1500, "range": 1200, "fireRate": 4,   "energyCost": 12, "mass": 80,  "accuracy": 0.9,  "impactLingerSeconds": 0.22, "visualStyle": "pulseCannon" },
+    { "name": "Gatling Gun",  "type": "FixedProjectile",  "damage": 8,  "speed": 2500, "range": 1000, "fireRate": 10,  "energyCost": 5,  "mass": 60,  "accuracy": 0.95, "impactLingerSeconds": 0.10, "visualStyle": "gatlingGun" },
+    { "name": "Plasma Beam",  "type": "FixedBeam",        "damage": 50,                 "range": 2500,                  "energyCost": 40, "mass": 150, "accuracy": 0.8,  "impactLingerSeconds": 0.34, "visualStyle": "plasmaBeam" },
+    { "name": "Mining Beam",  "type": "TurretBeam",       "damage": 5,                  "range": 800,                   "energyCost": 15, "mass": 90,  "accuracy": 0.95, "impactLingerSeconds": 0.20, "visualStyle": "miningBeam" }
+  ],
+  "visualStyles": {
+    "default": {
+      "style": "laser", "coreColor": [255, 245, 200], "coreLength": 22, "coreWidth": 3,
+      "glowColor": [255, 200, 60], "glowRadius": 10, "glowIntensity": 0.8,
+      "trailLength": 30, "trailWidth": 5, "trailAlpha": 0.45, "pulseSpeed": 8, "pulseAmount": 0.18,
+      "particleCount": 12, "burstDuration": 0.18, "burstRadius": 18, "burstParticleCount": 10, "burstParticleSpeed": 120
+    },
+    "lightLaser": {
+      "style": "laser", "coreColor": [255, 245, 200], "coreLength": 22, "coreWidth": 3,
+      "glowColor": [255, 200, 60], "glowRadius": 10, "glowIntensity": 0.8,
+      "trailLength": 30, "trailWidth": 5, "trailAlpha": 0.45, "pulseSpeed": 8, "pulseAmount": 0.18,
+      "particleCount": 12, "burstDuration": 0.16, "burstRadius": 16, "burstParticleCount": 10, "burstParticleSpeed": 120
+    },
+    "heavyLaser": {
+      "style": "laser", "coreColor": [255, 245, 200], "coreLength": 30, "coreWidth": 5,
+      "glowColor": [255, 200, 60], "glowRadius": 14, "glowIntensity": 0.9,
+      "trailLength": 40, "trailWidth": 8, "trailAlpha": 0.5, "pulseSpeed": 6, "pulseAmount": 0.22,
+      "particleCount": 16, "burstDuration": 0.26, "burstRadius": 30, "burstParticleCount": 20, "burstParticleSpeed": 190
+    },
+    "gatlingGun": {
+      "style": "solid", "coreColor": [255, 250, 220], "coreLength": 10, "coreWidth": 2,
+      "glowColor": [255, 170, 60], "glowRadius": 4, "glowIntensity": 0.5,
+      "trailLength": 14, "trailWidth": 2, "trailAlpha": 0.25, "pulseSpeed": 0, "pulseAmount": 0,
+      "particleCount": 4, "burstDuration": 0.10, "burstRadius": 8, "burstParticleCount": 6, "burstParticleSpeed": 150
+    },
+    "plasmaBeam": {
+      "style": "beam", "coreColor": [245, 225, 255], "coreLength": 64, "coreWidth": 6,
+      "glowColor": [180, 80, 255], "glowRadius": 18, "glowIntensity": 1,
+      "trailLength": 0, "trailWidth": 0, "trailAlpha": 0, "pulseSpeed": 14, "pulseAmount": 0.25,
+      "particleCount": 20, "burstDuration": 0.34, "burstRadius": 38, "burstParticleCount": 26, "burstParticleSpeed": 160
+    },
+    "pulseCannon": {
+      "style": "pulse", "coreColor": [230, 255, 230], "coreLength": 14, "coreWidth": 6,
+      "glowColor": [90, 255, 130], "glowRadius": 12, "glowIntensity": 0.85,
+      "trailLength": 20, "trailWidth": 6, "trailAlpha": 0.4, "pulseSpeed": 12, "pulseAmount": 0.3,
+      "particleCount": 10, "burstDuration": 0.22, "burstRadius": 24, "burstParticleCount": 16, "burstParticleSpeed": 170
+    },
+    "miningBeam": {
+      "style": "beam", "coreColor": [255, 245, 215], "coreLength": 48, "coreWidth": 3,
+      "glowColor": [255, 160, 40], "glowRadius": 10, "glowIntensity": 0.75,
+      "trailLength": 0, "trailWidth": 0, "trailAlpha": 0, "pulseSpeed": 5, "pulseAmount": 0.15,
+      "particleCount": 14, "burstDuration": 0.20, "burstRadius": 14, "burstParticleCount": 14, "burstParticleSpeed": 90
+    }
+  }
+}

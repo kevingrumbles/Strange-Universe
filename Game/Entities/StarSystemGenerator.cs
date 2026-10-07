@@ -1,172 +1,188 @@
 using Microsoft.Xna.Framework;
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Linq;
 using Strange_Universe.Game.Components;
 
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>
-/// Procedurally fills a <see cref="StarSystem"/> from its node's seed.
-/// The order of Random draws is load-bearing: changing it changes every generated system.
+/// Pure generation of a <see cref="StarSystemLayout"/> from a node's seed. It reads nothing from the
+/// universe or galaxy and requests no assets. The order of Random draws is load-bearing:
+/// changing it changes every generated system.
 /// </summary>
 public static class StarSystemGenerator
 {
-    public static void Populate(StarSystem system)
+    /// <summary>Number of shared asteroid palette textures.</summary>
+    public const int AsteroidPaletteSize = 15;
+
+    public static string AsteroidPaletteId(int index) => $"asteroid_tex_{index}";
+
+    public static StarSystemLayout Generate(StarSystemNode node, int nebulaPoolSize)
     {
-        var sw = Stopwatch.StartNew();
-        StarSystemNode node = system.Node;
+        ArgumentNullException.ThrowIfNull(node);
 
-        DeriveParameters(system, new Random(ProceduralHelpers.SeedHash(node.SystemId)));
-        Debug.WriteLine($"properties loaded: {sw.ElapsedMilliseconds} ms");
-
-        GenerateStars(system);
-        GeneratePlanets(system);
-        GenerateAsteroids(system);
-        GenerateBackgroundStars(system);
-        SelectNebula(system);
-        Debug.WriteLine($"Generating Connections: {sw.ElapsedMilliseconds} ms");
-        system.Universe.Galaxy.GenerateConnections(node, system.SystemConnectionCount, system.Universe.Seed);
-        Debug.WriteLine($"StarSystem generation completed: {sw.ElapsedMilliseconds} ms");
+        var layout = DeriveParameters(node, new Random(ProceduralHelpers.SeedHash(node.SystemId)));
+        return layout with
+        {
+            Stars = GenerateStars(node.SystemId, layout),
+            Planets = GeneratePlanets(node.SystemId, layout),
+            Asteroids = GenerateAsteroids(node.SystemId, layout),
+            BackgroundStars = GenerateBackgroundStars(node.SystemId, layout),
+            NebulaIndex = NebulaIndexFor(node.SystemId, nebulaPoolSize),
+        };
     }
 
-    private static void DeriveParameters(StarSystem s, Random rng)
+    private static StarSystemLayout DeriveParameters(StarSystemNode node, Random rng)
     {
-        s.PlanetCount = rng.Next(0, 7);
-        s.AsteroidCount = rng.Next(0, 120);
-        s.StarCount = rng.Next(1, 3);
-        s.StarRadius = rng.NextWeightedFloat(250f, 500f);
-        switch (s.StarCount)
+        int planetCount = rng.Next(0, 7);
+        int asteroidCount = rng.Next(0, 120);
+        int starCount = rng.Next(1, 3);
+        float starRadius = rng.NextWeightedFloat(250f, 500f);
+        float starOrbitRadius = 0f;
+        float starOrbitSpeed = 0f;
+        switch (starCount)
         {
-            case 1:
-                s.StarOrbitRadius = 0f;
-                s.StarOrbitSpeed = 0f;
-                break;
             case 2:
-                s.StarOrbitRadius = rng.NextWeightedFloat(2000f, 4000f);
-                s.StarOrbitSpeed  = rng.NextWeightedFloat(0.0001f, 0.0003f);
+                starOrbitRadius = rng.NextWeightedFloat(2000f, 4000f);
+                starOrbitSpeed  = rng.NextWeightedFloat(0.0001f, 0.0003f);
                 break;
             case 3:
-                s.StarOrbitRadius = rng.NextWeightedFloat(3000f, 7000f);
-                s.StarOrbitSpeed  = rng.NextWeightedFloat(0.00005f, 0.0002f);
+                starOrbitRadius = rng.NextWeightedFloat(3000f, 7000f);
+                starOrbitSpeed  = rng.NextWeightedFloat(0.00005f, 0.0002f);
                 break;
         }
 
-        s.MinPlanetRadius = rng.NextWeightedFloat(90f, 120f);
-        s.MaxPlanetRadius = rng.NextWeightedFloat(150, 300f);
-        s.MinAsteroidRadius = rng.NextWeightedFloat(15f, 30f);
-        s.MaxAsteroidRadius = rng.NextWeightedFloat(40f, 50f);
-        s.SystemConnectionCount = rng.Next(1, 4);
-        if (s.SystemConnectionCount == 1) s.SystemConnectionCount = rng.Next(1, 4);
-        s.InnerPlanetCount = rng.Next(s.PlanetCount);
-        s.BackgroundStarCount = rng.Next(400, 800);
+        float minPlanetRadius = rng.NextWeightedFloat(90f, 120f);
+        float maxPlanetRadius = rng.NextWeightedFloat(150, 300f);
+        float minAsteroidRadius = rng.NextWeightedFloat(15f, 30f);
+        float maxAsteroidRadius = rng.NextWeightedFloat(40f, 50f);
+        int connectionCount = rng.Next(1, 4);
+        if (connectionCount == 1) connectionCount = rng.Next(1, 4);
+        int innerPlanetCount = rng.Next(planetCount);
+        int backgroundStarCount = rng.Next(400, 800);
 
-        if (s.Node.Name == "Sol")
+        if (node.IsHome)
         {
-            s.InnerPlanetCount = 4;
-            s.PlanetCount = 8;
-            s.SystemConnectionCount = 4;
-            s.StarOrbitRadius = 0f;
-            s.StarOrbitSpeed = 0f;
-            s.StarCount = 1;
-            s.AsteroidCount = 100;
+            innerPlanetCount = 4;
+            planetCount = 8;
+            connectionCount = 4;
+            starOrbitRadius = 0f;
+            starOrbitSpeed = 0f;
+            starCount = 1;
+            asteroidCount = 100;
         }
 
         // The star core is the region occupied by all orbiting stars.
         // For a single star StarOrbitRadius == 0, so starCoreRadius == StarRadius.
-        float starCoreRadius = s.StarOrbitRadius + s.StarRadius;
+        float starCoreRadius = starOrbitRadius + starRadius;
         // SystemRadius is always large enough to contain the star core plus a meaningful planetary region.
-        float starCoreFootprint = s.StarOrbitRadius * 2f;
-        s.SystemRadius = rng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
-        s.MandevilleRadius = s.SystemRadius * 0.75f;
+        float starCoreFootprint = starOrbitRadius * 2f;
+        float systemRadius = rng.NextWeightedFloat(12000f + starCoreFootprint, 25000f + starCoreFootprint);
 
-        s.AsteroidBeltInnerRadius = Math.Max(
-            rng.NextWeightedFloat(s.SystemRadius * 0.2f, s.SystemRadius * 0.4f),
+        float beltInner = Math.Max(
+            rng.NextWeightedFloat(systemRadius * 0.2f, systemRadius * 0.4f),
             starCoreRadius * 2.5f);
-        s.AsteroidBeltOuterRadius = rng.NextWeightedFloat(s.AsteroidBeltInnerRadius * 1.2f, s.SystemRadius * 0.6f);
+        float beltOuter = rng.NextWeightedFloat(beltInner * 1.2f, systemRadius * 0.6f);
+
+        return new StarSystemLayout
+        {
+            PlanetCount = planetCount,
+            AsteroidCount = asteroidCount,
+            StarCount = starCount,
+            StarRadius = starRadius,
+            StarOrbitRadius = starOrbitRadius,
+            StarOrbitSpeed = starOrbitSpeed,
+            MinPlanetRadius = minPlanetRadius,
+            MaxPlanetRadius = maxPlanetRadius,
+            MinAsteroidRadius = minAsteroidRadius,
+            MaxAsteroidRadius = maxAsteroidRadius,
+            SystemConnectionCount = connectionCount,
+            InnerPlanetCount = innerPlanetCount,
+            BackgroundStarCount = backgroundStarCount,
+            SystemRadius = systemRadius,
+            MandevilleRadius = systemRadius * 0.75f,
+            AsteroidBeltInnerRadius = beltInner,
+            AsteroidBeltOuterRadius = beltOuter,
+        };
     }
 
-    private static void GenerateStars(StarSystem s)
+    private static List<Star> GenerateStars(string systemId, StarSystemLayout l)
     {
-        for (int i = 0; i < s.StarCount; i++)
+        var stars = new List<Star>();
+        for (int i = 0; i < l.StarCount; i++)
         {
-            string starId = $"{s.SystemId}_Star_{i}";
+            string starId = $"{systemId}_Star_{i}";
             Random starRandom = new Random(ProceduralHelpers.SeedHash(starId));
             int colorIndex = starRandom.Next(ProceduralHelpers.StarColors.Length);
             string name = null;
-            while (name is null || s.Stars.Any(st => st.Name == name))
+            while (name is null || stars.Any(st => st.Name == name))
             {
                 name = NameGenerator.GenerateCelestialName(CelestialNameType.Star, random: starRandom);
             }
 
-            float initialAngle = MathHelper.TwoPi * i / s.StarCount;
-            Star newStar = new Star(starId, s.StarRadius, name, colorIndex, s.StarOrbitRadius, initialAngle, s.StarOrbitSpeed);
-            s.Assets?.EnsureStarTexture(newStar);
-            newStar.Position = s.StarCount == 1
+            float initialAngle = MathHelper.TwoPi * i / l.StarCount;
+            Star newStar = new Star(starId, l.StarRadius, name, colorIndex, l.StarOrbitRadius, initialAngle, l.StarOrbitSpeed);
+            newStar.Position = l.StarCount == 1
                 ? Vector2.Zero
                 : new Vector2(
-                    MathF.Cos(initialAngle) * s.StarOrbitRadius,
-                    MathF.Sin(initialAngle) * s.StarOrbitRadius);
-            s.Stars.Add(newStar);
+                    MathF.Cos(initialAngle) * l.StarOrbitRadius,
+                    MathF.Sin(initialAngle) * l.StarOrbitRadius);
+            stars.Add(newStar);
         }
+        return stars;
     }
 
-    private static void GeneratePlanets(StarSystem s)
+    private static List<Planet> GeneratePlanets(string systemId, StarSystemLayout l)
     {
-        for (int i = 1; i <= s.PlanetCount; i++)
+        var planets = new List<Planet>();
+        for (int i = 1; i <= l.PlanetCount; i++)
         {
-            bool inner = i <= s.InnerPlanetCount;
-            var planet = new Planet(planetId: $"{s.SystemId}_Planet_{i}",
-                                    minPlanetRadius: s.MinPlanetRadius,
-                                    maxPlanetRadius: s.MaxPlanetRadius,
-                                    minOrbit: inner ? Math.Max(s.StarRadius * 3.5f, s.StarOrbitRadius * 2f) : s.AsteroidBeltOuterRadius * 1.1f,
-                                    maxOrbit: inner ? s.AsteroidBeltInnerRadius * 0.9f : s.SystemRadius * 0.75f,
-                                    planetNumber: i,
-                                    totalPlanets: s.PlanetCount);
-            s.Planets.Add(planet);
-            s.Assets?.EnsurePlanetTexture(planet);
+            bool inner = i <= l.InnerPlanetCount;
+            planets.Add(new Planet(planetId: $"{systemId}_Planet_{i}",
+                                   minPlanetRadius: l.MinPlanetRadius,
+                                   maxPlanetRadius: l.MaxPlanetRadius,
+                                   minOrbit: inner ? Math.Max(l.StarRadius * 3.5f, l.StarOrbitRadius * 2f) : l.AsteroidBeltOuterRadius * 1.1f,
+                                   maxOrbit: inner ? l.AsteroidBeltInnerRadius * 0.9f : l.SystemRadius * 0.75f,
+                                   planetNumber: i,
+                                   totalPlanets: l.PlanetCount));
         }
+        return planets;
     }
 
-    private static void GenerateAsteroids(StarSystem s)
+    private static List<Asteroid> GenerateAsteroids(string systemId, StarSystemLayout l)
     {
-        // Pre-generate a small palette of asteroid textures and reuse them
-        Random asteroidsRng = new Random(ProceduralHelpers.SeedHash($"{s.SystemId}_Asteroids"));
-        const int PaletteSize = 15;
-        var paletteIds = new string[PaletteSize];
-        for (int i = 0; i < PaletteSize; i++)
-        {
-            paletteIds[i] = $"asteroid_tex_{i}";
+        Random asteroidsRng = new Random(ProceduralHelpers.SeedHash($"{systemId}_Asteroids"));
 
-            // A seed is drawn only when a texture is actually created; this matches the
-            // original order of RNG draws exactly, keeping asteroid layout deterministic.
-            if (s.Assets != null)
-                s.Assets.EnsureAsteroidTexture(paletteIds[i], asteroidsRng.Next);
-            else
-                asteroidsRng.Next();
-        }
+        // Always consume one draw per palette slot so placement below never depends on
+        // which textures already exist (visit order) or whether assets are attached.
+        for (int i = 0; i < AsteroidPaletteSize; i++)
+            asteroidsRng.Next();
 
-        for (int i = 0; i < s.AsteroidCount; i++)
+        var asteroids = new List<Asteroid>();
+        for (int i = 0; i < l.AsteroidCount; i++)
         {
-            float orbit = MathHelper.Lerp(s.AsteroidBeltInnerRadius, s.AsteroidBeltOuterRadius, (float)asteroidsRng.NextDouble());
+            float orbit = MathHelper.Lerp(l.AsteroidBeltInnerRadius, l.AsteroidBeltOuterRadius, (float)asteroidsRng.NextDouble());
             float angle = (float)(asteroidsRng.NextDouble() * MathHelper.TwoPi);
-            float radius = MathHelper.Lerp(s.MinAsteroidRadius, s.MaxAsteroidRadius, (float)asteroidsRng.NextDouble());
-            string textureId = paletteIds[asteroidsRng.Next(PaletteSize)];
-            s.Asteroids.Add(new Asteroid(angle, orbit, radius, textureId, asteroidsRng));
+            float radius = MathHelper.Lerp(l.MinAsteroidRadius, l.MaxAsteroidRadius, (float)asteroidsRng.NextDouble());
+            string textureId = AsteroidPaletteId(asteroidsRng.Next(AsteroidPaletteSize));
+            asteroids.Add(new Asteroid(angle, orbit, radius, textureId, asteroidsRng));
         }
+        return asteroids;
     }
 
-    private static void GenerateBackgroundStars(StarSystem s)
+    private static List<BackgroundStar> GenerateBackgroundStars(string systemId, StarSystemLayout l)
     {
-        Random rng = new Random(ProceduralHelpers.SeedHash($"{s.SystemId}_BackgroundStars"));
+        Random rng = new Random(ProceduralHelpers.SeedHash($"{systemId}_BackgroundStars"));
 
         // Positions are in virtual space matching the parallax tile size used by the renderer.
         const float VirtualWidth = BackgroundTile.Width;
         const float VirtualHeight = BackgroundTile.Height;
 
-        for (int i = 0; i < s.BackgroundStarCount; i++)
+        var stars = new List<BackgroundStar>();
+        for (int i = 0; i < l.BackgroundStarCount; i++)
         {
-            s.BackgroundStars.Add(new BackgroundStar
+            stars.Add(new BackgroundStar
             {
                 Position   = new Vector2(
                     (float)rng.NextDouble() * VirtualWidth,
@@ -177,14 +193,14 @@ public static class StarSystemGenerator
                 Layer      = rng.NextDouble() < 0.5 ? 1 : 0,
             });
         }
+        return stars;
     }
 
-    private static void SelectNebula(StarSystem s)
-    {
-        Random nebulaRandom = new Random(ProceduralHelpers.SeedHash($"{s.SystemId}_Nebula"));
-
-        var pool = s.Universe.NebulaPool;
-        if (pool.Count == 0) return;
-        s.NebulaId = pool[nebulaRandom.Next(pool.Count)].Id;
-    }
+    /// <summary>
+    /// Pool slot used by the system <paramref name="systemId"/>. Pure, so the universe can
+    /// prioritize loading that nebula before the system is built. The slot comes from the fixed pool
+    /// size, never the current fill level, which depends on background generation timing.
+    /// </summary>
+    public static int NebulaIndexFor(string systemId, int nebulaPoolSize) =>
+        new Random(ProceduralHelpers.SeedHash($"{systemId}_Nebula")).Next(nebulaPoolSize);
 }

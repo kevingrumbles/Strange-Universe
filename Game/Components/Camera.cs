@@ -11,6 +11,8 @@ public class Camera
     public Vector2 Position     { get; private set; }
     public float   Zoom         { get; private set; }
     public Vector2 ScreenCenter { get; private set; }
+    public int ScreenWidth  { get; }
+    public int ScreenHeight { get; }
     public float DefaultZoom { get; set; } = 1.0f;
     public float MinZoom { get; set; } = 0.04f;
     public float MaxZoom { get; set; } = 5.0f;
@@ -19,6 +21,8 @@ public class Camera
     public Camera(int screenWidth, int screenHeight)
     {
         Zoom = DefaultZoom;
+        ScreenWidth  = screenWidth;
+        ScreenHeight = screenHeight;
         ScreenCenter = new Vector2(screenWidth * 0.5f, screenHeight * 0.5f);
     }
 

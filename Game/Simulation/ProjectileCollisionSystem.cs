@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 
-namespace Strange_Universe.Game.Systems;
+namespace Strange_Universe.Game.Simulation;
 
 /// <summary>
 /// Detects projectile impacts against ships and asteroids and applies them to the
@@ -30,7 +31,8 @@ public class ProjectileCollisionSystem
         Player player,
         IReadOnlyList<Nonplayer> npcs,
         IReadOnlyList<Asteroid> asteroids,
-        float deltaTime)
+        float deltaTime,
+        IEventBus events = null)
     {
         if (projectiles == null || projectiles.Count == 0)
             return;
@@ -105,6 +107,7 @@ public class ProjectileCollisionSystem
                 bestAsteroid.ApplyDamage(projectile);
 
             projectile.MarkHit();
+            events?.Publish(new ProjectileHit(projectile, bestShip, bestAsteroid));
         }
     }
 

@@ -4,6 +4,7 @@ using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Screens;
 using Strange_Universe.Game.Systems;
 
+using Strange_Universe.Game.Components;
 namespace Strange_Universe
 {
     /// <summary>Thin MonoGame host: owns shared GPU resources and forwards Update/Draw to the active screen.</summary>
@@ -12,6 +13,7 @@ namespace Strange_Universe
         private readonly GraphicsDeviceManager _graphics;
         private readonly ScreenManager _screens = new();
         private readonly GameSettings _settings = new();
+        private readonly ISaveService _saves = new FileSaveService();
 
         private RenderService _render;
         private ProjectileRenderer _projectileRenderer;
@@ -60,7 +62,9 @@ namespace Strange_Universe
                 Render = _render,
                 Font = FontBuilder.Build(GraphicsDevice, "Arial", 16f),
                 Settings = _settings,
-                Universes = Persistence.LoadExisting(ScreenContext.UniverseFilePath),
+                Saves = _saves,
+                Input = new InputHandler(),
+                Universes = _saves.LoadAll(),
                 ScreenWidth = _graphics.PreferredBackBufferWidth,
                 ScreenHeight = _graphics.PreferredBackBufferHeight,
                 ShowMenu = () => _screens.Switch(_menu),

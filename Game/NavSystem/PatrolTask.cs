@@ -105,9 +105,9 @@ namespace Strange_Universe.Game.NavSystem
             Vector2 avoidanceVector = Vector2.Zero;
 
             // Check for star collisions
-            if (Owner.StarSystem?.Stars != null)
+            if (World?.Stars != null)
             {
-                foreach (var star in Owner.StarSystem.Stars)
+                foreach (var star in World.Stars)
                 {
                     float distance = Vector2.Distance(Owner.Position, star.Position);
                     float dangerRadius = star.Radius * 2.5f;
@@ -128,9 +128,9 @@ namespace Strange_Universe.Game.NavSystem
             }
 
             // Check for planet collisions
-            if (Owner.StarSystem?.Planets != null)
+            if (World?.Planets != null)
             {
-                foreach (var planet in Owner.StarSystem.Planets)
+                foreach (var planet in World.Planets)
                 {
                     float distance = Vector2.Distance(Owner.Position, planet.Position);
                     float dangerRadius = planet.Radius * 2f;

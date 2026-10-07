@@ -1,4 +1,5 @@
 ﻿using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Helpers;
 using System;
 
 namespace Strange_Universe;
@@ -255,16 +256,16 @@ public static class ProceduralHelpers
 
     // Eight vivid hues spread across the color wheel so any triplet produces
     // clearly distinct, strongly-contrasting color regions.
-    public static readonly Color[] NebulaColorPool =
+    public static readonly Rgba[] NebulaColorPool =
     {
-        new Color(215,  40,  45),   // 0  crimson
-        new Color(235, 115,  15),   // 1  orange
-        new Color( 40,  75, 220),   // 2  cobalt blue
-        new Color( 20, 185,  80),   // 3  emerald green
-        new Color(200,  20, 190),   // 4  magenta
-        new Color( 80,  15, 215),   // 5  deep purple
-        new Color( 15, 195, 215),   // 6  cyan / teal
-        new Color(220, 195,  20)};  // 7  gold
+        new Rgba(215,  40,  45),   // 0  crimson
+        new Rgba(235, 115,  15),   // 1  orange
+        new Rgba( 40,  75, 220),   // 2  cobalt blue
+        new Rgba( 20, 185,  80),   // 3  emerald green
+        new Rgba(200,  20, 190),   // 4  magenta
+        new Rgba( 80,  15, 215),   // 5  deep purple
+        new Rgba( 15, 195, 215),   // 6  cyan / teal
+        new Rgba(220, 195,  20)};  // 7  gold
 
     // Each triplet is hand-picked so the three colors are well-separated
     // in hue, guaranteeing visible color variety in every nebula.

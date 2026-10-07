@@ -153,10 +153,15 @@ public abstract class Ship
         if (Target != null && !Sensors.IsTargetValid(Target))
             Sensors.ClearTarget();
 
-        Navigator.Update(deltaTime);
+        // Nav tasks all need a system; a detached ship keeps its queue until it is attached.
+        if (StarSystem != null)
+            Navigator.Update(deltaTime);
+
+        // Detached ships (no system yet) feel no gravity.
+        Vector2 gravity = StarSystem?.Spatial.CalculateGravityAtLocation(Position) ?? Vector2.Zero;
 
         // Gravity is not capped by MaxSpeed - it can push ships beyond their normal limits
-        Physics.Integrate(StarSystem.Spatial.CalculateGravityAtLocation(Position), deltaTime);
+        Physics.Integrate(gravity, deltaTime);
 
         Weapons.UpdateCooldowns(deltaTime);
     }
@@ -189,7 +194,9 @@ public abstract class Ship
         bool shieldWasUp = CurrentShieldStrength is > 0;
 
         Durability.ApplyDamage(projectile.Damage, projectile.Owner);
-        StarSystem?.RaiseShipHit(this, projectile, shieldWasUp);
+        StarSystem?.Universe?.Events.Publish(new ShipDamaged(this, projectile, shieldWasUp));
+        if (IsDestroyed)
+            StarSystem?.Universe?.Events.Publish(new ShipDestroyed(this, projectile.Owner));
     }
 
     /// <inheritdoc cref="ShipDurability.ApplyDamage"/>

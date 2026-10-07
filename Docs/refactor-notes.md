@@ -223,3 +223,303 @@ Resource lifetime: `LoadContent` calls `CreateResources()`, and `UnloadContent` 
 - Hitbox circles in debug mode are new (they only show in debug mode).
 - This file has no Phase 2-4 sections; those phases were only reported in chat.
 - Resolves the Phase 1 deferred item: `Launcher.PlanetColision` is gone.
+
+---
+
+# Round 2
+
+Plan: `REFACTOR_PLAN_ROUND2.md`. Baseline `56138e4`. All work is on branch `Refactor-Round-2` (no per-phase branches, at the maintainer's request).
+
+## Round 2 / Phase 0 - Test seams and baselines
+
+### Files read (from the plan's "not reviewed" list)
+
+`ProceduralTextureCache`, `NavTask`/`JumpTask`, `GalaxyGraph`, `StarSystemNode`, `Nebula`, `Persistence`, `Tests/StarSystemGoldenTests.cs`, `Tests/StarSystemConstructionTests.cs`.
+
+### Corrections to the plan
+
+- **1c (texture leak):** `ProceduralTextureCache.Register` already disposes the texture it replaces, so there is no leak. The guard in 1c is still worth adding (it avoids regenerating planet/star textures on every system entry), but it is an optimization, not a leak fix.
+- **1b (nebula ids):** confirmed. Pool ids are `$"{Seed}_nebula_pool_{i}"` in both `GenerateNebulaPool` and `GenerateRemainingNebulaPoolAsync`.
+- **1a (headless path):** confirmed. With `Assets == null` the generator always draws 15 seeds, which equals the *first-visit* game path but not later visits. "Headless vs game" therefore only differs when palettes already exist, and the test compares headless against the pre-seeded fake.
+- **Phase 0 step 4 (idempotent expansion):** constructing the same system twice does **not** change universe/galaxy state today. `GenerateConnections` stops once the node already has its target connection count. The test passes, so there is no known issue to carry into Phase 4. It now guards against regressions.
+
+### Changes
+
+Added:
+- `Tests/Fakes/RecordingAssetRequests.cs`: records calls and mimics `AssetService.EnsureAsteroidTexture` (seed drawn only for new palette ids). It can be pre-seeded with all 15 palette ids.
+- `Tests/GenerationCharacterizationTests.cs`:
+  - `Fake_DrawsSeedOnlyForNewPalettes` (passes)
+  - `AsteroidLayout_IndependentOfVisitOrder` (skipped, bug, Phase 1a)
+  - `AsteroidLayout_HeadlessMatchesGamePath` (skipped, bug, Phase 1a)
+  - `NebulaSelection_IndependentOfPoolFill` (skipped, bug, Phase 1b)
+  - `ConstructingSameSystemTwice_DoesNotChangeUniverse` (passes)
+
+Production (test seams only, no behavior change):
+- `Nebula.CreateWithoutPixels(id)` (internal): a nebula with an id and no 4096x4096 pixel generation, used to fill the pool cheaply in tests.
+- `Strange Universe.csproj`: `InternalsVisibleTo Strange-Universe.Tests`.
+
+### Tests
+
+69 passed, 3 skipped (72 total). The three skipped tests were temporarily un-skipped and confirmed to **fail** against the current code, so they reproduce the bugs.
+
+### Manual smoke test
+
+None needed. There is no production behavior change.
+
+### Open questions
+
+- None blocking Phase 1. Phase 1a changes asteroid appearance and layout for existing universes (approved in the plan); golden values for asteroid fields will be regenerated and listed.
+
+## Round 2 / Phase 1 - Determinism fixes
+
+### Changes
+
+- `IAssetRequests.EnsureAsteroidTexture(string paletteId, int seed)` replaces the `Func<int> nextSeed` overload. `AssetService` and the test fake were updated.
+- `StarSystemGenerator.GenerateAsteroids`:
+  - Always draws one value per palette slot (15) from `asteroidsRng` before placement, whether or not a texture is created.
+  - Palette texture seeds are now `SeedHash($"{universe.Seed}_asteroid_tex_{i}")`, so palette art is the same no matter which system creates it first. The per-system stream is used for placement only.
+- `StarSystemGenerator.SelectNebula`: picks `index = rng.Next(Universe.NebulaPoolSize)` and sets `NebulaId = Universe.NebulaPoolId(seed, index)`. It no longer reads `NebulaPool`, so the choice doesn't depend on timing and `NebulaId` is never null.
+- `Universe`: `NebulaPoolSize` is now `public const`. New `Universe.NebulaPoolId(seed, index)` is the single place the id format lives (format unchanged).
+- `AssetService.EnsurePlanetTexture`/`EnsureStarTexture`: `TryGet` guards, matching `EnsureShipArt`. As noted in Phase 0, `Register` already disposed the replaced texture, so this only avoids regenerating textures on each system entry. No leak existed.
+- 1b.3 renderer guard: `SpriteRenderer.DrawNebula` already returns early when the texture isn't in the cache, so no change was needed. A system whose nebula is still generating shows no nebula until it is uploaded. It then appears on the next frame without needing a re-entry.
+- 1c.3: `AssetService` needs a real `GraphicsDevice`, so it isn't unit-tested. Its behavior is covered through the fake.
+
+### Behavior changes
+
+- **Asteroid layout:** for a system generated when *no* palette textures existed yet (the first system of a launch), the layout is **unchanged**. That path already drew 15 values. For systems entered later in a launch, the layout changes: it previously skipped the 15 draws and now matches the first-visit layout. Net result: each system now always has the layout it would get as the first system of a launch.
+- **Asteroid appearance:** palette textures are now seeded from the universe seed, so asteroid art differs from before in every universe.
+- **Nebula:** a system may show a different nebula than before (selection was `Next(pool.Count)` against a partially filled pool). It is now stable across launches.
+- No serialized properties changed. Saves load as before.
+
+### Golden data
+
+**No golden values changed.** The golden tests run headless (`Assets == null`), and the old headless path already drew 15 values, the same as the new code. `StarSystemGoldenData.cs` is untouched. The golden fingerprint doesn't include `NebulaId`.
+
+### Tests
+
+74/74 pass. The three Phase 0 bug tests were un-skipped and now pass. New tests:
+- `PaletteSeeds_DependOnUniverseSeedOnly`
+- `NebulaId_IsAlwaysSet_EvenWithEmptyPool`
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify:
+1. New game: asteroids and nebula render.
+2. Jump A -> B -> C, then start a new launch and go A -> C -> B. C's asteroid layout should match.
+3. Immediately after launch, jump before all nebulae finish. The nebula appears once uploaded, with no crash.
+
+### Open questions
+
+- Should the golden fingerprint include `NebulaId` going forward?
+
+### Follow-up (maintainer request): wait for the nebula instead of drawing without it
+
+- `Universe` now holds one `Task<Nebula>` per pool slot. `GenerateNebulaPool()` starts any slot not already started, so calling it again on each jump/`Regenerate` no longer starts duplicate loops (this also covers Phase 2 step 2).
+- Entering a system (`ActiveStarSystem` creating the system) calls `WaitForNebula(NebulaId)`. It blocks on that slot's task and uploads it on the main thread before the system is returned, so a system is never drawn without its nebula. Other finished slots are still uploaded each frame in `Update`.
+- Headless (`_assets == null`), the wait is skipped.
+- Removed the old "first nebula synchronous" path and the `ConcurrentQueue`.
+- **Behavior change:** if a system is entered before its nebula has finished generating (mainly right after launch, or a fast jump early in a session), the game pauses until it is ready. Previously it showed no nebula until it was ready (Phase 1) or picked a different one (before Phase 1). Startup cost is about the same as before: one nebula, as before.
+- Test: `EnteringSystem_WaitsForItsNebula`. This test generates real nebula pixels, so the full test run now takes about 28 s.
+
+### Follow-up: load the current system's nebula first
+
+- New
+- `Universe.GenerateNebulaPool()` works out the player's system the same way `ActiveStarSystem` does (current id, then Sol, then the first node) without creating anything. It starts that nebula first and starts the other five only after it finishes, so they don't compete for CPU while the player waits on entry.
+- `StartNebula` is now thread-safe (`Interlocked.CompareExchange`), because the remaining slots are started from a continuation.
+- Test: `NebulaIndexFor_MatchesSelectedNebula`. 76/76 pass.
+- Note: the editor's stale copy of `GenerationCharacterizationTests.cs` re-added the Phase 0 `Skip` attributes twice. They were removed again and checked before committing.
+
+Test: `NewUniverse_PredictsStartingSystemNebula`. 77/77 pass.
+
+## Round 2 / Phase 2 - Lifecycle correctness
+
+### Changes
+
+- `Universe.ActiveStarSystem` no longer builds systems lazily. It throws until a system has been entered.
+- `Universe.EnterSystem(node)` is now the only way to enter a system. `Generate` and `JumpTask` both use it, and `JumpTask` no longer calls `Regenerate()`.
+- `ResolveStartNode()` picks the starting node before entry, so its nebula is requested first.
+- Nebula generation uses one task per pool slot, so no loop is ever started twice. Added a `NebulaFactory` test seam and `WaitForAllNebulae()`.
+- `NullAssetRequests.Instance` replaces the `null` asset checks. Removed the parameterless `StarSystem()` constructor.
+- Ships and players not in a system (`StarSystem == null`) no longer throw from `Update`, `FireWeapons` or jump input (`Player.HandleJump`).
+- Housekeeping: checked that there are no duplicate `using` lines in `StarSystem.cs` or `Universe.cs`. `Universe.cs` uses only the XNA `Vector2`.
+
+### Tests
+
+- New `UniverseLifecycleTests`.
+- Removed `ActiveStarSystem_AttachesPlayer`, which tested the old lazy getter. `Generate_EntersStartingSystem` now covers that behavior.
+- 83 pass, 3 skipped.
+
+### Manual smoke test
+
+**Not performed.** Please verify: new game, load a save, and several jumps in a row.
+
+## Round 2 / Phase 3 - Task completion belongs to the task
+
+### Changes
+
+- `NavTask.OnCompleted()` (virtual, no-op by default). `ShipNavigator.Update` calls it once when the active task reaches `Complete`, then clears the task.
+- `JumpTask.OnCompleted()` now holds the route removal and fuel decrement, with the same condition as before (owner is in the target system).
+- `JumpTask._targetSystemId` is now private; `TargetSystemId` is a public read-only property.
+- `ShipNavigator.cs` no longer names any task type.
+
+### Behavior changes
+
+None.
+
+### Tests
+
+New `NavTaskCompletionTests`: a completed jump in the target system removes the route entry and uses one fuel; a completed jump elsewhere and an invalid jump change nothing. 90/90 pass, 0 skipped.
+
+Note: the three Phase 0 bug tests in `GenerationCharacterizationTests.cs` were still marked `Skip` in the committed code, although the Phase 1 notes say they were un-skipped (the stale editor copy mentioned in Phase 1 appears to have re-added them). They are now un-skipped in their own commit and pass.
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: set a route on the galaxy map, jump. The route entry disappears and fuel drops by one on arrival; a merchant NPC still jumps out.
+
+## Round 2 / Phase 4 - Pure generation
+
+### Changes
+
+- New `StarSystemLayout` (immutable record): derived parameters, the initial stars, planets, asteroids and background stars, and `NebulaIndex`. The entity instances are handed to the `StarSystem` built from the layout, so a layout is consumed by one system.
+- `StarSystemGenerator.Generate(node, nebulaPoolSize)` returns a layout. It has no reference to `Universe`, `Galaxy` or `IAssetRequests`, and the order of Random draws is unchanged. `NebulaIndexFor` now takes the pool size.
+- `StarSystem` takes a layout (`new StarSystem(node, universe, layout, assets, random)`). Its generated properties are read-only and the constructor has no side effects. Internal `StarSystem.Create(...)` generates a layout and builds the system, and `AttachAssets()` requests textures.
+- `Universe.EnterSystem` now does, in order: create the system, expand the galaxy (only when `!node.Discovered`, which it then sets), attach assets, make it active, attach the player, wait for the nebula.
+- `StarSystemNode.IsHome` (`[JsonIgnore]`, derived from `HomeName = "Sol"`) replaces the string checks.
+- Deviation from the plan: `Generate` has no `universeSeed` parameter. The only seed-dependent parts (palette texture seeds, nebula id) are now built outside the generator.
+
+### Behavior changes
+
+None. Golden data is untouched. The golden fingerprint helper and a few tests now enter the system through `Universe.EnterSystem` (which does the galaxy expansion) instead of constructing a `StarSystem` directly.
+
+The order of asset requests changed: star textures, then planet textures, then the 15 asteroid palette textures, instead of being interleaved. Seeds and results are the same.
+
+### Tests
+
+New `PureGenerationTests`: equal layouts for the same node, no node/universe mutation during `Generate`, Sol overrides via `IsHome`, galaxy expanded only on first entry, `IsHome` not serialized. The idempotence test now enters the same system twice. 95/95 pass.
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: new game, jump through a few systems (new neighbours appear on the galaxy map), load a save and revisit a system.
+
+### Open questions
+
+- Saves where a node is `Discovered` but has fewer connections than its target will no longer be topped up on re-entry. New saves can't reach that state; say if you want an always-top-up instead.
+
+## Round 2 / Phase 5 - Simulation/presentation boundary leftovers
+
+### Changes
+
+1. **Projectile visuals.** `Projectile` no longer has `Visual`, `BurstAge`, `IsBursting`, `BurstProgress` or `TryConsumeBurstEmission`. It keeps `HasHit`, `HitAge` (renamed from `BurstAge`) and a plain `ImpactLingerSeconds`, and `IsExpired` depends only on those. `Equipment.ImpactLingerSeconds` (not serialized) replaces `Equipment.ProjectileVisual`; each preset's value equals its old burst duration (0.16, 0.26, 0.22, 0.10, 0.34, 0.20; default 0.18). `ProjectileVisual` and `ProjectileVisualStyle` moved to `Game.Systems`, with a new `ProjectileVisuals.For(weaponName)` lookup. `ProjectileRenderer` derives burst progress from `HitAge / BurstDuration` and tracks the one-shot spark emission itself (a pruned `HashSet<Projectile>`).
+2. **Nebula without `Color`.** New `Game.Helpers.Rgba` struct; `ProceduralHelpers.NebulaColorPool` and `Nebula` use it. Pixels are byte-identical (new `NebulaPixelTests` hashes the full buffer of a fixed nebula, recorded before the change).
+3. **Namespaces.** `CollisionSystem` and `ProjectileCollisionSystem` moved to `Game.Simulation`; `GameSettings` moved to `Game.Components`. `StarSystem` and `Universe` no longer import `Game.Systems`.
+4. **`SimulationContracts.cs` split** into `IAssetRequests.cs` (with `NullAssetRequests`), `IMessageSink.cs` (with `NullMessageSink`) and `BackgroundTile.cs`.
+5. **Architecture tests** (`ArchitectureTests`): a source scan of `Game/Entities`, `Components`, `EventSystem`, `NavSystem` and `Simulation` for `Texture2D`, `GraphicsDevice`, `SpriteBatch`, `SpriteFont` and `Color` (comments stripped), and for `using` of graphics, `Systems`, `UI` or `Screens` namespaces. A grep-style check was used instead of NetArchTest to avoid a new dependency. The plan listed `ProjectileVisual`/`ProjectileVisualStyle` and `Nebula` implicitly; they were the only violations.
+
+### Behavior changes
+
+None intended. Impact linger times equal the old burst durations, and projectiles for weapons without a dedicated visual (e.g. missiles) keep the default look.
+
+### Tests
+
+100/100 pass (new: nebula hash, architecture, weapon linger equals burst duration, projectile expiry).
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please fire each weapon and compare impact bursts (flash, sparks, duration) and hit effects on ships against before.
+
+### Open questions
+
+- `Light Missile` has no dedicated `ProjectileVisual`, so it uses the default look as before; say if it should get its own.
+
+## Round 2 / Phase 6 - PlayingScreen, renderers and host cleanup
+
+### Changes
+
+1. **HUD message.** New `HudRenderer.DrawMessage` (Game.Systems) draws the timed message with the same position, colour and last-second fade. `PlayingScreen` no longer calls `DrawString`.
+2. **Saving.** New `ISaveService` and `FileSaveService` (`Game/Helpers/SaveService.cs`) wrap `Persistence`. `Launcher` creates it; it reaches screens through `ScreenContext.Saves`. `PlayingScreen.OnExit` and `MenuScreen` (delete) use it, and `Launcher` loads the universe list through it. `ScreenContext.UniverseFilePath` (a const) is removed in favour of `FileSaveService.DefaultPath`. Test fake: `InMemorySaveService`.
+3. **Input.** `InputHandler.Rebaseline()` replaces `new InputHandler()` for the closing-Escape case. A single `InputHandler` is created by `Launcher` and shared as `ScreenContext.Input`; `PlayingScreen` rebaselines it on enter and after closing the map.
+4. **Impact effects wiring.** Already idempotent: `ShipImpactEffects.Attach` returns immediately when given the system it is subscribed to, so the per-frame call is a reference comparison. Left as is; the "system entered" notification arrives with the event bus in Phase 7.
+5. **`WorldRenderer`.** No cached screen size; it reads `Camera.ScreenWidth/ScreenHeight` (new properties) per frame, and takes the player from `StarSystem.ActivePlayer`. `Draw(sys, camera)`. Layer order unchanged.
+6. **`DrawHud` / `DrawSpeedBar` split: not done.** They share the font, batch, screen layout and texture lookups with `SpriteRenderer` and are about 300 lines, so moving them is not a straightforward move. Deferred.
+7. `Launcher` still only creates shared resources and forwards `Update`/`Draw`; `UniverseFilePath` was a const and is gone.
+
+### Behavior changes
+
+None intended.
+
+### Tests
+
+102/102 pass (new: `SaveServiceTests` for the in-memory and file implementations).
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: menu, play, map, Esc out of the map (must not also exit to the menu), exit to the menu, delete a universe, close the window during play (saves), and that timed messages still appear and fade.
+
+## Round 2 / Phase 7 - Extension points
+
+Done: 7.1 event bus, 7.2 data-driven weapons, 7.3 (system events only). Not done: the `NavTask` half of 7.3, 7.4 (`IUpdatable`) and 7.5 (assembly split); the plan marks 7.4 and 7.5 optional.
+
+### 7.1 Event bus
+
+- New `IEventBus` / `EventBus` (`Game/Components/EventBus.cs`): typed `Subscribe<T>` (returns a disposable) and `Publish<T>`; single-threaded, handlers may unsubscribe while handling. `Universe.Events` owns the bus.
+- Events: `ShipDamaged`, `ShipDestroyed` (published once, from `Ship.ApplyDamage` when the hit takes the hull to zero), `ProjectileHit` (from `ProjectileCollisionSystem`, ship or asteroid), `SystemEntered` (end of `Universe.EnterSystem`), `MessageRequested`.
+- `Universe.Messages` is now a `BusMessageSink` that publishes `MessageRequested`; the sink passed to `Generate` (the HUD) is subscribed to that event.
+- `ShipImpactEffects` replaces `Attach(system)` with `Connect(bus)` / `Disconnect()`. It subscribes to `ShipDamaged` and clears on `SystemEntered`, so the per-frame `Attach` call in `PlayingScreen` is gone (Phase 6 item 4).
+- Compatibility shim: `StarSystem.ShipHit` still fires, next to the new event. Remove it in the next release.
+
+### 7.2 Data-driven weapons
+
+- `Definitions/weapons.json`: weapons (gameplay values, `impactLingerSeconds`, `visualStyle` name) and `visualStyles` (colours as `[r, g, b]`). It is embedded in the assembly and copied next to the executable; a file next to the executable overrides the embedded one.
+- `DefinitionRepository` (`Game/Components`) loads it. `Equipment.Presets` builds the six weapons from it; the missiles, shields, hulls, engines and utilities stay in code. `ProjectileVisuals.For(weaponName)` resolves weapon -> style -> `ProjectileVisual` (cached), falling back to the `default` style.
+- The code presets (`Equipment.LightLaser` etc., `ProjectileVisual.LightLaser` etc., `ProjectileColorStyle`) are removed. Before removing them, a temporary test checked every JSON value against the old presets and passed. Values are identical.
+- There is no `ship-stats.json` in this repository, so the weapons file is new rather than "next to" it. Ships remain in code.
+- Test `NewWeapon_NeedsNoCodeChange` loads a JSON weapon and style that exist in no code.
+
+### 7.3 `IWorldContext` (system events only)
+
+- `IWorldContext` (`Game/Components`): `SystemId`, `Planets`, `NpcCount`, `AddNpc`, `GetRandomSafeLocationOutsideAsteroidBelt`, `PostMessage`. `StarSystem` implements it. `SystemEvent.ExcuteEvent` and `EventController` now take it.
+- **`NavTask` not migrated.** `JumpTask` needs system entry, the galaxy, the jump route, spatial queries and star/planet lists, and `Ship.StarSystem` is the concrete type everywhere. A useful interface there is a larger change than this phase; it needs its own step.
+
+### Behavior changes
+
+None intended. Weapons, projectile looks and event behavior are the same; the messages now travel through the bus.
+
+### Tests
+
+114/114 pass. New: `EventBusTests`, `DefinitionTests`, `WorldContextTests`.
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: weapons fire and look as before, hit flashes and debris still appear and clear on jumping, timed messages (merchant, discovered systems) still show, and a ship destroyed by the player disappears.
+
+### Open questions
+
+- Should `ShipHit` be removed now, or kept one more release?
+- Do you want the `NavTask` / `IWorldContext` step as its own phase?
+
+## Round 2 / Phase 7 follow-up: `ShipHit` removed, `NavTask` on `IWorldContext`
+
+- **`StarSystem.ShipHit` and `RaiseShipHit` are removed.** `Ship.ApplyDamage` publishes `ShipDamaged` on `Universe.Events` directly. Nothing else used the event.
+- **`IWorldContext` grew** for navigation: `SystemRadius`, `MandevilleRadius`, `Stars`, `GetSystemEdgeEntryPosition`, `GetSafeEntryTransform`, `SystemExists`, `RemoveFromJumpRoute`, `EnterSystem(systemId)`. `StarSystem` implements them explicitly.
+- **`NavTask.World`** returns the owner's system by default and can be assigned (tests assign a `FakeWorld`). `JumpTask`, `PatrolTask` and `SpawnTask` use it; no nav task other than `NavTask` itself names `StarSystem` or `Universe` (checked by `ArchitectureTests.NavTasks_DependOnWorldContext_NotConcreteSystem`).
+- Jump validation in the `JumpTask` constructor still runs against the owner's own system, before a test can assign `World`; tests set the state afterwards.
+- `Ship.StarSystem` is still the concrete type, and `ShipNavigator`/`Ship` themselves are not behind the interface.
+
+Behavior changes: none intended. Tests: 119/119 pass (new `NavTaskWorldTests`, shared `FakeWorld`).
+
+Manual smoke test (not performed): jump to another system, merchants dock and leave, patrols avoid planets and stars, new game spawn position.
+
+## Fix: facing on jump arrival
+
+`JumpTask` (state `SystemTranslation`) set the arrival position and velocity but never the heading, in the original code as well, so the ship arrived pointing along its outbound jump heading and only turned gradually during `ArriveInSystem`. It now sets `Owner.Rotation` to the inward direction on arrival. **Behavior change** (requested). Test: `JumpTask_SystemTranslation_EntersTargetAndPlacesShipAtEdge` checks the rotation.
+
+Also: `ProjectileVisuals` now caches per repository in a thread-safe table. The old single static cache could race between parallel tests and caused one intermittent test failure.
+
+## Change: jump arrival speed profile
+
+Requested: arrive much faster and taper to normal travel speed halfway to the system centre. **Behavior change.**
+
+- Entry speed is `MaxSpeed * JumpTask.ArrivalSpeedMultiplier` (25, was 8). Tune that constant if it feels wrong.
+- During `ArriveInSystem` the speed is set from the ship's position (frame-rate independent): `normal + (entry - normal) * (1 - p)^2`, where `p` runs from 0 at the system edge to 1 at `ArrivalTaperEndFraction` (0.5) of the system radius. At that point the ship is at normal speed (`MaxSpeed`) and the task completes.
+- The old arrival logic (exponential deceleration toward the Mandeville radius, snapping the ship to that point) is removed. The ship is no longer moved on completion, and it now completes at half the system radius instead of the Mandeville radius (75%).
+- Tests: `Arrival_StartsMuchFasterThanNormal_AtTheEdge`, `Arrival_Tapers_ThenCompletesAtNormalSpeedHalfwayToCenter`.

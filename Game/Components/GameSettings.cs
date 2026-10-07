@@ -1,4 +1,4 @@
-namespace Strange_Universe.Game.Systems;
+namespace Strange_Universe.Game.Components;
 
 /// <summary>Runtime toggles that used to be launcher fields/constants.</summary>
 public sealed class GameSettings
