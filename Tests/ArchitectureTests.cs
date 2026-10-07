@@ -60,6 +60,19 @@ public class ArchitectureTests
     }
 
     [Fact]
+    public void NavTasks_DependOnWorldContext_NotConcreteSystem()
+    {
+        string root = RepoRoot();
+        var violations = Directory.GetFiles(Path.Combine(root, "Game/NavSystem"), "*.cs")
+            .Where(f => Path.GetFileName(f) != "NavTask.cs") // NavTask supplies the default world from the owner
+            .Where(f => Regex.IsMatch(StripComments(File.ReadAllText(f)), @"(StarSystem|Universe)"))
+            .Select(f => Path.GetRelativePath(root, f))
+            .ToList();
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void WeaponLinger_EqualsVisualBurstDuration()
     {
         foreach (var weapon in Equipment.Presets.Where(e => e.PrimaryWeapon))

@@ -22,7 +22,7 @@ namespace Strange_Universe.Game.NavSystem
             _targetSystemId = targetSystemId;
             _originGalaxyPosition = originGalaxyPosition;
             CurrentState = currentState ?? TaskState.MoveToMandeville;
-            if (Owner is Player && (_targetSystemId == null || Owner.StarSystem?.Universe?.Galaxy.FindById(_targetSystemId) == null))
+            if (Owner is Player && (_targetSystemId == null || World?.SystemExists(_targetSystemId) != true))
             {
                 CurrentState = TaskState.Invalid;
             }
@@ -31,10 +31,10 @@ namespace Strange_Universe.Game.NavSystem
         /// <summary>When the owner has arrived in the target system, consumes the route entry and one unit of fuel.</summary>
         public override void OnCompleted()
         {
-            var system = Owner?.StarSystem;
+            var system = World;
             if (system == null || system.SystemId != _targetSystemId) return;
 
-            system.Universe?.JumpRoute.Remove(_targetSystemId);
+            system.RemoveFromJumpRoute(_targetSystemId);
             Owner.CurrentFuelLevel--;
         }
 
@@ -127,7 +127,7 @@ namespace Strange_Universe.Game.NavSystem
                 case TaskState.Jump:
                     // GOAL: Accelerate with exponential acceleration past normal limits until beyond system edge
                     float distanceFromCenter = Owner.Position.Length();
-                    float systemRadius = Owner.StarSystem?.SystemRadius ?? 50000f;
+                    float systemRadius = World?.SystemRadius ?? 50000f;
 
                     if (distanceFromCenter > systemRadius && Owner.Velocity.LengthSquared() > Owner.ShipType.MaxSpeed * 8)
                     {
@@ -153,7 +153,7 @@ namespace Strange_Universe.Game.NavSystem
                         float accelerationGrowthRate = 1.5f;
 
                         // Calculate how far through the jump we are (0 to 1)
-                        float jumpMandevilleRadius = Owner.StarSystem?.MandevilleRadius ?? 5000f;
+                        float jumpMandevilleRadius = World?.MandevilleRadius ?? 5000f;
                         float jumpProgress = Math.Max(0f, (distanceFromCenter - jumpMandevilleRadius) / (systemRadius - jumpMandevilleRadius));
 
                         // Exponential acceleration: starts at BaseAcceleration, grows exponentially
@@ -178,15 +178,14 @@ namespace Strange_Universe.Game.NavSystem
 
                 case TaskState.SystemTranslation:
                     // GOAL: Set arrival location and enter the new system
-                    if (Owner is Player player)
+                    if (Owner is Player)
                     {
-                        Universe universe = player.StarSystem.Universe;
                         // Builds the new system, attaches the player and updates CurrentStarSystemID.
-                        universe.EnterSystem(universe.Galaxy.FindById(_targetSystemId));
+                        World.EnterSystem(_targetSystemId);
                     }
 
                     // Set ship position at system edge entry point
-                    Owner.Position = Owner.StarSystem.Spatial.GetSystemEdgeEntryPosition(_originGalaxyPosition);
+                    Owner.Position = World.GetSystemEdgeEntryPosition(_originGalaxyPosition);
 
                     // Calculate inward direction (toward system center)
                     Vector2 inwardDirection = MathHelpers.SafeNormalize(-Owner.Position, -Vector2.UnitX);
@@ -202,7 +201,7 @@ namespace Strange_Universe.Game.NavSystem
                     // GOAL: Decelerate from hyperspace speed to normal speed at the Mandeville point
 
                     // Calculate target position at Mandeville radius (where we want to arrive)
-                    float mandevilleRadius = Owner.StarSystem?.MandevilleRadius ?? 5000f;
+                    float mandevilleRadius = World?.MandevilleRadius ?? 5000f;
                     float currentDistanceFromCenter = Owner.Position.Length();
 
                     // Check if we're already inside the Mandeville radius (might have overshot)
@@ -241,7 +240,7 @@ namespace Strange_Universe.Game.NavSystem
                     {
                         // Apply exponential deceleration while maintaining inward direction
                         // Calculate deceleration progress (0 = at system edge, 1 = at Mandeville)
-                        float systemRad = Owner.StarSystem?.SystemRadius ?? 50000f;
+                        float systemRad = World?.SystemRadius ?? 50000f;
                         float totalDecelerationDistance = systemRad - mandevilleRadius;
                         float distanceTraveled = systemRad - currentDistanceFromCenter;
                         float decelerationProgress = Math.Clamp(distanceTraveled / totalDecelerationDistance, 0f, 1f);

@@ -87,7 +87,7 @@ public class EventBusTests
     }
 
     [Fact]
-    public void Damage_PublishesShipDamaged_AndLegacyShipHit_AndShipDestroyedOnce()
+    public void Damage_PublishesShipDamaged_AndShipDestroyedOnce()
     {
         var u = Started();
         var npc = new Nonplayer("npc-1");
@@ -96,15 +96,12 @@ public class EventBusTests
         u.ActiveStarSystem.AddNpc(npc);
         var damaged = new List<ShipDamaged>();
         var destroyed = new List<ShipDestroyed>();
-        int legacy = 0;
         u.Events.Subscribe<ShipDamaged>(damaged.Add);
         u.Events.Subscribe<ShipDestroyed>(destroyed.Add);
-        u.ActiveStarSystem.ShipHit += (_, _, _) => legacy++;
 
         var shot = new Projectile { Owner = u.Player, Damage = 5, Lifetime = 1f };
         npc.ApplyDamage(shot);
         Assert.Single(damaged);
-        Assert.Equal(1, legacy);
         Assert.Empty(destroyed);
 
         var kill = new Projectile { Owner = u.Player, Damage = 100000, Lifetime = 1f };

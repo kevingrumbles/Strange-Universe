@@ -158,24 +158,17 @@ public class StarSystem : IWorldContext
         }
     }
 
-    /// <summary>
-    /// Raised when a projectile damages a ship. Arguments: ship hit, projectile, whether shields were up.
-    /// Presentation code subscribes to show hit effects; the simulation keeps no visual state.
-    /// Compatibility shim: new code should subscribe to <see cref="ShipDamaged"/> on <see cref="Universe.Events"/>.
-    /// </summary>
-    public event Action<Ship, Projectile, bool> ShipHit;
-
-    internal void RaiseShipHit(Ship ship, Projectile projectile, bool shieldWasUp)
-    {
-        Universe?.Events.Publish(new ShipDamaged(ship, projectile, shieldWasUp));
-        ShipHit?.Invoke(ship, projectile, shieldWasUp);
-    }
-
     // -- IWorldContext ---------------------------------------------------------
     IReadOnlyList<Planet> IWorldContext.Planets => Planets;
     int IWorldContext.NpcCount => Npcs.Count;
     Vector2 IWorldContext.GetRandomSafeLocationOutsideAsteroidBelt() => Spatial.GetRandomSafeLocationOutsideAsteroidBelt();
     void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Messages.Post(message, durationSeconds);
+    IReadOnlyList<Star> IWorldContext.Stars => Stars;
+    Vector2 IWorldContext.GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition) => Spatial.GetSystemEdgeEntryPosition(fromGalaxyPosition);
+    Transform IWorldContext.GetSafeEntryTransform() => Spatial.GetSafeEntryTransform();
+    bool IWorldContext.SystemExists(string systemId) => Universe?.Galaxy.FindById(systemId) != null;
+    void IWorldContext.RemoveFromJumpRoute(string systemId) => Universe?.JumpRoute.Remove(systemId);
+    void IWorldContext.EnterSystem(string systemId) => Universe.EnterSystem(Universe.Galaxy.FindById(systemId));
 
     /// <summary>Adds an NPC to this system and attaches the system to it.</summary>
     public void AddNpc(Nonplayer npc)

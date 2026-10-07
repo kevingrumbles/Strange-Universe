@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.EventSystem;
+using Strange_Universe.Tests.Fakes;
 using Xunit;
 
 namespace Strange_Universe.Tests;
@@ -11,20 +12,6 @@ namespace Strange_Universe.Tests;
 /// <summary>Round 2, Phase 7.3: system events run against <see cref="IWorldContext"/>, not a concrete system.</summary>
 public class WorldContextTests
 {
-    private sealed class FakeWorld : IWorldContext
-    {
-        public string SystemId { get; init; } = "fake_system";
-        public List<Planet> PlanetList { get; } = new();
-        public List<Nonplayer> Added { get; } = new();
-        public List<string> Messages { get; } = new();
-
-        public IReadOnlyList<Planet> Planets => PlanetList;
-        public int NpcCount => Added.Count;
-        public void AddNpc(Nonplayer npc) => Added.Add(npc);
-        public Vector2 GetRandomSafeLocationOutsideAsteroidBelt() => new(100, 100);
-        public void PostMessage(string message, int durationSeconds = 3) => Messages.Add(message);
-    }
-
     private static Planet NewPlanet(int n) => new($"fake_Planet_{n}", 90f, 120f, 1000f, 2000f, n, 3);
 
     [Fact]

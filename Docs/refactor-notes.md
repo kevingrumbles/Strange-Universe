@@ -496,3 +496,15 @@ None intended. Weapons, projectile looks and event behavior are the same; the me
 
 - Should `ShipHit` be removed now, or kept one more release?
 - Do you want the `NavTask` / `IWorldContext` step as its own phase?
+
+## Round 2 / Phase 7 follow-up: `ShipHit` removed, `NavTask` on `IWorldContext`
+
+- **`StarSystem.ShipHit` and `RaiseShipHit` are removed.** `Ship.ApplyDamage` publishes `ShipDamaged` on `Universe.Events` directly. Nothing else used the event.
+- **`IWorldContext` grew** for navigation: `SystemRadius`, `MandevilleRadius`, `Stars`, `GetSystemEdgeEntryPosition`, `GetSafeEntryTransform`, `SystemExists`, `RemoveFromJumpRoute`, `EnterSystem(systemId)`. `StarSystem` implements them explicitly.
+- **`NavTask.World`** returns the owner's system by default and can be assigned (tests assign a `FakeWorld`). `JumpTask`, `PatrolTask` and `SpawnTask` use it; no nav task other than `NavTask` itself names `StarSystem` or `Universe` (checked by `ArchitectureTests.NavTasks_DependOnWorldContext_NotConcreteSystem`).
+- Jump validation in the `JumpTask` constructor still runs against the owner's own system, before a test can assign `World`; tests set the state afterwards.
+- `Ship.StarSystem` is still the concrete type, and `ShipNavigator`/`Ship` themselves are not behind the interface.
+
+Behavior changes: none intended. Tests: 119/119 pass (new `NavTaskWorldTests`, shared `FakeWorld`).
+
+Manual smoke test (not performed): jump to another system, merchants dock and leave, patrols avoid planets and stars, new game spawn position.

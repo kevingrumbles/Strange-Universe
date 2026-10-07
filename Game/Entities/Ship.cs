@@ -194,7 +194,7 @@ public abstract class Ship
         bool shieldWasUp = CurrentShieldStrength is > 0;
 
         Durability.ApplyDamage(projectile.Damage, projectile.Owner);
-        StarSystem?.RaiseShipHit(this, projectile, shieldWasUp);
+        StarSystem?.Universe?.Events.Publish(new ShipDamaged(this, projectile, shieldWasUp));
         if (IsDestroyed)
             StarSystem?.Universe?.Events.Publish(new ShipDestroyed(this, projectile.Owner));
     }
