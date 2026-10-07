@@ -17,6 +17,12 @@ namespace Strange_Universe.Game.NavSystem
 
         public string TargetSystemId => _targetSystemId;
 
+        /// <summary>Speed on arrival, as a multiple of the ship's normal maximum speed.</summary>
+        public const float ArrivalSpeedMultiplier = 25f;
+
+        /// <summary>Arrival speed has tapered to normal at this fraction of the system radius (0.5 = halfway to the center).</summary>
+        public const float ArrivalTaperEndFraction = 0.5f;
+
         public JumpTask(Ship owner, Vector2? originGalaxyPosition = null, string targetSystemId = null, TaskState? currentState = null) : base(owner)
         {
             _targetSystemId = targetSystemId;
@@ -190,8 +196,8 @@ namespace Strange_Universe.Game.NavSystem
                     // Calculate inward direction (toward system center)
                     Vector2 inwardDirection = MathHelpers.SafeNormalize(-Owner.Position, -Vector2.UnitX);
 
-                    // Keep the high velocity from the Jump state, but ensure it's pointing inward
-                    Owner.Velocity = inwardDirection * (Owner.ShipType.MaxSpeed * 8f);
+                    // Arrive at hyperspace speed, pointing inward
+                    Owner.Velocity = inwardDirection * (Owner.ShipType.MaxSpeed * ArrivalSpeedMultiplier);
 
                     // Face the direction of travel immediately; otherwise the ship keeps its outbound
                     // heading from the jump and only turns gradually while arriving.
@@ -202,94 +208,33 @@ namespace Strange_Universe.Game.NavSystem
                     break;
 
                 case TaskState.ArriveInSystem:
-                    // GOAL: Decelerate from hyperspace speed to normal speed at the Mandeville point
+                {
+                    // GOAL: Enter at hyperspace speed and taper down to normal travel speed
+                    // halfway between the system edge and its center.
+                    float arriveRadius = World?.SystemRadius ?? 50000f;
+                    float normalSpeed = Owner.ShipType.MaxSpeed;
+                    float taperEnd = arriveRadius * ArrivalTaperEndFraction;
+                    float arriveDistance = Owner.Position.Length();
 
-                    // Calculate target position at Mandeville radius (where we want to arrive)
-                    float mandevilleRadius = World?.MandevilleRadius ?? 5000f;
-                    float currentDistanceFromCenter = Owner.Position.Length();
+                    Vector2 arriveInward = MathHelpers.SafeNormalize(-Owner.Position, Owner.Forward);
+                    Owner.Rotation = (float)Math.Atan2(arriveInward.Y, arriveInward.X);
 
-                    // Check if we're already inside the Mandeville radius (might have overshot)
-                    if (currentDistanceFromCenter < mandevilleRadius)
+                    if (arriveDistance <= taperEnd)
                     {
-                        // Already inside Mandeville radius - complete the jump
-                        Vector2 directionToCenter = MathHelpers.SafeNormalize(-Owner.Position, Owner.Forward);
-                        Owner.Velocity = directionToCenter * Owner.ShipType.MaxSpeed;
-                        float inwardRotation = (float)Math.Atan2(directionToCenter.Y, directionToCenter.X);
-                        Owner.Rotation = inwardRotation;
+                        // Reached the taper point: normal speed, arrival complete.
+                        Owner.Velocity = arriveInward * normalSpeed;
                         CurrentState = TaskState.Complete;
                         break;
                     }
 
-                    // Target is on the same line toward center, at Mandeville distance
-                    Vector2 directionToCenter2 = MathHelpers.SafeNormalize(-Owner.Position, Owner.Forward);
-                    Vector2 targetPosition = directionToCenter2 * mandevilleRadius;
-
-                    // Calculate distance to target (Mandeville point)
-                    float distanceToTarget = Vector2.Distance(Owner.Position, targetPosition);
-                    float currentSpeed = Owner.Speed;
-                    float targetSpeed = Owner.ShipType.MaxSpeed;
-
-                    // Check if we've arrived (close to Mandeville point and at reasonable speed)
-                    const float ArrivalDistanceThreshold = 1000f; // Within 1000 units of Mandeville point
-                    if (distanceToTarget < ArrivalDistanceThreshold && currentSpeed <= targetSpeed * 1.5f)
-                    {
-                        // Arrived successfully - snap to target position and complete
-                        Owner.Position = targetPosition;
-                        float inwardRotation = (float)Math.Atan2(directionToCenter2.Y, directionToCenter2.X);
-                        Owner.Rotation = inwardRotation;
-                        Owner.Velocity = directionToCenter2 * targetSpeed;
-                        CurrentState = TaskState.Complete;
-                    }
-                    else
-                    {
-                        // Apply exponential deceleration while maintaining inward direction
-                        // Calculate deceleration progress (0 = at system edge, 1 = at Mandeville)
-                        float systemRad = World?.SystemRadius ?? 50000f;
-                        float totalDecelerationDistance = systemRad - mandevilleRadius;
-                        float distanceTraveled = systemRad - currentDistanceFromCenter;
-                        float decelerationProgress = Math.Clamp(distanceTraveled / totalDecelerationDistance, 0f, 1f);
-
-                        // Exponential deceleration: stronger as we get closer
-                        float decelerationRate = 1.8f; // Growth rate for deceleration
-                        float decelerationStrength = (float)Math.Pow(decelerationRate, decelerationProgress * 10f);
-
-                        // Base deceleration force
-                        const float BaseDeceleration = 800f;
-                        float currentDeceleration = BaseDeceleration * decelerationStrength;
-
-                        // Calculate desired speed at this distance to arrive at Mandeville with target speed
-                        // Use a simple linear interpolation as a guide
-                        float distanceRatio = distanceToTarget / totalDecelerationDistance;
-                        float desiredSpeed = targetSpeed + (currentSpeed - targetSpeed) * distanceRatio;
-                        desiredSpeed = Math.Max(targetSpeed, desiredSpeed);
-
-                        // Apply deceleration (reduce velocity magnitude)
-                        if (currentSpeed > desiredSpeed)
-                        {
-                            // Slow down exponentially
-                            Vector2 velocityDirection = Vector2.Normalize(Owner.Velocity);
-                            float speedReduction = currentDeceleration * deltaTime;
-
-                            // Don't overshoot - clamp to desired speed
-                            float newSpeed = Math.Max(desiredSpeed, currentSpeed - speedReduction);
-                            Owner.Velocity = velocityDirection * newSpeed;
-                        }
-
-                        // Ensure velocity is pointing toward center
-                        Vector2 currentVelocityDir = Vector2.Normalize(Owner.Velocity);
-                        float directionAlignment = Vector2.Dot(currentVelocityDir, directionToCenter2);
-
-                        // If not pointing inward, adjust velocity direction
-                        if (directionAlignment < 0.95f)
-                        {
-                            Owner.Velocity = directionToCenter2 * Owner.Speed;
-                        }
-
-                        // Rotate to face inward (toward system center) as we approach
-                        float inwardAngle = (float)Math.Atan2(directionToCenter2.Y, directionToCenter2.X);
-                        Owner.RotateTowards(inwardAngle, deltaTime, 0.1f);
-                    }
+                    // Speed depends on position, not time, so it is frame-rate independent.
+                    // Quadratic ease: sheds speed quickly at first, then settles onto normal speed.
+                    float taperProgress = Math.Clamp((arriveRadius - arriveDistance) / (arriveRadius - taperEnd), 0f, 1f);
+                    float remaining = 1f - taperProgress;
+                    float arriveSpeed = normalSpeed + (normalSpeed * ArrivalSpeedMultiplier - normalSpeed) * remaining * remaining;
+                    Owner.Velocity = arriveInward * arriveSpeed;
                     break;
+                }
 
                 case TaskState.Complete:
                 case TaskState.Invalid:

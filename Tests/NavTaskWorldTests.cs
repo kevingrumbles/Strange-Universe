@@ -67,4 +67,45 @@ public class NavTaskWorldTests
         Assert.Equal(MathF.PI, MathF.Abs(player.Rotation), 3); // and facing inward (toward -X) on arrival
         Assert.Equal(TaskState.ArriveInSystem, task.CurrentState);
     }
+
+    private static (JumpTask task, Player player, FakeWorld world) Arriving(Vector2 position)
+    {
+        var player = new Player("p", "Shuttle") { Position = position };
+        var world = new FakeWorld { SystemRadius = 10000f };
+        var task = new JumpTask(player, null, "target") { World = world };
+        task.CurrentState = TaskState.ArriveInSystem;
+        return (task, player, world);
+    }
+
+    [Fact]
+    public void Arrival_StartsMuchFasterThanNormal_AtTheEdge()
+    {
+        var (task, player, _) = Arriving(new Vector2(10000, 0));
+        task.Update(0.016f);
+
+        Assert.Equal(player.ShipType.MaxSpeed * JumpTask.ArrivalSpeedMultiplier, player.Speed, 1);
+        Assert.True(player.Velocity.X < 0);
+        Assert.Equal(TaskState.ArriveInSystem, task.CurrentState);
+    }
+
+    [Fact]
+    public void Arrival_Tapers_ThenCompletesAtNormalSpeedHalfwayToCenter()
+    {
+        float max = new Player("p", "Shuttle").ShipType.MaxSpeed;
+        float last = float.MaxValue;
+        foreach (float x in new[] { 10000f, 9000f, 8000f, 7000f, 6000f, 5100f })
+        {
+            var (task, player, _) = Arriving(new Vector2(x, 0));
+            task.Update(0.016f);
+            Assert.True(player.Speed < last, $"speed should fall as the ship moves in (x={x})");
+            Assert.True(player.Speed > max, $"still above normal before the halfway point (x={x})");
+            Assert.Equal(TaskState.ArriveInSystem, task.CurrentState);
+            last = player.Speed;
+        }
+
+        var (done, ship, _) = Arriving(new Vector2(5000, 0)); // exactly halfway
+        done.Update(0.016f);
+        Assert.Equal(max, ship.Speed, 1);
+        Assert.Equal(TaskState.Complete, done.CurrentState);
+    }
 }

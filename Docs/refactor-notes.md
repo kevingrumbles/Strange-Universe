@@ -514,3 +514,12 @@ Manual smoke test (not performed): jump to another system, merchants dock and le
 `JumpTask` (state `SystemTranslation`) set the arrival position and velocity but never the heading, in the original code as well, so the ship arrived pointing along its outbound jump heading and only turned gradually during `ArriveInSystem`. It now sets `Owner.Rotation` to the inward direction on arrival. **Behavior change** (requested). Test: `JumpTask_SystemTranslation_EntersTargetAndPlacesShipAtEdge` checks the rotation.
 
 Also: `ProjectileVisuals` now caches per repository in a thread-safe table. The old single static cache could race between parallel tests and caused one intermittent test failure.
+
+## Change: jump arrival speed profile
+
+Requested: arrive much faster and taper to normal travel speed halfway to the system centre. **Behavior change.**
+
+- Entry speed is `MaxSpeed * JumpTask.ArrivalSpeedMultiplier` (25, was 8). Tune that constant if it feels wrong.
+- During `ArriveInSystem` the speed is set from the ship's position (frame-rate independent): `normal + (entry - normal) * (1 - p)^2`, where `p` runs from 0 at the system edge to 1 at `ArrivalTaperEndFraction` (0.5) of the system radius. At that point the ship is at normal speed (`MaxSpeed`) and the task completes.
+- The old arrival logic (exponential deceleration toward the Mandeville radius, snapping the ship to that point) is removed. The ship is no longer moved on completion, and it now completes at half the system radius instead of the Mandeville radius (75%).
+- Tests: `Arrival_StartsMuchFasterThanNormal_AtTheEdge`, `Arrival_Tapers_ThenCompletesAtNormalSpeedHalfwayToCenter`.
