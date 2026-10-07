@@ -4,6 +4,7 @@ using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Screens;
 using Strange_Universe.Game.Systems;
 
+using Strange_Universe.Game.Components;
 namespace Strange_Universe
 {
     /// <summary>Thin MonoGame host: owns shared GPU resources and forwards Update/Draw to the active screen.</summary>

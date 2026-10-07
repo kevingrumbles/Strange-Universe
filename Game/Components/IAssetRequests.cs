@@ -5,7 +5,7 @@ namespace Strange_Universe.Game.Components;
 
 /// <summary>
 /// Requests the simulation makes to the render side when it needs art for something.
-/// Implemented by <c>Strange_Universe.Game.Systems.AssetService</c>; may be <c>null</c>
+/// Implemented by the render-side asset service; may be <c>null</c>
 /// (tests, headless), in which case callers must behave as if every request succeeded.
 /// Contains no graphics types so the simulation stays graphics-free.
 /// </summary>
@@ -42,24 +42,4 @@ public sealed class NullAssetRequests : IAssetRequests
     public void EnsurePlanetTexture(Planet planet) { }
     public void EnsureStarTexture(Star star) { }
     public void RegisterNebula(Nebula nebula) => nebula.ReleasePixels();
-}
-
-/// <summary>Destination for short on-screen notifications.</summary>
-public interface IMessageSink
-{
-    void Post(string message, int durationSeconds = 3);
-}
-
-/// <summary>Discards messages. Used when no HUD is attached (tests, before Generate).</summary>
-public sealed class NullMessageSink : IMessageSink
-{
-    public static readonly NullMessageSink Instance = new();
-    public void Post(string message, int durationSeconds = 3) { }
-}
-
-/// <summary>Virtual tile used for parallax background stars. Shared by generation and rendering.</summary>
-public static class BackgroundTile
-{
-    public const float Width = 1920f;
-    public const float Height = 1080f;
 }

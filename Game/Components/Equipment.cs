@@ -36,7 +36,7 @@ public class Equipment
         EnergyCost       = 10f,
         Mass             = 50f,
         Accuracy         = 0.9f,
-        ProjectileVisual = ProjectileVisual.LightLaser,
+        ImpactLingerSeconds = 0.16f,
     };
 
     public static Equipment HeavyLaser => new()
@@ -50,7 +50,7 @@ public class Equipment
         EnergyCost       = 25f,
         Mass             = 120f,
         Accuracy         = 0.85f,
-        ProjectileVisual = ProjectileVisual.HeavyLaser,
+        ImpactLingerSeconds = 0.26f,
     };
 
     public static Equipment PulseCannon => new()
@@ -64,7 +64,7 @@ public class Equipment
         EnergyCost       = 12f,
         Mass             = 80f,
         Accuracy         = 0.9f,
-        ProjectileVisual = ProjectileVisual.PulseCannon,
+        ImpactLingerSeconds = 0.22f,
     };
 
     public static Equipment GatlingGun => new()
@@ -78,7 +78,7 @@ public class Equipment
         EnergyCost       = 5f,
         Mass             = 60f,
         Accuracy         = 0.95f,
-        ProjectileVisual = ProjectileVisual.GatlingGun,
+        ImpactLingerSeconds = 0.10f,
     };
 
     public static Equipment PlasmaBeam => new()
@@ -90,7 +90,7 @@ public class Equipment
         EnergyCost       = 40f,
         Mass             = 150f,
         Accuracy         = 0.8f,
-        ProjectileVisual = ProjectileVisual.PlasmaBeam,
+        ImpactLingerSeconds = 0.34f,
     };
 
     public static Equipment MiningBeam => new()
@@ -102,7 +102,7 @@ public class Equipment
         EnergyCost       = 15f,
         Mass             = 90f,
         Accuracy         = 0.95f,
-        ProjectileVisual = ProjectileVisual.MiningBeam,
+        ImpactLingerSeconds = 0.20f,
     };
 
     public static Equipment LightMissile => new()
@@ -271,7 +271,7 @@ public class Equipment
 
     /// <summary>
     /// Resolves a preset by name. Only <see cref="EquipmentName"/> is persisted, so this
-    /// restores the full stat set (including <see cref="ProjectileVisual"/>) on load.
+    /// restores the full stat set (including <see cref="ImpactLingerSeconds"/>) on load.
     /// Returns an inert <see cref="EquipmentType.Unkown"/> item if the name is unrecognized.
     /// </summary>
     public static Equipment FromName(string equipmentName)
@@ -313,8 +313,8 @@ public class Equipment
     public float FiringOffset       { get; set; } = 20f;
     public float ProjectileRadius   { get; set; } = 4f;
 
-    /// <summary>Rendering style for projectiles fired by this weapon.</summary>
-    [JsonIgnore] public ProjectileVisual ProjectileVisual { get; set; } = ProjectileVisual.Default;
+    /// <summary>Seconds a spent projectile stays in the world after impact (gameplay; the renderer plays its burst over this time).</summary>
+    [JsonIgnore] public float ImpactLingerSeconds { get; set; } = 0.18f;
     private static readonly Random _rng = new();
     private float _cooldown = 0f;
 
@@ -380,7 +380,7 @@ public class Equipment
             Rotation   = owner.Rotation + spreadAngle,
             Lifetime   = lifetime,
             Radius     = ProjectileRadius,
-            Visual     = ProjectileVisual,
+            ImpactLingerSeconds = ImpactLingerSeconds,
             Damage     = Damage ?? 0,
             WeaponType = EquipmentType,
             WeaponName = EquipmentName,

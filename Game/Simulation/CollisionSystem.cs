@@ -2,7 +2,8 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 
-namespace Strange_Universe.Game.Systems;
+using Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Simulation;
 
 /// <summary>Circle-circle collision detection with push-out resolution for ships.</summary>
 public class CollisionSystem

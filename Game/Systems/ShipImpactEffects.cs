@@ -105,7 +105,7 @@ public class ShipImpactEffects
             Angle     = angle,
             Radius    = MathHelper.Lerp(4f, 12f, MathHelper.Clamp(severity, 0f, 1f)),
             ArcWidth  = 0f,
-            Color     = projectile.Visual.CoreColor,
+            Color     = ProjectileVisuals.For(projectile.WeaponName).CoreColor,
             MaxLife   = 0.22f,
             Life      = 0.22f,
         });
@@ -129,7 +129,7 @@ public class ShipImpactEffects
             float life = MathHelper.Lerp(0.25f, 0.8f, (float)_rng.NextDouble());
 
             // Mix hot sparks with cooler hull fragments.
-            Color color = _rng.NextDouble() < 0.45 ? projectile.Visual.CoreColor : HullDebrisColor;
+            Color color = _rng.NextDouble() < 0.45 ? ProjectileVisuals.For(projectile.WeaponName).CoreColor : HullDebrisColor;
 
             fx.Debris.Add(new HullDebris
             {

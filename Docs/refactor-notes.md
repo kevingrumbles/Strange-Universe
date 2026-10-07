@@ -404,3 +404,29 @@ New `PureGenerationTests`: equal layouts for the same node, no node/universe mut
 ### Open questions
 
 - Saves where a node is `Discovered` but has fewer connections than its target will no longer be topped up on re-entry. New saves can't reach that state; say if you want an always-top-up instead.
+
+## Round 2 / Phase 5 - Simulation/presentation boundary leftovers
+
+### Changes
+
+1. **Projectile visuals.** `Projectile` no longer has `Visual`, `BurstAge`, `IsBursting`, `BurstProgress` or `TryConsumeBurstEmission`. It keeps `HasHit`, `HitAge` (renamed from `BurstAge`) and a plain `ImpactLingerSeconds`, and `IsExpired` depends only on those. `Equipment.ImpactLingerSeconds` (not serialized) replaces `Equipment.ProjectileVisual`; each preset's value equals its old burst duration (0.16, 0.26, 0.22, 0.10, 0.34, 0.20; default 0.18). `ProjectileVisual` and `ProjectileVisualStyle` moved to `Game.Systems`, with a new `ProjectileVisuals.For(weaponName)` lookup. `ProjectileRenderer` derives burst progress from `HitAge / BurstDuration` and tracks the one-shot spark emission itself (a pruned `HashSet<Projectile>`).
+2. **Nebula without `Color`.** New `Game.Helpers.Rgba` struct; `ProceduralHelpers.NebulaColorPool` and `Nebula` use it. Pixels are byte-identical (new `NebulaPixelTests` hashes the full buffer of a fixed nebula, recorded before the change).
+3. **Namespaces.** `CollisionSystem` and `ProjectileCollisionSystem` moved to `Game.Simulation`; `GameSettings` moved to `Game.Components`. `StarSystem` and `Universe` no longer import `Game.Systems`.
+4. **`SimulationContracts.cs` split** into `IAssetRequests.cs` (with `NullAssetRequests`), `IMessageSink.cs` (with `NullMessageSink`) and `BackgroundTile.cs`.
+5. **Architecture tests** (`ArchitectureTests`): a source scan of `Game/Entities`, `Components`, `EventSystem`, `NavSystem` and `Simulation` for `Texture2D`, `GraphicsDevice`, `SpriteBatch`, `SpriteFont` and `Color` (comments stripped), and for `using` of graphics, `Systems`, `UI` or `Screens` namespaces. A grep-style check was used instead of NetArchTest to avoid a new dependency. The plan listed `ProjectileVisual`/`ProjectileVisualStyle` and `Nebula` implicitly; they were the only violations.
+
+### Behavior changes
+
+None intended. Impact linger times equal the old burst durations, and projectiles for weapons without a dedicated visual (e.g. missiles) keep the default look.
+
+### Tests
+
+100/100 pass (new: nebula hash, architecture, weapon linger equals burst duration, projectile expiry).
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please fire each weapon and compare impact bursts (flash, sparks, duration) and hit effects on ships against before.
+
+### Open questions
+
+- `Light Missile` has no dedicated `ProjectileVisual`, so it uses the default look as before; say if it should get its own.

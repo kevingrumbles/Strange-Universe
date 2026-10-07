@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// High-level appearance descriptor for a projectile.
@@ -280,3 +280,18 @@ public struct ProjectileVisual
 }
 
 
+
+/// <summary>Maps a weapon name to how its projectiles look. Rendering concern, so it lives with the renderers.</summary>
+public static class ProjectileVisuals
+{
+    public static ProjectileVisual For(string weaponName) => weaponName?.ToLowerInvariant() switch
+    {
+        "light laser"  => ProjectileVisual.LightLaser,
+        "heavy laser"  => ProjectileVisual.HeavyLaser,
+        "pulse cannon" => ProjectileVisual.PulseCannon,
+        "gatling gun"  => ProjectileVisual.GatlingGun,
+        "plasma beam"  => ProjectileVisual.PlasmaBeam,
+        "mining beam"  => ProjectileVisual.MiningBeam,
+        _              => ProjectileVisual.Default,
+    };
+}

@@ -5,6 +5,7 @@ using Strange_Universe.Game.Systems;
 using System;
 using System.Collections.Generic;
 
+using Strange_Universe.Game.Components;
 namespace Strange_Universe.Game.Screens;
 
 /// <summary>Shared host resources and navigation callbacks handed to every screen.</summary>

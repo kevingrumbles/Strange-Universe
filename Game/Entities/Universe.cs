@@ -24,7 +24,7 @@ public class Universe : IDisposable
     public string Seed { get; set; }
 
     /// <summary>Runtime toggles supplied by the host; not persisted.</summary>
-    [JsonIgnore] public Strange_Universe.Game.Systems.GameSettings Settings { get; set; } = new();
+    [JsonIgnore] public GameSettings Settings { get; set; } = new();
 
     private StarSystem _activeStarSystem;
 

@@ -1,11 +1,12 @@
 ﻿using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.EventSystem;
-using Strange_Universe.Game.Systems;
+
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
+using Strange_Universe.Game.Simulation;
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>Owns all game entities and drives the frame update.</summary>

@@ -48,6 +48,10 @@ public sealed class ProjectileRenderer : IDisposable
 
     private readonly Particle[]  _particles     = new Particle[MaxParticles];
     private readonly Random      _rng           = new();
+
+    // Projectiles whose one-shot impact spark burst has already been emitted. Presentation state,
+    // pruned each update so it never outlives the projectile.
+    private readonly HashSet<Projectile> _burstEmitted = new();
     private          int         _nextSlot      = 0;
 
     // -------------------------------------------------------------------------
@@ -95,19 +99,21 @@ public sealed class ProjectileRenderer : IDisposable
             p.Position += p.Velocity * deltaTime;
         }
 
+        _burstEmitted.IntersectWith(projectiles);
+
         // Emit new particles from live projectiles
         foreach (var proj in projectiles)
         {
             if (proj.HasHit)
             {
                 // Impact sparks are emitted once, on the frame of contact.
-                if (proj.TryConsumeBurstEmission())
+                if (_burstEmitted.Add(proj))
                     EmitBurst(proj);
 
                 continue;
             }
 
-            int count = proj.Visual.ParticleCount;
+            int count = ProjectileVisuals.For(proj.WeaponName).ParticleCount;
             if (count <= 0) continue;
 
             // Emit ~count particles per second
@@ -134,7 +140,7 @@ public sealed class ProjectileRenderer : IDisposable
                 p.MaxLife  = 0.12f + (float)_rng.NextDouble() * 0.1f;
                 p.Life     = p.MaxLife;
                 p.Radius   = 1.5f + (float)_rng.NextDouble() * 1.5f;
-                p.Color    = proj.Visual.GlowColor;
+                p.Color    = ProjectileVisuals.For(proj.WeaponName).GlowColor;
             }
         }
     }
@@ -177,7 +183,7 @@ public sealed class ProjectileRenderer : IDisposable
     /// </summary>
     private void EmitBurst(Projectile proj)
     {
-        var vis = proj.Visual;
+        var vis = ProjectileVisuals.For(proj.WeaponName);
         if (vis.BurstDuration <= 0f || vis.BurstParticleCount <= 0)
             return;
 
@@ -210,11 +216,11 @@ public sealed class ProjectileRenderer : IDisposable
     /// </summary>
     private void DrawBurst(Projectile proj)
     {
-        var vis = proj.Visual;
+        var vis = ProjectileVisuals.For(proj.WeaponName);
         if (vis.BurstDuration <= 0f || vis.BurstRadius <= 0f)
             return;
 
-        float t = proj.BurstProgress;
+        float t = vis.BurstDuration <= 0f ? 1f : MathHelper.Clamp(proj.HitAge / vis.BurstDuration, 0f, 1f);
 
         // Fast ease-out expansion paired with a quadratic fade.
         float expand = 1f - (1f - t) * (1f - t);
@@ -262,7 +268,7 @@ public sealed class ProjectileRenderer : IDisposable
 
     private void DrawGlowLayers(Projectile proj)
     {
-        var     vis       = proj.Visual;
+        var     vis       = ProjectileVisuals.For(proj.WeaponName);
         float   rotation  = proj.Rotation;
         Vector2 pos       = proj.Position;
 
@@ -320,7 +326,7 @@ public sealed class ProjectileRenderer : IDisposable
 
     private void DrawCoreLayers(Projectile proj)
     {
-        var     vis      = proj.Visual;
+        var     vis      = ProjectileVisuals.For(proj.WeaponName);
         float   rotation = proj.Rotation;
         Vector2 pos      = proj.Position;
 

@@ -1,6 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// Selects which rendering pipeline is used for a projectile.
