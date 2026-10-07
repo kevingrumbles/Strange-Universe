@@ -12,3 +12,11 @@ public sealed class NullMessageSink : IMessageSink
     public static readonly NullMessageSink Instance = new();
     public void Post(string message, int durationSeconds = 3) { }
 }
+
+/// <summary>Publishes posted messages as <see cref="MessageRequested"/> events.</summary>
+public sealed class BusMessageSink : IMessageSink
+{
+    private readonly IEventBus _bus;
+    public BusMessageSink(IEventBus bus) => _bus = bus;
+    public void Post(string message, int durationSeconds = 3) => _bus.Publish(new MessageRequested(message, durationSeconds));
+}

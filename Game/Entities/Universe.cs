@@ -57,6 +57,7 @@ public class Universe : IDisposable
         Player.StarSystem = _activeStarSystem;
         Player.CurrentStarSystemID = node.SystemId;
         WaitForNebula(_activeStarSystem.NebulaId);
+        Events.Publish(new SystemEntered(_activeStarSystem));
         return _activeStarSystem;
     }
 
@@ -97,7 +98,13 @@ public class Universe : IDisposable
 
     /// <summary>Sink for on-screen notifications. Never null (no-op until Generate supplies one).</summary>
     [JsonIgnore]
-    public IMessageSink Messages { get; private set; } = NullMessageSink.Instance;
+    public IMessageSink Messages { get; }
+
+    /// <summary>Simulation events (damage, destruction, hits, system entry, messages). Never null.</summary>
+    [JsonIgnore]
+    public IEventBus Events { get; } = new EventBus();
+
+    private IDisposable _messageSubscription;
 
     // One background generation task per pool slot, started at most once per launch.
     // Results are uploaded on the main thread (UploadFinishedNebulae / WaitForNebula).
@@ -136,8 +143,8 @@ public class Universe : IDisposable
         }
     }
 
-    public Universe() { }
-    public Universe(string name, string seed = null)
+    public Universe() { Messages = new BusMessageSink(Events); }
+    public Universe(string name, string seed = null) : this()
     {
         Guid id = Guid.NewGuid();
         if (string.IsNullOrWhiteSpace(name)) name = "New Universe";
@@ -175,7 +182,9 @@ public class Universe : IDisposable
         _disposed = false;
 
         _assets = assets;
-        Messages = messages ?? NullMessageSink.Instance;
+        _messageSubscription?.Dispose();
+        _messageSubscription = messages == null ? null
+            : Events.Subscribe<MessageRequested>(m => messages.Post(m.Message, m.DurationSeconds));
 
         StarSystemNode start = ResolveStartNode();
         GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
@@ -272,6 +281,8 @@ public class Universe : IDisposable
     public void Dispose()
     {
         _disposed = true;
+        _messageSubscription?.Dispose();
+        _messageSubscription = null;
 
         // Nebula textures are owned by the render-side texture cache; only drop data here.
         NebulaPool.Clear();

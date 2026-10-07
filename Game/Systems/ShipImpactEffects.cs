@@ -1,13 +1,14 @@
 using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Game.Systems;
 
 /// <summary>
 /// Render-side hit visuals: shield flares, hull scorch flashes and hull debris.
-/// Populated from <see cref="StarSystem.ShipHit"/> events; the simulation holds no visual state.
+/// Populated from <see cref="ShipDamaged"/> events; the simulation holds no visual state.
 /// </summary>
 public class ShipImpactEffects
 {
@@ -16,7 +17,7 @@ public class ShipImpactEffects
 
     private readonly Random _rng = new();
     private readonly Dictionary<Ship, ShipEffects> _byShip = new();
-    private StarSystem _subscribed;
+    private readonly List<IDisposable> _subscriptions = new();
 
     public sealed class ShipEffects
     {
@@ -27,20 +28,20 @@ public class ShipImpactEffects
 
     private static readonly ShipEffects Empty = new();
 
-    /// <summary>Subscribes to the active system's hit events, switching on system change.</summary>
-    public void Attach(StarSystem system)
+    /// <summary>Subscribes to the universe's hit and system-entry events. Replaces any earlier connection.</summary>
+    public void Connect(IEventBus events)
     {
-        if (ReferenceEquals(system, _subscribed))
-            return;
+        Disconnect();
+        _subscriptions.Add(events.Subscribe<ShipDamaged>(e => OnShipHit(e.Ship, e.Projectile, e.ShieldWasUp)));
+        // Effects belong to the system they happened in, so entering another one starts clean.
+        _subscriptions.Add(events.Subscribe<SystemEntered>(_ => _byShip.Clear()));
+    }
 
-        if (_subscribed != null)
-            _subscribed.ShipHit -= OnShipHit;
-
+    public void Disconnect()
+    {
+        foreach (var s in _subscriptions) s.Dispose();
+        _subscriptions.Clear();
         _byShip.Clear();
-        _subscribed = system;
-
-        if (_subscribed != null)
-            _subscribed.ShipHit += OnShipHit;
     }
 
     public ShipEffects For(Ship ship) => ship != null && _byShip.TryGetValue(ship, out var fx) ? fx : Empty;

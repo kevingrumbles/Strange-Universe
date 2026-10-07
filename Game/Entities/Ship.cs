@@ -195,6 +195,8 @@ public abstract class Ship
 
         Durability.ApplyDamage(projectile.Damage, projectile.Owner);
         StarSystem?.RaiseShipHit(this, projectile, shieldWasUp);
+        if (IsDestroyed)
+            StarSystem?.Universe?.Events.Publish(new ShipDestroyed(this, projectile.Owner));
     }
 
     /// <inheritdoc cref="ShipDurability.ApplyDamage"/>

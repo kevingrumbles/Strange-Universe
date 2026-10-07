@@ -132,7 +132,7 @@ public class StarSystem
         foreach (var projectile in Projectiles)
             projectile.Update(deltaTime);
 
-        _projectileCollision.Resolve(Projectiles, ActivePlayer, Npcs, Asteroids, deltaTime);
+        _projectileCollision.Resolve(Projectiles, ActivePlayer, Npcs, Asteroids, deltaTime, Universe?.Events);
 
         // Remove projectiles that expired or struck something
         Projectiles.RemoveAll(p => p.IsExpired);
@@ -161,11 +161,15 @@ public class StarSystem
     /// <summary>
     /// Raised when a projectile damages a ship. Arguments: ship hit, projectile, whether shields were up.
     /// Presentation code subscribes to show hit effects; the simulation keeps no visual state.
+    /// Compatibility shim: new code should subscribe to <see cref="ShipDamaged"/> on <see cref="Universe.Events"/>.
     /// </summary>
     public event Action<Ship, Projectile, bool> ShipHit;
 
     internal void RaiseShipHit(Ship ship, Projectile projectile, bool shieldWasUp)
-        => ShipHit?.Invoke(ship, projectile, shieldWasUp);
+    {
+        Universe?.Events.Publish(new ShipDamaged(ship, projectile, shieldWasUp));
+        ShipHit?.Invoke(ship, projectile, shieldWasUp);
+    }
 
     /// <summary>Adds an NPC to this system and attaches the system to it.</summary>
     public void AddNpc(Nonplayer npc)

@@ -45,14 +45,15 @@ public sealed class PlayingScreen : IScreen
         _galaxyMap = new GalaxyMapOverlay(_ctx.Font, _ctx.GraphicsDevice, _ctx.Render);
 
         _universe.Settings = _ctx.Settings;
+        _sprites.ImpactEffects.Connect(_universe.Events);
         _universe.Generate(_services.Assets, _hud);
-        _sprites.ImpactEffects.Attach(_universe.ActiveStarSystem);
         _ctx.SetMouseVisible(false);
     }
 
     public void OnExit()
     {
         _ctx.Saves.Save(_universe);
+        _sprites?.ImpactEffects.Disconnect();
         _universe.Dispose();
         _galaxyMap?.Dispose();
         _services?.Dispose();
@@ -91,8 +92,6 @@ public sealed class PlayingScreen : IScreen
         _universe.Update(dt, input);
         _camera.Update(_universe.Player.CameraTarget, dt, input);
 
-        // Hit visuals follow the active system (re-subscribes after a jump).
-        _sprites.ImpactEffects.Attach(_universe.ActiveStarSystem);
         _projectileRenderer.UpdateParticles(_universe.ActiveStarSystem.Projectiles, dt);
     }
 
