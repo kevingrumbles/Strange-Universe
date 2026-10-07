@@ -11,6 +11,9 @@ namespace Strange_Universe.Game.NavSystem
             Owner = owner;
         }
         public abstract void Update(float deltaTime);
+
+        /// <summary>Called once by the navigator when the task reaches <see cref="TaskState.Complete"/>, before it is cleared.</summary>
+        public virtual void OnCompleted() { }
     }
     
     public enum TaskState

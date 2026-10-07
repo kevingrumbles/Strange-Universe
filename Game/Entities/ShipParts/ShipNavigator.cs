@@ -30,12 +30,7 @@ public class ShipNavigator
             switch (ActiveTask.CurrentState)
             {
                 case TaskState.Complete:
-                    var system = _owner.StarSystem;
-                    if (ActiveTask is JumpTask jumpTask && system != null && system.SystemId == jumpTask._targetSystemId)
-                    {
-                        system.Universe?.JumpRoute.Remove(jumpTask._targetSystemId);
-                        _owner.CurrentFuelLevel--;
-                    }
+                    ActiveTask.OnCompleted();
                     ActiveTask = null;
                     break;
                 case TaskState.Invalid:

@@ -12,8 +12,10 @@ namespace Strange_Universe.Game.NavSystem
     /// </summary>
     public class JumpTask : NavTask
     {
-        public readonly string _targetSystemId;
+        private readonly string _targetSystemId;
         private readonly Vector2? _originGalaxyPosition;
+
+        public string TargetSystemId => _targetSystemId;
 
         public JumpTask(Ship owner, Vector2? originGalaxyPosition = null, string targetSystemId = null, TaskState? currentState = null) : base(owner)
         {
@@ -24,6 +26,16 @@ namespace Strange_Universe.Game.NavSystem
             {
                 CurrentState = TaskState.Invalid;
             }
+        }
+
+        /// <summary>When the owner has arrived in the target system, consumes the route entry and one unit of fuel.</summary>
+        public override void OnCompleted()
+        {
+            var system = Owner?.StarSystem;
+            if (system == null || system.SystemId != _targetSystemId) return;
+
+            system.Universe?.JumpRoute.Remove(_targetSystemId);
+            Owner.CurrentFuelLevel--;
         }
 
         public override void Update(float deltaTime)

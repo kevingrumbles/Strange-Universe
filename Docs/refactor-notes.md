@@ -352,3 +352,26 @@ Test: `NewUniverse_PredictsStartingSystemNebula`. 77/77 pass.
 ### Manual smoke test
 
 **Not performed.** Please verify: new game, load a save, and several jumps in a row.
+
+## Round 2 / Phase 3 - Task completion belongs to the task
+
+### Changes
+
+- `NavTask.OnCompleted()` (virtual, no-op by default). `ShipNavigator.Update` calls it once when the active task reaches `Complete`, then clears the task.
+- `JumpTask.OnCompleted()` now holds the route removal and fuel decrement, with the same condition as before (owner is in the target system).
+- `JumpTask._targetSystemId` is now private; `TargetSystemId` is a public read-only property.
+- `ShipNavigator.cs` no longer names any task type.
+
+### Behavior changes
+
+None.
+
+### Tests
+
+New `NavTaskCompletionTests`: a completed jump in the target system removes the route entry and uses one fuel; a completed jump elsewhere and an invalid jump change nothing. 90/90 pass, 0 skipped.
+
+Note: the three Phase 0 bug tests in `GenerationCharacterizationTests.cs` were still marked `Skip` in the committed code, although the Phase 1 notes say they were un-skipped (the stale editor copy mentioned in Phase 1 appears to have re-added them). They are now un-skipped in their own commit and pass.
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: set a route on the galaxy map, jump. The route entry disappears and fuel drops by one on arrival; a merchant NPC still jumps out.
