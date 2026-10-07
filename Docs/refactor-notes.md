@@ -375,3 +375,32 @@ Note: the three Phase 0 bug tests in `GenerationCharacterizationTests.cs` were s
 ### Manual smoke test
 
 **Not performed** (needs a display). Please verify: set a route on the galaxy map, jump. The route entry disappears and fuel drops by one on arrival; a merchant NPC still jumps out.
+
+## Round 2 / Phase 4 - Pure generation
+
+### Changes
+
+- New `StarSystemLayout` (immutable record): derived parameters, the initial stars, planets, asteroids and background stars, and `NebulaIndex`. The entity instances are handed to the `StarSystem` built from the layout, so a layout is consumed by one system.
+- `StarSystemGenerator.Generate(node, nebulaPoolSize)` returns a layout. It has no reference to `Universe`, `Galaxy` or `IAssetRequests`, and the order of Random draws is unchanged. `NebulaIndexFor` now takes the pool size.
+- `StarSystem` takes a layout (`new StarSystem(node, universe, layout, assets, random)`). Its generated properties are read-only and the constructor has no side effects. Internal `StarSystem.Create(...)` generates a layout and builds the system, and `AttachAssets()` requests textures.
+- `Universe.EnterSystem` now does, in order: create the system, expand the galaxy (only when `!node.Discovered`, which it then sets), attach assets, make it active, attach the player, wait for the nebula.
+- `StarSystemNode.IsHome` (`[JsonIgnore]`, derived from `HomeName = "Sol"`) replaces the string checks.
+- Deviation from the plan: `Generate` has no `universeSeed` parameter. The only seed-dependent parts (palette texture seeds, nebula id) are now built outside the generator.
+
+### Behavior changes
+
+None. Golden data is untouched. The golden fingerprint helper and a few tests now enter the system through `Universe.EnterSystem` (which does the galaxy expansion) instead of constructing a `StarSystem` directly.
+
+The order of asset requests changed: star textures, then planet textures, then the 15 asteroid palette textures, instead of being interleaved. Seeds and results are the same.
+
+### Tests
+
+New `PureGenerationTests`: equal layouts for the same node, no node/universe mutation during `Generate`, Sol overrides via `IsHome`, galaxy expanded only on first entry, `IsHome` not serialized. The idempotence test now enters the same system twice. 95/95 pass.
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: new game, jump through a few systems (new neighbours appear on the galaxy map), load a save and revisit a system.
+
+### Open questions
+
+- Saves where a node is `Discovered` but has fewer connections than its target will no longer be topped up on re-entry. New saves can't reach that state; say if you want an always-top-up instead.

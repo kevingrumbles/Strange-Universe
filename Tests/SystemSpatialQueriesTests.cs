@@ -13,7 +13,7 @@ public class SystemSpatialQueriesTests
         var node = new StarSystemNode(seed, Vector2.Zero, existingNodes: universe.StarSystemNodes);
         universe.StarSystemNodes.Add(node);
         universe.Player.CurrentStarSystemID = node.SystemId;
-        return new StarSystem(node, universe, null, new Random(randomSeed));
+        return StarSystem.Create(node, universe, null, new Random(randomSeed));
     }
 
     [Fact]

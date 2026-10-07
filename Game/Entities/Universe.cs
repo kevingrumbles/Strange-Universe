@@ -41,7 +41,19 @@ public class Universe : IDisposable
     {
         ArgumentNullException.ThrowIfNull(node);
 
-        _activeStarSystem = new StarSystem(node, this, _assets);
+        // Generation is pure; everything that touches shared state happens here, in this order.
+        var system = StarSystem.Create(node, this, _assets);
+
+        // Expand the galaxy around a node only the first time it is entered.
+        if (!node.Discovered)
+        {
+            node.Discovered = true;
+            Galaxy.GenerateConnections(node, system.SystemConnectionCount, Seed);
+        }
+
+        system.AttachAssets();
+
+        _activeStarSystem = system;
         Player.StarSystem = _activeStarSystem;
         Player.CurrentStarSystemID = node.SystemId;
         WaitForNebula(_activeStarSystem.NebulaId);
@@ -58,7 +70,7 @@ public class Universe : IDisposable
             StarSystemNodes.Add(new StarSystemNode(Seed, position: Vector2.Zero, backConnection: null, existingNodes: StarSystemNodes));
 
         return Galaxy.FindById(Player.CurrentStarSystemID)
-            ?? StarSystemNodes.FirstOrDefault(n => n.Name == "Sol")
+            ?? StarSystemNodes.FirstOrDefault(n => n.IsHome)
             ?? StarSystemNodes[0];
     }
 
@@ -166,7 +178,7 @@ public class Universe : IDisposable
         Messages = messages ?? NullMessageSink.Instance;
 
         StarSystemNode start = ResolveStartNode();
-        GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId));
+        GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
         Player.Generate();
         _assets.EnsureShipArt(Player.ShipType);
         EnterSystem(start);

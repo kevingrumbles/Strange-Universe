@@ -11,6 +11,12 @@ public class StarSystemNode
     public string Name { get; set; }
     public Vector2 GalaxyPosition { get; set; }
     public bool Discovered { get; set; } = false;
+
+    /// <summary>Name of the starting system; its layout is hand-tuned.</summary>
+    public const string HomeName = "Sol";
+
+    /// <summary>True for the starting system. Derived from the name, so it is not serialized.</summary>
+    [JsonIgnore] public bool IsHome => Name == HomeName;
     [JsonIgnore] public string DisplayName
     {
         get

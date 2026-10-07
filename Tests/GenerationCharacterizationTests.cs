@@ -26,7 +26,7 @@ public class GenerationCharacterizationTests
     private static Vector2[] AsteroidLayout(IAssetRequestsFactory make)
     {
         var (universe, node) = BuildUniverse();
-        var system = new StarSystem(node, universe, make());
+        var system = StarSystem.Create(node, universe, make());
         return system.Asteroids.Select(a => a.Position).ToArray();
     }
 
@@ -37,7 +37,7 @@ public class GenerationCharacterizationTests
     {
         var (universe, node) = BuildUniverse();
         var fresh = new RecordingAssetRequests();
-        _ = new StarSystem(node, universe, fresh);
+        StarSystem.Create(node, universe, fresh).AttachAssets();
 
         Assert.Equal(15, fresh.Calls.Count(c => c.Method == "EnsureAsteroidTexture"));
         Assert.Equal(15, fresh.CreatedPaletteIds.Count);
@@ -69,7 +69,7 @@ public class GenerationCharacterizationTests
             var (universe, node) = BuildUniverse();
             for (int i = 0; i < poolCount; i++)
                 universe.NebulaPool.Add(Nebula.CreateWithoutPixels($"{Seed}_nebula_pool_{i}"));
-            return new StarSystem(node, universe, null).NebulaId;
+            return StarSystem.Create(node, universe, null).NebulaId;
         }
 
         Assert.Equal(Select(6), Select(1));
@@ -80,14 +80,14 @@ public class GenerationCharacterizationTests
     {
         var (u1, n1) = BuildUniverse();
         var a = new RecordingAssetRequests();
-        _ = new StarSystem(n1, u1, a);
+        StarSystem.Create(n1, u1, a).AttachAssets();
 
         // A different system in the same universe requests the same palette seeds.
         var (u2, _) = BuildUniverse();
         var other = new StarSystemNode { SystemId = $"{Seed}_Other", Name = "Other", GalaxyPosition = new Vector2(3, 3) };
         u2.StarSystemNodes.Add(other);
         var b = new RecordingAssetRequests();
-        _ = new StarSystem(other, u2, b);
+        StarSystem.Create(other, u2, b).AttachAssets();
 
         Assert.Equal(15, a.AsteroidSeeds.Count);
         Assert.Equal(a.AsteroidSeeds, b.AsteroidSeeds);
@@ -97,7 +97,7 @@ public class GenerationCharacterizationTests
     public void NebulaId_IsAlwaysSet_EvenWithEmptyPool()
     {
         var (universe, node) = BuildUniverse();
-        var s = new StarSystem(node, universe, null);
+        var s = StarSystem.Create(node, universe, null);
         Assert.StartsWith($"{Seed}_nebula_pool_", s.NebulaId);
     }
 
@@ -119,8 +119,8 @@ public class GenerationCharacterizationTests
     public void NebulaIndexFor_MatchesSelectedNebula()
     {
         var (universe, node) = BuildUniverse();
-        var s = new StarSystem(node, universe, null);
-        Assert.Equal(Universe.NebulaPoolId(Seed, StarSystemGenerator.NebulaIndexFor(node.SystemId)), s.NebulaId);
+        var s = StarSystem.Create(node, universe, null);
+        Assert.Equal(Universe.NebulaPoolId(Seed, StarSystemGenerator.NebulaIndexFor(node.SystemId, Universe.NebulaPoolSize)), s.NebulaId);
     }
 
     [Fact]
@@ -141,10 +141,11 @@ public class GenerationCharacterizationTests
     public void ConstructingSameSystemTwice_DoesNotChangeUniverse()
     {
         var (universe, node) = BuildUniverse();
-        _ = new StarSystem(node, universe, null);
+        universe.NebulaFactory = Nebula.CreateWithoutPixels;
+        universe.EnterSystem(node);
 
         string before = Snapshot(universe);
-        _ = new StarSystem(node, universe, null);
+        universe.EnterSystem(node);
 
         Assert.Equal(before, Snapshot(universe));
     }

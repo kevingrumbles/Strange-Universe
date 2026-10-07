@@ -12,7 +12,7 @@ public class StarSystemConstructionTests
 {
     private static (Universe universe, StarSystemNode node) BuildUniverse(string seed)
     {
-        var universe = new Universe("Test", seed);
+        var universe = new Universe("Test", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
         var node = new StarSystemNode(seed, Vector2.Zero, existingNodes: universe.StarSystemNodes);
         universe.StarSystemNodes.Add(node);
         universe.Player.CurrentStarSystemID = node.SystemId;
@@ -32,7 +32,7 @@ public class StarSystemConstructionTests
     {
         var (universe, node) = BuildUniverse("seed-1");
 
-        var system = new StarSystem(node, universe, assets: null);
+        var system = universe.EnterSystem(node);
 
         Assert.Same(universe, system.Universe);
         Assert.Same(universe.Player, system.ActivePlayer);
@@ -49,8 +49,8 @@ public class StarSystemConstructionTests
         var (u1, n1) = BuildUniverse("determinism");
         var (u2, n2) = BuildUniverse("determinism");
 
-        var a = new StarSystem(n1, u1, null);
-        var b = new StarSystem(n2, u2, null);
+        var a = u1.EnterSystem(n1);
+        var b = u2.EnterSystem(n2);
 
         Assert.Equal(a.SystemRadius, b.SystemRadius);
         Assert.Equal(a.Planets.Select(p => (p.Name, p.Position)), b.Planets.Select(p => (p.Name, p.Position)));
@@ -62,7 +62,7 @@ public class StarSystemConstructionTests
     public void AddNpc_AttachesSystem()
     {
         var (universe, node) = BuildUniverse("npc-seed");
-        var system = new StarSystem(node, universe, null);
+        var system = StarSystem.Create(node, universe, null);
         var npc = new Nonplayer("npc-1");
 
         Assert.Null(npc.StarSystem);

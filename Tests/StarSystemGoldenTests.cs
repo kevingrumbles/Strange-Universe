@@ -19,7 +19,7 @@ public class StarSystemGoldenTests
 
     internal static string Fingerprint(string seed, string nodeName, Vector2 galaxyPos)
     {
-        var universe = new Universe("Golden", seed);
+        var universe = new Universe("Golden", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
         StarSystemNode node;
         if (nodeName == null)
         {
@@ -32,7 +32,7 @@ public class StarSystemGoldenTests
         universe.StarSystemNodes.Add(node);
         universe.Player.CurrentStarSystemID = node.SystemId;
 
-        var s = new StarSystem(node, universe, null);
+        var s = universe.EnterSystem(node);
 
         var sb = new StringBuilder();
         sb.Append($"P{s.PlanetCount} A{s.AsteroidCount} S{s.StarCount} R{F(s.SystemRadius)} ");
