@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using Strange_Universe.Game.Components;
 namespace Strange_Universe.Game.EventSystem
 {
     public enum EventType
@@ -16,13 +17,13 @@ namespace Strange_Universe.Game.EventSystem
 
     public class EventController
     {
-        private StarSystem _owner;
+        private IWorldContext _owner;
         private float? _standardEventThreshold = null;
         private float _timeSinceLastEvent = 0f;
         private Random _random;
         private int _minEventThreshold = 60;
         private int _maxEventThreshold = 61;
-        public EventController(StarSystem owner)
+        public EventController(IWorldContext owner)
         {
             _random = new Random(ProceduralHelpers.SeedHash($"{owner.SystemId}:Events"));
             _owner = owner;
@@ -62,12 +63,12 @@ namespace Strange_Universe.Game.EventSystem
                 //    spawnEvent = new NpcTestEvent();
                 //    break;
                 case int n when (n < DefendedSystemSpawn.EventProbability):
-                    _owner.Universe.Messages.Post($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
+                    _owner.PostMessage($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
                     spawnEvent = new DefendedSystemSpawn();
                     break;
 
                 case int n when (n < ScoutedSystemSpawn.EventProbability):
-                    _owner.Universe.Messages.Post($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
+                    _owner.PostMessage($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
                     spawnEvent = new ScoutedSystemSpawn();
                     break;
             }

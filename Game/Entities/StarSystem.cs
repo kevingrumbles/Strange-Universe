@@ -10,7 +10,7 @@ using Strange_Universe.Game.Simulation;
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>Owns all game entities and drives the frame update.</summary>
-public class StarSystem
+public class StarSystem : IWorldContext
 {
     [JsonIgnore] public string SystemId { get { return Node.SystemId;  }  }
     [JsonIgnore] public HashSet<string> SystemConnectionIds { get { return Node.SystemConnectionIds; } }
@@ -170,6 +170,12 @@ public class StarSystem
         Universe?.Events.Publish(new ShipDamaged(ship, projectile, shieldWasUp));
         ShipHit?.Invoke(ship, projectile, shieldWasUp);
     }
+
+    // -- IWorldContext ---------------------------------------------------------
+    IReadOnlyList<Planet> IWorldContext.Planets => Planets;
+    int IWorldContext.NpcCount => Npcs.Count;
+    Vector2 IWorldContext.GetRandomSafeLocationOutsideAsteroidBelt() => Spatial.GetRandomSafeLocationOutsideAsteroidBelt();
+    void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Messages.Post(message, durationSeconds);
 
     /// <summary>Adds an NPC to this system and attaches the system to it.</summary>
     public void AddNpc(Nonplayer npc)

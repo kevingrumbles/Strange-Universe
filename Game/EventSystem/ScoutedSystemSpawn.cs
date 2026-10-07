@@ -5,6 +5,7 @@ using Strange_Universe;
 using System;
 using System.Collections.Generic;
 
+using Strange_Universe.Game.Components;
 namespace Strange_Universe.Game.EventSystem
 {
     public class ScoutedSystemSpawn : SystemEvent
@@ -15,22 +16,22 @@ namespace Strange_Universe.Game.EventSystem
             type = EventType.SpawnEvent;
         }
 
-        public override void ExcuteEvent(StarSystem system)
+        public override void ExcuteEvent(IWorldContext system)
         {
             for (int i = 0; i < 1; i++)
             {
-                Nonplayer npc = new Nonplayer(npcId: $"Npc_patroler_{system.Npcs.Count + 1}", shipType: "Shuttle", jumpSpawn: true, npcName: $"Patrolling Shuttle");
+                Nonplayer npc = new Nonplayer(npcId: $"Npc_patroler_{system.NpcCount + 1}", shipType: "Shuttle", jumpSpawn: true, npcName: $"Patrolling Shuttle");
 
                 // Generate random patrol points outside the asteroid belt
                 List<Vector2> patrolPoints = new List<Vector2>();
                 for (int j = 0; j < random.Next(3, 6); j++)
                 {
-                    patrolPoints.Add(system.Spatial.GetRandomSafeLocationOutsideAsteroidBelt());
+                    patrolPoints.Add(system.GetRandomSafeLocationOutsideAsteroidBelt());
                 }
 
                 if (patrolPoints.Count == 0)
                 {
-                    system.Universe.Messages.Post($"No valid patrol points for {npc.Id}");
+                    system.PostMessage($"No valid patrol points for {npc.Id}");
                 }
 
                 npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));

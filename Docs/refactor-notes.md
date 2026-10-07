@@ -454,3 +454,45 @@ None intended.
 ### Manual smoke test
 
 **Not performed** (needs a display). Please verify: menu, play, map, Esc out of the map (must not also exit to the menu), exit to the menu, delete a universe, close the window during play (saves), and that timed messages still appear and fade.
+
+## Round 2 / Phase 7 - Extension points
+
+Done: 7.1 event bus, 7.2 data-driven weapons, 7.3 (system events only). Not done: the `NavTask` half of 7.3, 7.4 (`IUpdatable`) and 7.5 (assembly split); the plan marks 7.4 and 7.5 optional.
+
+### 7.1 Event bus
+
+- New `IEventBus` / `EventBus` (`Game/Components/EventBus.cs`): typed `Subscribe<T>` (returns a disposable) and `Publish<T>`; single-threaded, handlers may unsubscribe while handling. `Universe.Events` owns the bus.
+- Events: `ShipDamaged`, `ShipDestroyed` (published once, from `Ship.ApplyDamage` when the hit takes the hull to zero), `ProjectileHit` (from `ProjectileCollisionSystem`, ship or asteroid), `SystemEntered` (end of `Universe.EnterSystem`), `MessageRequested`.
+- `Universe.Messages` is now a `BusMessageSink` that publishes `MessageRequested`; the sink passed to `Generate` (the HUD) is subscribed to that event.
+- `ShipImpactEffects` replaces `Attach(system)` with `Connect(bus)` / `Disconnect()`. It subscribes to `ShipDamaged` and clears on `SystemEntered`, so the per-frame `Attach` call in `PlayingScreen` is gone (Phase 6 item 4).
+- Compatibility shim: `StarSystem.ShipHit` still fires, next to the new event. Remove it in the next release.
+
+### 7.2 Data-driven weapons
+
+- `Definitions/weapons.json`: weapons (gameplay values, `impactLingerSeconds`, `visualStyle` name) and `visualStyles` (colours as `[r, g, b]`). It is embedded in the assembly and copied next to the executable; a file next to the executable overrides the embedded one.
+- `DefinitionRepository` (`Game/Components`) loads it. `Equipment.Presets` builds the six weapons from it; the missiles, shields, hulls, engines and utilities stay in code. `ProjectileVisuals.For(weaponName)` resolves weapon -> style -> `ProjectileVisual` (cached), falling back to the `default` style.
+- The code presets (`Equipment.LightLaser` etc., `ProjectileVisual.LightLaser` etc., `ProjectileColorStyle`) are removed. Before removing them, a temporary test checked every JSON value against the old presets and passed. Values are identical.
+- There is no `ship-stats.json` in this repository, so the weapons file is new rather than "next to" it. Ships remain in code.
+- Test `NewWeapon_NeedsNoCodeChange` loads a JSON weapon and style that exist in no code.
+
+### 7.3 `IWorldContext` (system events only)
+
+- `IWorldContext` (`Game/Components`): `SystemId`, `Planets`, `NpcCount`, `AddNpc`, `GetRandomSafeLocationOutsideAsteroidBelt`, `PostMessage`. `StarSystem` implements it. `SystemEvent.ExcuteEvent` and `EventController` now take it.
+- **`NavTask` not migrated.** `JumpTask` needs system entry, the galaxy, the jump route, spatial queries and star/planet lists, and `Ship.StarSystem` is the concrete type everywhere. A useful interface there is a larger change than this phase; it needs its own step.
+
+### Behavior changes
+
+None intended. Weapons, projectile looks and event behavior are the same; the messages now travel through the bus.
+
+### Tests
+
+114/114 pass. New: `EventBusTests`, `DefinitionTests`, `WorldContextTests`.
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: weapons fire and look as before, hit flashes and debris still appear and clear on jumping, timed messages (merchant, discovered systems) still show, and a ship destroyed by the player disappears.
+
+### Open questions
+
+- Should `ShipHit` be removed now, or kept one more release?
+- Do you want the `NavTask` / `IWorldContext` step as its own phase?
