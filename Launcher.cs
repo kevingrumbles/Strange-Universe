@@ -13,6 +13,7 @@ namespace Strange_Universe
         private readonly GraphicsDeviceManager _graphics;
         private readonly ScreenManager _screens = new();
         private readonly GameSettings _settings = new();
+        private readonly ISaveService _saves = new FileSaveService();
 
         private RenderService _render;
         private ProjectileRenderer _projectileRenderer;
@@ -61,7 +62,9 @@ namespace Strange_Universe
                 Render = _render,
                 Font = FontBuilder.Build(GraphicsDevice, "Arial", 16f),
                 Settings = _settings,
-                Universes = Persistence.LoadExisting(ScreenContext.UniverseFilePath),
+                Saves = _saves,
+                Input = new InputHandler(),
+                Universes = _saves.LoadAll(),
                 ScreenWidth = _graphics.PreferredBackBufferWidth,
                 ScreenHeight = _graphics.PreferredBackBufferHeight,
                 ShowMenu = () => _screens.Switch(_menu),

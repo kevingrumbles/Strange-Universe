@@ -13,30 +13,29 @@ public sealed class WorldRenderer
     private readonly ProjectileRenderer _projectiles;
     private readonly DebugRenderer _debug;
     private readonly GameSettings _settings;
-    private readonly int _screenWidth;
-    private readonly int _screenHeight;
 
     public WorldRenderer(SpriteRenderer sprites, ProjectileRenderer projectiles, DebugRenderer debug,
-                         GameSettings settings, int screenWidth, int screenHeight)
+                         GameSettings settings)
     {
         _sprites = sprites;
         _projectiles = projectiles;
         _debug = debug;
         _settings = settings;
-        _screenWidth = screenWidth;
-        _screenHeight = screenHeight;
     }
 
-    public void Draw(StarSystem sys, Camera camera, Player player)
+    /// <summary>Draws <paramref name="sys"/> for its player, sized to the camera viewport.</summary>
+    public void Draw(StarSystem sys, Camera camera)
     {
-        _sprites.DrawBackgroundStars(sys.BackgroundStars, _screenWidth, _screenHeight, camera.Position, camera.Zoom, layer: 0);
-        _sprites.DrawNebula(sys.NebulaId, _screenWidth, _screenHeight, camera.Position, camera.Zoom, _settings.ShowDebug);
-        _sprites.DrawBackgroundStars(sys.BackgroundStars, _screenWidth, _screenHeight, camera.Position, camera.Zoom, layer: 1);
+        int w = camera.ScreenWidth, h = camera.ScreenHeight;
+        _sprites.DrawBackgroundStars(sys.BackgroundStars, w, h, camera.Position, camera.Zoom, layer: 0);
+        _sprites.DrawNebula(sys.NebulaId, w, h, camera.Position, camera.Zoom, _settings.ShowDebug);
+        _sprites.DrawBackgroundStars(sys.BackgroundStars, w, h, camera.Position, camera.Zoom, layer: 1);
 
         foreach (var star in sys.Stars) _sprites.DrawStar(star);
         foreach (var planet in sys.Planets) _sprites.DrawPlanet(planet);
         foreach (var asteroid in sys.Asteroids) _sprites.DrawAsteroid(asteroid);
 
+        var player = sys.ActivePlayer;
         _sprites.DrawPlayer(player);
         foreach (var npc in sys.Npcs) _sprites.DrawNPC(npc);
 

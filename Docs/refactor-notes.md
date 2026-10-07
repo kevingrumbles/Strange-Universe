@@ -430,3 +430,27 @@ None intended. Impact linger times equal the old burst durations, and projectile
 ### Open questions
 
 - `Light Missile` has no dedicated `ProjectileVisual`, so it uses the default look as before; say if it should get its own.
+
+## Round 2 / Phase 6 - PlayingScreen, renderers and host cleanup
+
+### Changes
+
+1. **HUD message.** New `HudRenderer.DrawMessage` (Game.Systems) draws the timed message with the same position, colour and last-second fade. `PlayingScreen` no longer calls `DrawString`.
+2. **Saving.** New `ISaveService` and `FileSaveService` (`Game/Helpers/SaveService.cs`) wrap `Persistence`. `Launcher` creates it; it reaches screens through `ScreenContext.Saves`. `PlayingScreen.OnExit` and `MenuScreen` (delete) use it, and `Launcher` loads the universe list through it. `ScreenContext.UniverseFilePath` (a const) is removed in favour of `FileSaveService.DefaultPath`. Test fake: `InMemorySaveService`.
+3. **Input.** `InputHandler.Rebaseline()` replaces `new InputHandler()` for the closing-Escape case. A single `InputHandler` is created by `Launcher` and shared as `ScreenContext.Input`; `PlayingScreen` rebaselines it on enter and after closing the map.
+4. **Impact effects wiring.** Already idempotent: `ShipImpactEffects.Attach` returns immediately when given the system it is subscribed to, so the per-frame call is a reference comparison. Left as is; the "system entered" notification arrives with the event bus in Phase 7.
+5. **`WorldRenderer`.** No cached screen size; it reads `Camera.ScreenWidth/ScreenHeight` (new properties) per frame, and takes the player from `StarSystem.ActivePlayer`. `Draw(sys, camera)`. Layer order unchanged.
+6. **`DrawHud` / `DrawSpeedBar` split: not done.** They share the font, batch, screen layout and texture lookups with `SpriteRenderer` and are about 300 lines, so moving them is not a straightforward move. Deferred.
+7. `Launcher` still only creates shared resources and forwards `Update`/`Draw`; `UniverseFilePath` was a const and is gone.
+
+### Behavior changes
+
+None intended.
+
+### Tests
+
+102/102 pass (new: `SaveServiceTests` for the in-memory and file implementations).
+
+### Manual smoke test
+
+**Not performed** (needs a display). Please verify: menu, play, map, Esc out of the map (must not also exit to the menu), exit to the menu, delete a universe, close the window during play (saves), and that timed messages still appear and fade.

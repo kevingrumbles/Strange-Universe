@@ -13,6 +13,9 @@ public class InputHandler
         _prevKeys = Keyboard.GetState();
     }
 
+    /// <summary>Treats keys held right now as already seen, so a press that closed an overlay is not read again as a new press.</summary>
+    public void Rebaseline() => _prevKeys = Keyboard.GetState();
+
     public InputState GetState()
     {
         var kb = Keyboard.GetState();

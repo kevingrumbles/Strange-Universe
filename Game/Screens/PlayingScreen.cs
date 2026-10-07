@@ -22,6 +22,7 @@ public sealed class PlayingScreen : IScreen
     private InputHandler _input;
     private SpriteRenderer _sprites;
     private WorldRenderer _world;
+    private HudRenderer _hudRenderer;
     private GalaxyMapOverlay _galaxyMap;
 
     public PlayingScreen(ScreenContext ctx, ProjectileRenderer projectileRenderer, Universe universe)
@@ -35,10 +36,12 @@ public sealed class PlayingScreen : IScreen
     {
         _services = new GameServices(_ctx.GraphicsDevice);
         _camera = new Camera(_ctx.ScreenWidth, _ctx.ScreenHeight);
-        _input = new InputHandler();
+        _input = _ctx.Input;
+        _input.Rebaseline();
         _sprites = new SpriteRenderer(_ctx.Font, _services, _ctx.Render, _camera);
         _world = new WorldRenderer(_sprites, _projectileRenderer,
-            new DebugRenderer(_ctx.Render, _camera, _ctx.Settings), _ctx.Settings, _ctx.ScreenWidth, _ctx.ScreenHeight);
+            new DebugRenderer(_ctx.Render, _camera, _ctx.Settings), _ctx.Settings);
+        _hudRenderer = new HudRenderer(_ctx.Render, _ctx.Font);
         _galaxyMap = new GalaxyMapOverlay(_ctx.Font, _ctx.GraphicsDevice, _ctx.Render);
 
         _universe.Settings = _ctx.Settings;
@@ -49,7 +52,7 @@ public sealed class PlayingScreen : IScreen
 
     public void OnExit()
     {
-        Persistence.Persist(_universe, ScreenContext.UniverseFilePath);
+        _ctx.Saves.Save(_universe);
         _universe.Dispose();
         _galaxyMap?.Dispose();
         _services?.Dispose();
@@ -67,7 +70,7 @@ public sealed class PlayingScreen : IScreen
             if (_galaxyMap.Update(_universe, _ctx.ScreenWidth, _ctx.ScreenHeight, dt))
             {
                 _ctx.SetMouseVisible(false);
-                _input = new InputHandler(); // re-baseline so the closing Escape isn't seen as Exit
+                _input.Rebaseline(); // so the closing Escape is not seen as Exit
             }
             return;
         }
@@ -96,7 +99,7 @@ public sealed class PlayingScreen : IScreen
     public void Draw(GameTime gameTime)
     {
         _ctx.GraphicsDevice.Clear(ScreenContext.Background);
-        _world.Draw(_universe.ActiveStarSystem, _camera, _universe.Player);
+        _world.Draw(_universe.ActiveStarSystem, _camera);
         DrawOverlay();
 
         if (_galaxyMap.IsOpen)
@@ -110,12 +113,6 @@ public sealed class PlayingScreen : IScreen
         _sprites.DrawSpeedBar(_universe.Player, w, h, _universe.Player.MaxSpeed);
         _sprites.DrawHud(_universe, w, h);
 
-        if (_hud.Remaining > 0f && !string.IsNullOrEmpty(_hud.Message))
-        {
-            float alpha = _hud.Remaining < 1f ? _hud.Remaining : 1f; // fade out during last second
-            Vector2 size = _ctx.Font.MeasureString(_hud.Message);
-            _ctx.Render.SpriteBatch.DrawString(_ctx.Font, _hud.Message,
-                new Vector2((w - size.X) / 2f, h - size.Y - 40f), new Color(255, 140, 0) * alpha);
-        }
+        _hudRenderer.DrawMessage(_hud, w, h);
     }
 }

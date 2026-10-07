@@ -11,13 +11,15 @@ namespace Strange_Universe.Game.Screens;
 /// <summary>Shared host resources and navigation callbacks handed to every screen.</summary>
 public sealed class ScreenContext
 {
-    public const string UniverseFilePath = "Data/universe-settings.json";
     public static readonly Color Background = new(4, 4, 12);
 
     public required GraphicsDevice GraphicsDevice { get; init; }
     public required RenderService Render { get; init; }
     public required SpriteFont Font { get; init; }
     public required GameSettings Settings { get; init; }
+    public required ISaveService Saves { get; init; }
+    /// <summary>Shared keyboard reader for gameplay; call <see cref="InputHandler.Rebaseline"/> when a screen takes over.</summary>
+    public required InputHandler Input { get; init; }
     public required List<Universe> Universes { get; init; }
     public required int ScreenWidth { get; init; }
     public required int ScreenHeight { get; init; }
