@@ -1,4 +1,7 @@
-﻿using Microsoft.Xna.Framework;
+using System;
+using System.Collections.Generic;
+using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Components;
 
 namespace Strange_Universe.Game.Systems;
 
@@ -110,188 +113,61 @@ public struct ProjectileVisual
         BurstParticleSpeed = 120f,
     };
 
-    /// <summary>"Light Laser" (FixedProjectile) — fast, thin cyan bolt.</summary>
-    public static ProjectileVisual LightLaser => new ProjectileVisual
+    /// <summary>Builds a visual from a JSON style definition.</summary>
+    public static ProjectileVisual From(ProjectileStyleDefinition d) => new()
     {
-        Style = ProjectileVisualStyle.Laser,
+        Style         = Enum.TryParse<ProjectileVisualStyle>(d.Style, ignoreCase: true, out var style) ? style : ProjectileVisualStyle.Laser,
 
-        CoreColor = ProjectileColorStyle.LaserCore,
-        CoreLength = 22,
-        CoreWidth = 3,
+        CoreColor     = ToColor(d.CoreColor),
+        CoreLength    = d.CoreLength,
+        CoreWidth     = d.CoreWidth,
 
-        GlowColor = ProjectileColorStyle.LaserGlow,
-        GlowRadius = 10,
-        GlowIntensity = 0.8f,
+        GlowColor     = ToColor(d.GlowColor),
+        GlowRadius    = d.GlowRadius,
+        GlowIntensity = d.GlowIntensity,
 
-        TrailLength = 30,
-        TrailWidth = 5,
-        TrailAlpha = 0.45f,
+        TrailLength   = d.TrailLength,
+        TrailWidth    = d.TrailWidth,
+        TrailAlpha    = d.TrailAlpha,
 
-        PulseSpeed = 8f,
-        PulseAmount = 0.18f,
+        PulseSpeed    = d.PulseSpeed,
+        PulseAmount   = d.PulseAmount,
 
-        ParticleCount = 12,
+        ParticleCount = d.ParticleCount,
 
-        BurstDuration      = 0.16f,
-        BurstRadius        = 16f,
-        BurstParticleCount = 10,
-        BurstParticleSpeed = 120f,
+        BurstDuration      = d.BurstDuration,
+        BurstRadius        = d.BurstRadius,
+        BurstParticleCount = d.BurstParticleCount,
+        BurstParticleSpeed = d.BurstParticleSpeed,
     };
 
-    /// <summary>"Heavy Laser" (FixedProjectile) — slower, thick crimson bolt.</summary>
-    public static ProjectileVisual HeavyLaser => new ProjectileVisual
-    {
-        Style         = ProjectileVisualStyle.Laser,
-
-        CoreColor     = ProjectileColorStyle.LaserCore,
-        CoreLength    = 30,
-        CoreWidth     = 5,
-
-        GlowColor     = ProjectileColorStyle.LaserGlow,
-        GlowRadius    = 14,
-        GlowIntensity = 0.9f,
-
-        TrailLength   = 40,
-        TrailWidth    = 8,
-        TrailAlpha    = 0.5f,
-
-        PulseSpeed    = 6f,
-        PulseAmount   = 0.22f,
-
-        ParticleCount = 16,
-
-        BurstDuration      = 0.26f,
-        BurstRadius        = 30f,
-        BurstParticleCount = 20,
-        BurstParticleSpeed = 190f,
-    };
-
-    /// <summary>"Gatling Gun" (FixedProjectile) — small, rapid-fire tracer round.</summary>
-    public static ProjectileVisual GatlingGun => new ProjectileVisual
-    {
-        Style         = ProjectileVisualStyle.Solid,
-
-        CoreColor     = ProjectileColorStyle.SolidCore,
-        CoreLength    = 10,
-        CoreWidth     = 2,
-
-        GlowColor     = ProjectileColorStyle.SolidGlow,
-        GlowRadius    = 4,
-        GlowIntensity = 0.5f,
-
-        TrailLength   = 14,
-        TrailWidth    = 2,
-        TrailAlpha    = 0.25f,
-
-        PulseSpeed    = 0f,
-        PulseAmount   = 0f,
-
-        ParticleCount = 4,
-
-        BurstDuration      = 0.10f,
-        BurstRadius        = 8f,
-        BurstParticleCount = 6,
-        BurstParticleSpeed = 150f,
-    };
-
-    /// <summary>"Plasma Beam" (FixedBeam) — continuous violet plasma beam.</summary>
-    public static ProjectileVisual PlasmaBeam => new ProjectileVisual
-    {
-        Style         = ProjectileVisualStyle.Beam,
-
-        CoreColor     = ProjectileColorStyle.PlasmaCore,
-        CoreLength    = 64,
-        CoreWidth     = 6,
-
-        GlowColor     = ProjectileColorStyle.PlasmaGlow,
-        GlowRadius    = 18,
-        GlowIntensity = 1f,
-
-        TrailLength   = 0,
-        TrailWidth    = 0,
-        TrailAlpha    = 0f,
-
-        PulseSpeed    = 14f,
-        PulseAmount   = 0.25f,
-
-        ParticleCount = 20,
-
-        BurstDuration      = 0.34f,
-        BurstRadius        = 38f,
-        BurstParticleCount = 26,
-        BurstParticleSpeed = 160f,
-    };
-
-    /// <summary>"Pulse Cannon" (TurretProjectile) — rounded green energy pulse.</summary>
-    public static ProjectileVisual PulseCannon => new ProjectileVisual
-    {
-        Style         = ProjectileVisualStyle.Pulse,
-
-        CoreColor     = ProjectileColorStyle.PulseCore,
-        CoreLength    = 14,
-        CoreWidth     = 6,
-
-        GlowColor     = ProjectileColorStyle.PulseGlow,
-        GlowRadius    = 12,
-        GlowIntensity = 0.85f,
-
-        TrailLength   = 20,
-        TrailWidth    = 6,
-        TrailAlpha    = 0.4f,
-
-        PulseSpeed    = 12f,
-        PulseAmount   = 0.3f,
-
-        ParticleCount = 10,
-
-        BurstDuration      = 0.22f,
-        BurstRadius        = 24f,
-        BurstParticleCount = 16,
-        BurstParticleSpeed = 170f,
-    };
-
-    /// <summary>"Mining Beam" (TurretBeam) — steady amber cutting beam.</summary>
-    public static ProjectileVisual MiningBeam => new ProjectileVisual
-    {
-        Style         = ProjectileVisualStyle.Beam,
-
-        CoreColor     = ProjectileColorStyle.MiningLaserCore,
-        CoreLength    = 48,
-        CoreWidth     = 3,
-
-        GlowColor     = ProjectileColorStyle.MiningLaserGlow,
-        GlowRadius    = 10,
-        GlowIntensity = 0.75f,
-
-        TrailLength   = 0,
-        TrailWidth    = 0,
-        TrailAlpha    = 0f,
-
-        PulseSpeed    = 5f,
-        PulseAmount   = 0.15f,
-
-        ParticleCount = 14,
-
-        BurstDuration      = 0.20f,
-        BurstRadius        = 14f,
-        BurstParticleCount = 14,
-        BurstParticleSpeed = 90f,
-    };
+    private static Color ToColor(int[] rgb) =>
+        rgb is { Length: >= 3 } ? new Color(rgb[0], rgb[1], rgb[2]) : Color.White;
 }
 
-
-
-/// <summary>Maps a weapon name to how its projectiles look. Rendering concern, so it lives with the renderers.</summary>
+/// <summary>Maps a weapon name to how its projectiles look, using the weapon and style definitions. Rendering concern, so it lives with the renderers.</summary>
 public static class ProjectileVisuals
 {
-    public static ProjectileVisual For(string weaponName) => weaponName?.ToLowerInvariant() switch
+    // Projectiles are drawn many times a frame, so resolved visuals are cached per repository.
+    private static DefinitionRepository _cachedFor;
+    private static readonly Dictionary<string, ProjectileVisual> Cache = new(StringComparer.OrdinalIgnoreCase);
+
+    public static ProjectileVisual For(string weaponName) => For(DefinitionRepository.Default, weaponName);
+
+    public static ProjectileVisual For(DefinitionRepository repository, string weaponName)
     {
-        "light laser"  => ProjectileVisual.LightLaser,
-        "heavy laser"  => ProjectileVisual.HeavyLaser,
-        "pulse cannon" => ProjectileVisual.PulseCannon,
-        "gatling gun"  => ProjectileVisual.GatlingGun,
-        "plasma beam"  => ProjectileVisual.PlasmaBeam,
-        "mining beam"  => ProjectileVisual.MiningBeam,
-        _              => ProjectileVisual.Default,
-    };
+        if (!ReferenceEquals(repository, _cachedFor))
+        {
+            Cache.Clear();
+            _cachedFor = repository;
+        }
+
+        string key = weaponName ?? string.Empty;
+        if (!Cache.TryGetValue(key, out var visual))
+        {
+            var style = repository.StyleForWeapon(weaponName);
+            Cache[key] = visual = style == null ? ProjectileVisual.Default : ProjectileVisual.From(style);
+        }
+        return visual;
+    }
 }

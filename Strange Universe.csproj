@@ -11,6 +11,12 @@
     <ApplicationIcon>Icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Definitions\weapons.json" LogicalName="Strange_Universe.Definitions.weapons.json" />
+    <Content Include="Definitions\**\*.*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="Tests\**" />
     <None Remove="Tests\**" />
     <None Remove="Icon.ico" />
