@@ -56,3 +56,15 @@ A defensive dock with the attacker 700 away shoots back after 0.8 s; with the at
 ## Tests
 
 `AlertTests`, `CombatSteeringTests`, `NpcLoadoutTests` (trigger and bookkeeping, no alert for own/null/killing shots or for the player, second attacker, suspended-task handling, resume with state preserved, queue order, clear, aggressive hunting of stationary and moving attackers, aggressive guard, unarmed flees, defensive flees without firing, defensive shoots back in range and does not chase, a fleeing ship fights when a hostile arrives, lead aiming, match velocity, pursuit settling, guard re-approach).
+
+## Player destroyed
+
+NPCs can now shoot the player, so a destroyed player ends the session:
+
+- `PlayerDeathMonitor` (`Game/Screens`) subscribes to the universe's `ShipDestroyed` events and notes when the player's ship is the one destroyed.
+- `PlayingScreen.Update` checks it first, every frame, and returns to the main menu (the same transition as Esc).
+- `PlayingScreen.OnExit` does **not** save when the player was destroyed (it also covers the window being closed in the same frame), and instead calls `ISaveService.ReloadInto(ctx.Universes)`, which replaces the in-memory universes with what is on disk. The menu therefore offers the last saved state; progress since the last save is lost.
+- A universe that was created this session and never saved (new universes are only saved when you leave play) is not on disk, so it disappears from the menu after a death.
+- Saves happen only when leaving play normally, so "the last persist point" is the last time you left play, or the last time you quit.
+
+Tests: `PlayerDeathTests` (the monitor flags only the player's destruction, stops when disposed, handles an already-destroyed player and a kill inside a full system update; reload replaces in-memory changes with the saved state, drops never-saved universes, works with both save services). The screen change itself needs a display and was not run.
