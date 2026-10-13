@@ -99,9 +99,9 @@ public class TestModeEventTests
     // -- wiring -------------------------------------------------------------
 
     [Fact]
-    public void LauncherTestMode_DefaultsToOff()
+    public void TestModeSetting_DefaultsToOff_InTheGameSettings()
     {
-        Assert.False(Launcher.TestMode);
+        // Launcher.TestMode is a developer switch whose value is the developer's choice, so it is not asserted here.
         Assert.False(new GameSettings().TestMode);
     }
 

@@ -28,6 +28,18 @@ public sealed class FileSaveService : ISaveService
 public static class SaveServiceExtensions
 {
     /// <summary>
+    /// Creates a universe called <paramref name="name"/> ("New Universe" if blank), adds it to <paramref name="universes"/>
+    /// and saves it straight away, so it exists on disk from the moment it is created and survives a session that ends badly.
+    /// </summary>
+    public static Universe CreateUniverse(this ISaveService saves, List<Universe> universes, string name)
+    {
+        var created = new Universe(string.IsNullOrWhiteSpace(name) ? "New Universe" : name.Trim());
+        universes.Add(created);
+        saves.Save(created);
+        return created;
+    }
+
+    /// <summary>
     /// Replaces the contents of <paramref name="universes"/> with what is saved. This throws away anything that changed
     /// in memory since the last save (and universes that were never saved), so it is how a session is abandoned.
     /// </summary>
