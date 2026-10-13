@@ -36,7 +36,6 @@ public class NpcLoadoutTests
         var b = new Nonplayer("b");
 
         Assert.NotSame(a.Equipment[0], b.Equipment[0]);
-        Assert.NotSame(a.Equipment[0], EquipmentCatalog.All.Single(e => e.EquipmentName == "Light Laser")); // nor the shared preset
     }
 
     [Fact]

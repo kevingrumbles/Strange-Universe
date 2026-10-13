@@ -5,8 +5,8 @@ using System.Linq;
 namespace Strange_Universe.Game.Components;
 
 /// <summary>
-/// Every built-in item of equipment, defined in code. The items in <see cref="All"/> are shared instances (a weapon has a
-/// cooldown), so this is internal: ships get their own copies from <see cref="Equipment.Create"/>.
+/// Every built-in item of equipment, defined in code. Each item is built fresh whenever it is asked for (a weapon has a
+/// cooldown, which must not be shared between ships), so no two ships ever hold the same object. Use <see cref="Equipment.Create"/>.
 /// </summary>
 internal static class EquipmentCatalog
 {
@@ -211,18 +211,24 @@ internal static class EquipmentCatalog
         Mass          = 150f,
     };
 
-    /// <summary>Every built-in item (shared instances: do not hand these to ships).</summary>
-    public static IReadOnlyList<Equipment> All { get; } = new Equipment[]
+    /// <summary>How to build each built-in item. Every call builds a new object, so nothing is ever shared.</summary>
+    private static readonly Func<Equipment>[] Builders =
     {
-        LightLaser, HeavyLaser, PulseCannon, GatlingGun, PlasmaBeam, MiningBeam,
-        LightMissile, HeavyTorpedo,
-        BasicShieldGenerator, AdvancedShieldGenerator, MilitaryShieldGenerator,
-        LightHullPlating, ReinforcedHull, MilitaryArmor,
-        StandardEngine, HighPerformanceEngine, EfficientEngine,
-        CargoExpander, SensorArray, AutoRepairModule,
+        () => LightLaser, () => HeavyLaser, () => PulseCannon, () => GatlingGun, () => PlasmaBeam, () => MiningBeam,
+        () => LightMissile, () => HeavyTorpedo,
+        () => BasicShieldGenerator, () => AdvancedShieldGenerator, () => MilitaryShieldGenerator,
+        () => LightHullPlating, () => ReinforcedHull, () => MilitaryArmor,
+        () => StandardEngine, () => HighPerformanceEngine, () => EfficientEngine,
+        () => CargoExpander, () => SensorArray, () => AutoRepairModule,
     };
 
-    /// <summary>The shared item with this name (not case sensitive), or null.</summary>
-    public static Equipment Find(string equipmentName)
-        => All.FirstOrDefault(e => string.Equals(e.EquipmentName, equipmentName, StringComparison.OrdinalIgnoreCase));
+    private static readonly Dictionary<string, Func<Equipment>> ByName =
+        Builders.ToDictionary(build => build().EquipmentName, build => build, StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A new object for every built-in item, in catalog order.</summary>
+    public static IReadOnlyList<Equipment> All => Builders.Select(build => build()).ToList();
+
+    /// <summary>A new object for the item with this name (not case sensitive), or null if there is no such item.</summary>
+    public static Equipment Create(string equipmentName)
+        => equipmentName != null && ByName.TryGetValue(equipmentName, out var build) ? build() : null;
 }

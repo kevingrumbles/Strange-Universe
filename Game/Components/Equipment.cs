@@ -48,15 +48,5 @@ public abstract class Equipment
     /// exists, say) gives an inert <see cref="UnknownEquipment"/> that keeps its name, so it is written back out unchanged.
     /// </summary>
     public static Equipment Create(string equipmentName)
-        => EquipmentCatalog.Find(equipmentName)?.Clone() ?? new UnknownEquipment(equipmentName);
-
-    /// <summary>A copy with its own runtime state (a weapon's cooldown starts fresh).</summary>
-    internal Equipment Clone()
-    {
-        var copy = (Equipment)MemberwiseClone();
-        copy.ResetRuntimeState();
-        return copy;
-    }
-
-    private protected virtual void ResetRuntimeState() { }
+        => EquipmentCatalog.Create(equipmentName) ?? new UnknownEquipment(equipmentName);
 }

@@ -50,8 +50,6 @@ public sealed class Weapon : Equipment
 
     public bool CanFire => _cooldown <= 0f;
 
-    private protected override void ResetRuntimeState() => _cooldown = 0f;
-
     /// <summary>Advances the weapon cooldown. Call every frame for weapons.</summary>
     public void UpdateCooldown(float deltaTime)
     {

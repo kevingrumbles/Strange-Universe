@@ -15,9 +15,6 @@ public class EquipmentInstanceTests
     /// <summary>The ship's only weapon.</summary>
     private static Weapon Gun(Ship ship) => Assert.IsType<Weapon>(ship.Equipment.Single());
 
-    /// <summary>The shared item kept in the catalog. Ships must never hold it.</summary>
-    private static Weapon Preset(string name) => (Weapon)EquipmentCatalog.All.Single(e => e.EquipmentName == name);
-
     [Fact]
     public void ANewPlayersStartingWeapon_IsItsOwnCopy()
     {
@@ -26,7 +23,6 @@ public class EquipmentInstanceTests
 
         Assert.Equal("Light Laser", Gun(a).EquipmentName);
         Assert.NotSame(Gun(a), Gun(b));
-        Assert.NotSame(Gun(a), Preset("Light Laser")); // nor the shared item in the catalog
     }
 
     [Fact]
@@ -41,7 +37,6 @@ public class EquipmentInstanceTests
 
         Assert.False(Gun(a).CanFire);
         Assert.True(Gun(b).CanFire);
-        Assert.True(Preset("Light Laser").CanFire);
     }
 
     [Fact]
@@ -60,7 +55,6 @@ public class EquipmentInstanceTests
             Assert.Equal("Light Laser", first.EquipmentName);
             Assert.Equal(15, first.Damage); // the full stats are restored from the name
             Assert.NotSame(first, second);
-            Assert.NotSame(first, Preset("Light Laser"));
 
             first.TryFire(loaded[0].Player);
             Assert.True(second.CanFire);
@@ -97,7 +91,6 @@ public class EquipmentInstanceTests
         var second = Assert.IsType<Weapon>(Equipment.Create("heavy laser")); // names are not case sensitive
 
         Assert.NotSame(first, second);
-        Assert.NotSame(first, Preset("Heavy Laser"));
         Assert.Equal(first.Damage, second.Damage);
         Assert.Equal(first.EquipmentName, second.EquipmentName);
     }
@@ -114,16 +107,27 @@ public class EquipmentInstanceTests
     }
 
     [Fact]
-    public void ACreatedWeapon_StartsWithAFreshCooldown()
+    public void ACreatedWeapon_StartsWithAFreshCooldown_EvenAfterAnotherOneFired()
     {
-        // A copy never inherits runtime state. Clone a weapon that is cooling down and check the copy is ready.
-        var original = Assert.IsType<Weapon>(Equipment.Create("Light Laser"));
-        original.TryFire(new Nonplayer("shooter"));
-        Assert.False(original.CanFire);
+        var first = Assert.IsType<Weapon>(Equipment.Create("Light Laser"));
+        first.TryFire(new Nonplayer("shooter"));
+        Assert.False(first.CanFire);
 
-        var copy = original.Clone();
+        var second = Assert.IsType<Weapon>(Equipment.Create("Light Laser"));
 
-        Assert.True(((Weapon)copy).CanFire);
-        Assert.False(original.CanFire); // and the original is unaffected
+        Assert.True(second.CanFire);
+        Assert.False(first.CanFire); // and the first is unaffected
+    }
+
+    [Fact]
+    public void TheCatalog_BuildsEverythingFresh_AndEveryNameIsUnique()
+    {
+        var first = EquipmentCatalog.All;
+        var second = EquipmentCatalog.All;
+
+        Assert.Equal(20, first.Count);
+        Assert.Equal(first.Count, first.Select(e => e.EquipmentName).Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        for (int i = 0; i < first.Count; i++)
+            Assert.NotSame(first[i], second[i]); // nothing is shared, not even between two reads of the catalog
     }
 }
