@@ -8,6 +8,9 @@ public sealed class UtilityModule : Equipment
 {
     public UtilityModule() : base(EquipmentType.Utility) { }
 
+    /// <summary>Energy used to run the module.</summary>
+    public float EnergyCost { get; set; }
+
     /// <summary>Added to every weapon's shots per second.</summary>
     public float AttackSpeedBonus { get; set; }
 

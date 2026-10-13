@@ -35,8 +35,6 @@ public abstract class Equipment
 
     public float Mass { get; set; }
 
-    public float EnergyCost { get; set; }
-
     private protected Equipment(EquipmentType type)
     {
         EquipmentType = type;

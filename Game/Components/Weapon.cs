@@ -23,6 +23,9 @@ public sealed class Weapon : Equipment
         _ => throw new ArgumentException($"{kind} is not a kind of weapon.", nameof(kind)),
     };
 
+    /// <summary>Energy used per shot.</summary>
+    public float EnergyCost { get; set; }
+
     public int Damage { get; set; }
 
     /// <summary>Muzzle speed of the projectile, relative to the ship that fires it.</summary>

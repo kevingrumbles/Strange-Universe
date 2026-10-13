@@ -102,4 +102,23 @@ public class DefinitionTests
         Assert.Equal(ProjectileVisual.Default.CoreColor, ProjectileVisuals.For("Nothing").CoreColor);
         Assert.Equal(ProjectileVisual.Default.CoreColor, ProjectileVisuals.For(null).CoreColor);
     }
+
+    [Fact]
+    public void EnergyCost_BelongsToTheKindsThatUseIt()
+    {
+        Assert.Null(typeof(Equipment).GetProperty("EnergyCost"));
+        Assert.Null(typeof(HullPlating).GetProperty("EnergyCost"));
+        Assert.Null(typeof(Engine).GetProperty("EnergyCost"));
+        Assert.NotNull(typeof(Weapon).GetProperty("EnergyCost"));
+        Assert.NotNull(typeof(Shield).GetProperty("EnergyCost"));
+        Assert.NotNull(typeof(UtilityModule).GetProperty("EnergyCost"));
+
+        // The values did not change when the property moved.
+        Assert.Equal(10f, ((Weapon)Equipment.Create("Light Laser")).EnergyCost);
+        Assert.Equal(40f, ((Weapon)Equipment.Create("Plasma Beam")).EnergyCost);
+        Assert.Equal(20f, ((Shield)Equipment.Create("Basic Shield Generator")).EnergyCost);
+        Assert.Equal(70f, ((Shield)Equipment.Create("Military Shield Generator")).EnergyCost);
+        Assert.Equal(5f, ((UtilityModule)Equipment.Create("Sensor Array")).EnergyCost);
+        Assert.Equal(0f, ((UtilityModule)Equipment.Create("Cargo Expander")).EnergyCost); // never had one
+    }
 }
