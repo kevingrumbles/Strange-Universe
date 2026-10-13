@@ -18,8 +18,8 @@ public class ShipStats
         SplashName           = "Art/Shuttle_splash.png",
         SpriteScale          = 1.5f,
         DefaultEquipment     = new[] { "Light Laser" },
-        MaxHull              = 1,
-        MaxShield            = 1,
+        MaxHull              = 30,
+        MaxShield            = 15,
         MaxFuel              = 5,
     };
 
