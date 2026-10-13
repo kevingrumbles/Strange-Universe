@@ -34,8 +34,20 @@ namespace Strange_Universe.Game.NavSystem
         {
             _target = target;
             _orbitRadius = Math.Max(1f, orbitRadius);
-            CurrentState = TaskState.ApproachPosition;
+            CurrentPhase = Phase.Approach;
         }
+
+        /// <summary>The stages of a guard task.</summary>
+        public enum Phase
+        {
+            /// <summary>Flying to the orbit ring.</summary>
+            Approach,
+
+            /// <summary>Circling the target. A guard never finishes on its own.</summary>
+            Orbit,
+        }
+
+        public Phase CurrentPhase { get; private set; }
 
         public Vector2 Target => _target;
         public float OrbitRadius => _orbitRadius;
@@ -51,15 +63,15 @@ namespace Strange_Universe.Game.NavSystem
         {
             if (Owner == null) return;
 
-            switch (CurrentState)
+            switch (CurrentPhase)
             {
-                case TaskState.ApproachPosition:
+                case Phase.Approach:
                     Vector2 fromTarget = Owner.Position - _target;
                     float distanceFromTarget = fromTarget.Length();
 
                     if (distanceFromTarget <= _orbitRadius + EntryMargin)
                     {
-                        CurrentState = TaskState.Guarding;
+                        CurrentPhase = Phase.Orbit;
                         break;
                     }
 
@@ -71,7 +83,7 @@ namespace Strange_Universe.Game.NavSystem
                     Steering.Arrive(Owner, toRing, toRing.Length() - EntryMargin, OrbitSpeedFor(Owner), deltaTime);
                     break;
 
-                case TaskState.Guarding:
+                case Phase.Orbit:
                     Vector2 radial = Owner.Position - _target;
                     float distance = radial.Length();
                     // Exactly on top of the target there is no radial direction; pick a fixed one.
@@ -88,11 +100,6 @@ namespace Strange_Universe.Game.NavSystem
                     Vector2 steer = desiredVelocity - Owner.Velocity;
                     if (steer.Length() >= Owner.ShipType.MaxSpeed * Steering.VelocityTolerance)
                         Steering.Seek(Owner, steer, deltaTime);
-                    break;
-
-                case TaskState.Complete:
-                case TaskState.Invalid:
-                    // Task is complete, remain in this state
                     break;
             }
         }

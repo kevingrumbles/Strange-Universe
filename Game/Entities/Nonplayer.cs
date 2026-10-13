@@ -25,7 +25,7 @@ public class Nonplayer : Ship
         Id = npcId;
         if (jumpSpawn)
         {
-            EnqueueNavTask(new JumpTask(this, currentState: TaskState.SystemTranslation));
+            EnqueueNavTask(new JumpTask(this, startPhase: JumpTask.Phase.SystemTranslation));
         }
         else
         {

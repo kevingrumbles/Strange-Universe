@@ -15,6 +15,30 @@ namespace Strange_Universe.Game.NavSystem
         private readonly string _targetSystemId;
         private readonly Vector2? _originGalaxyPosition;
 
+        /// <summary>The stages of a jump, in order. The task completes when arrival finishes.</summary>
+        public enum Phase
+        {
+            /// <summary>Fly out from the system center until the ship is beyond the Mandeville radius and clear of gravity.</summary>
+            MoveToMandeville,
+
+            /// <summary>Slow to a safe speed for the jump.</summary>
+            Decelerate,
+
+            /// <summary>Turn to face away from the system center.</summary>
+            AlignForJump,
+
+            /// <summary>Accelerate past the normal speed limit until beyond the system edge.</summary>
+            Jump,
+
+            /// <summary>Switch to the target system and place the ship at its edge.</summary>
+            SystemTranslation,
+
+            /// <summary>Taper from hyperspace speed to normal speed on the way in.</summary>
+            ArriveInSystem,
+        }
+
+        public Phase CurrentPhase { get; private set; }
+
         public string TargetSystemId => _targetSystemId;
 
         /// <summary>Speed on arrival, as a multiple of the ship's normal maximum speed.</summary>
@@ -23,15 +47,11 @@ namespace Strange_Universe.Game.NavSystem
         /// <summary>Arrival speed has tapered to normal at this fraction of the system radius (0.5 = halfway to the center).</summary>
         public const float ArrivalTaperEndFraction = 0.5f;
 
-        public JumpTask(Ship owner, Vector2? originGalaxyPosition = null, string targetSystemId = null, TaskState? currentState = null) : base(owner)
+        public JumpTask(Ship owner, Vector2? originGalaxyPosition = null, string targetSystemId = null, Phase? startPhase = null) : base(owner)
         {
             _targetSystemId = targetSystemId;
             _originGalaxyPosition = originGalaxyPosition;
-            CurrentState = currentState ?? TaskState.MoveToMandeville;
-            if (Owner is Player && (_targetSystemId == null || World?.SystemExists(_targetSystemId) != true))
-            {
-                CurrentState = TaskState.Invalid;
-            }
+            CurrentPhase = startPhase ?? Phase.MoveToMandeville;
         }
 
         /// <summary>When the owner has arrived in the target system, consumes the route entry and one unit of fuel.</summary>
@@ -44,18 +64,37 @@ namespace Strange_Universe.Game.NavSystem
             Owner.CurrentFuelLevel--;
         }
 
+        private bool _validated;
+
+        /// <summary>
+        /// A player's jump needs a target that exists in the galaxy. This is checked on the first update, against the
+        /// world the task actually runs in; an unknown or missing target fails the task. NPCs jump out without a target.
+        /// </summary>
+        private bool TargetIsValid() =>
+            Owner is not Player || (_targetSystemId != null && World?.SystemExists(_targetSystemId) == true);
+
         public override void Update(float deltaTime)
         {
             if (Owner == null) return;
 
-            switch (CurrentState)
+            if (!_validated)
             {
-                case TaskState.MoveToMandeville:
+                _validated = true;
+                if (!TargetIsValid())
+                {
+                    Fail();
+                    return;
+                }
+            }
+
+            switch (CurrentPhase)
+            {
+                case Phase.MoveToMandeville:
                     // GOAL: Move away from system center until outside Mandeville radius and clear of gravity
                     if (Owner.CanJump())
                     {
                         // Successfully reached jump-capable position
-                        CurrentState = TaskState.Decelerate;
+                        CurrentPhase = Phase.Decelerate;
                     }
                     else
                     {
@@ -67,14 +106,14 @@ namespace Strange_Universe.Game.NavSystem
                     }
                     break;
 
-                case TaskState.Decelerate:
+                case Phase.Decelerate:
                     // GOAL: Slow down to a safe jump speed
                     const float SafeJumpSpeed = 50f;
 
                     if (Owner.Speed <= SafeJumpSpeed)
                     {
                         // Reached safe speed
-                        CurrentState = TaskState.AlignForJump;
+                        CurrentPhase = Phase.AlignForJump;
                     }
                     else
                     {
@@ -82,7 +121,7 @@ namespace Strange_Universe.Game.NavSystem
                     }
                     break;
 
-                case TaskState.AlignForJump:
+                case Phase.AlignForJump:
                     // GOAL: Align ship for jump (pointing away from system center)
                     Vector2 jumpDirection = MathHelpers.SafeNormalize(Owner.Position, Owner.Forward);
 
@@ -90,11 +129,11 @@ namespace Strange_Universe.Game.NavSystem
                     const float jumpAlignmentThreshold = 0.05f;
                     if (Steering.Seek(Owner, jumpDirection, deltaTime, jumpAlignmentThreshold, thrust: false))
                     {
-                        CurrentState = TaskState.Jump;
+                        CurrentPhase = Phase.Jump;
                     }
                     break;
 
-                case TaskState.Jump:
+                case Phase.Jump:
                     // GOAL: Accelerate with exponential acceleration past normal limits until beyond system edge
                     float distanceFromCenter = Owner.Position.Length();
                     float systemRadius = World?.SystemRadius ?? 50000f;
@@ -104,12 +143,12 @@ namespace Strange_Universe.Game.NavSystem
                         // Successfully jumped beyond system edge
                         if (Owner is Player) 
                         {
-                            CurrentState = TaskState.SystemTranslation;
+                            CurrentPhase = Phase.SystemTranslation;
                         }
                         else if (Owner is Nonplayer)
                         {
                             ((Nonplayer)Owner).Remove = true;
-                            CurrentState = TaskState.Complete;
+                            Complete();
                         }
                     }
                     else
@@ -136,7 +175,7 @@ namespace Strange_Universe.Game.NavSystem
                     }
                     break;
 
-                case TaskState.SystemTranslation:
+                case Phase.SystemTranslation:
                     // GOAL: Set arrival location and enter the new system
                     if (Owner is Player)
                     {
@@ -158,10 +197,10 @@ namespace Strange_Universe.Game.NavSystem
                     Owner.Rotation = (float)Math.Atan2(inwardDirection.Y, inwardDirection.X);
 
                     // Transition to the arrival deceleration phase
-                    CurrentState = TaskState.ArriveInSystem;
+                    CurrentPhase = Phase.ArriveInSystem;
                     break;
 
-                case TaskState.ArriveInSystem:
+                case Phase.ArriveInSystem:
                 {
                     // GOAL: Enter at hyperspace speed and taper down to normal travel speed
                     // halfway between the system edge and its center.
@@ -177,7 +216,7 @@ namespace Strange_Universe.Game.NavSystem
                     {
                         // Reached the taper point: normal speed, arrival complete.
                         Owner.Velocity = arriveInward * normalSpeed;
-                        CurrentState = TaskState.Complete;
+                        Complete();
                         break;
                     }
 
@@ -190,10 +229,6 @@ namespace Strange_Universe.Game.NavSystem
                     break;
                 }
 
-                case TaskState.Complete:
-                case TaskState.Invalid:
-                    // Task is complete, remain in this state
-                    break;
             }
         }
     }

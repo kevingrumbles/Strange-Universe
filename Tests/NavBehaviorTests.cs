@@ -28,9 +28,9 @@ public class NavBehaviorTests
         sim.Place(planet.Position + new Vector2(5000, 0));
         var task = sim.Start(new DockTask(sim.Ship, planet.Position, holdDuration: 20f));
 
-        float largestStep = sim.RunAndMeasureLargestStep(120f, () => task.CurrentState == TaskState.Complete);
+        float largestStep = sim.RunAndMeasureLargestStep(120f, () => task.Status == NavTaskStatus.Complete);
 
-        Assert.Equal(TaskState.Complete, task.CurrentState);
+        Assert.Equal(NavTaskStatus.Complete, task.Status);
         // A ship at top speed moves under 10 units per step; a NaN reset to the origin moves thousands.
         Assert.True(largestStep < 50f, $"ship jumped {largestStep:F0} units in one step");
         Assert.True(Vector2.Distance(sim.Ship.Position, planet.Position) < 1500f,
@@ -46,14 +46,14 @@ public class NavBehaviorTests
         sim.Place(planet.Position + new Vector2(5000, 0));
         var task = sim.Start(new DockTask(sim.Ship, planet.Position, holdDuration: 30f));
 
-        sim.Run(60f, () => task.CurrentState == TaskState.HoldPosition);
-        Assert.Equal(TaskState.HoldPosition, task.CurrentState);
+        sim.Run(60f, () => task.CurrentPhase == DockTask.Phase.Hold);
+        Assert.Equal(DockTask.Phase.Hold, task.CurrentPhase);
 
         // Let the approach speed bleed off, then the ship must stay put.
         sim.Run(8f);
         Vector2 anchor = sim.Ship.Position;
         float maxDrift = 0f;
-        sim.Run(15f, () => task.CurrentState != TaskState.HoldPosition,
+        sim.Run(15f, () => task.CurrentPhase != DockTask.Phase.Hold,
             () => maxDrift = System.Math.Max(maxDrift, Vector2.Distance(sim.Ship.Position, anchor)));
 
         Assert.True(maxDrift < 300f, $"drifted {maxDrift:F0} units while holding");
@@ -85,9 +85,9 @@ public class NavBehaviorTests
         using var sim = new NavSim();
         var task = sim.Start(new PatrolTask(sim.Ship, new List<Vector2>()));
 
-        sim.Run(1f, () => task.CurrentState == TaskState.Complete);
+        sim.Run(1f, () => task.Status == NavTaskStatus.Complete);
 
-        Assert.Equal(TaskState.Complete, task.CurrentState);
+        Assert.Equal(NavTaskStatus.Complete, task.Status);
     }
 
     [Fact]
@@ -246,12 +246,12 @@ public class NavBehaviorTests
         sim.Run(200f, () => !float.IsNaN(doneAt), () =>
         {
             closest = System.Math.Min(closest, Vector2.Distance(sim.Ship.Position, planet.Position));
-            if (task.CurrentState == TaskState.HoldPosition)
+            if (task.CurrentPhase == DockTask.Phase.Hold)
             {
                 if (float.IsNaN(holdStart)) { holdStart = sim.Time; speedAtHold = sim.Ship.Speed; }
                 maxDrift = System.Math.Max(maxDrift, Vector2.Distance(sim.Ship.Position, task.HoldPoint.Value));
             }
-            if (task.CurrentState == TaskState.Complete && float.IsNaN(doneAt)) doneAt = sim.Time;
+            if (task.Status == NavTaskStatus.Complete && float.IsNaN(doneAt)) doneAt = sim.Time;
         });
 
         Assert.False(float.IsNaN(doneAt), "dock never completed");
@@ -295,8 +295,8 @@ public class NavBehaviorTests
 
     // -- Jump (pre-jump phases) ---------------------------------------------
 
-    private static readonly TaskState[] PreJumpOrder =
-        { TaskState.MoveToMandeville, TaskState.Decelerate, TaskState.AlignForJump, TaskState.Jump };
+    private static readonly JumpTask.Phase[] PreJumpOrder =
+        { JumpTask.Phase.MoveToMandeville, JumpTask.Phase.Decelerate, JumpTask.Phase.AlignForJump, JumpTask.Phase.Jump };
 
     [Theory]
     [InlineData(1000f, 0f, 0f, 0f)]          // at rest, inside Mandeville
@@ -309,19 +309,20 @@ public class NavBehaviorTests
         sim.Place(new Vector2(x, y), new Vector2(vx, vy));
         var task = sim.Start(new JumpTask(sim.Ship));
 
-        var seen = new List<TaskState>();
+        var seen = new List<JumpTask.Phase>();
         float speedWhenJumpStarted = float.NaN;
         sim.Run(120f, () => sim.Ship.Remove, () =>
         {
-            if (seen.Count == 0 || seen[^1] != task.CurrentState)
+            if (seen.Count == 0 || seen[^1] != task.CurrentPhase)
             {
-                seen.Add(task.CurrentState);
-                if (task.CurrentState == TaskState.Jump) speedWhenJumpStarted = sim.Ship.Speed;
+                seen.Add(task.CurrentPhase);
+                if (task.CurrentPhase == JumpTask.Phase.Jump) speedWhenJumpStarted = sim.Ship.Speed;
             }
         });
 
         Assert.True(sim.Ship.Remove, "ship never left the system");
-        Assert.Equal(PreJumpOrder.Concat(new[] { TaskState.Complete }), seen);
+        Assert.Equal(PreJumpOrder, seen);
+        Assert.Equal(NavTaskStatus.Complete, task.Status);
         Assert.True(speedWhenJumpStarted <= 50f + 1f, $"started the jump at speed {speedWhenJumpStarted:F0}");
     }
 
@@ -337,7 +338,7 @@ public class NavBehaviorTests
         float worstAngle = 0f;
         sim.Run(60f, () => sim.Ship.Remove, () =>
         {
-            if (task.CurrentState == TaskState.Jump && sim.Ship.Speed > 300f)
+            if (task.CurrentPhase == JumpTask.Phase.Jump && sim.Ship.Speed > 300f)
             {
                 float cos = Vector2.Dot(Vector2.Normalize(sim.Ship.Velocity), sim.Ship.Forward);
                 worstAngle = System.Math.Max(worstAngle, MathHelper.ToDegrees(MathF.Acos(MathHelper.Clamp(cos, -1f, 1f))));

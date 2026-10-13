@@ -128,3 +128,15 @@ Results: 152 pass, 0 skipped. Remaining from the review: step 4 (navigator cance
 - **Tests:** `NavigatorTests` (queue order, ownership checks, cancel, clear, hooks run exactly once, invalid task does not block the queue, player input).
 
 Results: 161 pass, 0 skipped. Remaining: step 5 (per-task states), step 6 (seeded randomness; Dock and Guard already done), step 7 (optional).
+
+### Step 5 done: per-task phases, read-only status
+
+The shared `TaskState` enum and the public `CurrentState` setter are gone.
+
+- **`NavTask.Status`** (`NavTaskStatus`: `Running`, `Complete`, `Invalid`) is what the navigator reads. Only the task can change it, through the protected `Complete()` and `Fail()`; once a task has finished its status is final. `IsFinished` is a shortcut. The navigator no longer calls `Update` on a task that has already finished.
+- **Each task with stages has its own enum and a read-only `CurrentPhase`:** `JumpTask.Phase` (`MoveToMandeville`, `Decelerate`, `AlignForJump`, `Jump`, `SystemTranslation`, `ArriveInSystem`), `DockTask.Phase` (`Approach`, `Hold`), `GuardTask.Phase` (`Approach`, `Orbit`). `PatrolTask` and `SpawnTask` have no phases. The unused `Attacking` and `Alerting` values (and the empty patrol alert branch) are removed.
+- **A task can only be in phases it handles**, and no outside code can force one to finish.
+- **`JumpTask`:** the starting phase is now a constructor argument (`startPhase`, used by NPCs that jump into a system). A player's target is validated on the first update against the world the task actually runs in, instead of in the constructor against the owner's own system; an unknown or missing target fails the task then (same visible result: the task is dropped and `OnFailed` runs).
+- **Tests** moved to the new API, plus: status is not publicly settable and `CurrentState` no longer exists, finished status is final, finished tasks are not updated, running tasks are, the lazy jump validation (unknown target, no target, NPC without a target), and every task starts in its first phase.
+
+Results: 169 pass, 0 skipped. Remaining: step 6 (seeded randomness; Dock and Guard already done, check what is left), step 7 (optional).

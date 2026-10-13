@@ -16,12 +16,11 @@ public class NavTaskWorldTests
         var npc = new Nonplayer("n1");
         var world = new FakeWorld { SafeEntry = new Vector2(10, 20) };
         var task = new SpawnTask(npc) { World = world };
-        task.CurrentState = TaskState.Spawning;
 
         task.Update(0.016f);
 
         Assert.Equal(new Vector2(10, 20), npc.Position);
-        Assert.Equal(TaskState.Complete, task.CurrentState);
+        Assert.Equal(NavTaskStatus.Complete, task.Status);
     }
 
     [Fact]
@@ -29,7 +28,7 @@ public class NavTaskWorldTests
     {
         var npc = new Nonplayer("n2") { CurrentFuelLevel = 3 };
         var world = new FakeWorld { SystemId = "target" };
-        var task = new JumpTask(npc, null, "target", TaskState.Complete) { World = world };
+        var task = new JumpTask(npc, null, "target") { World = world };
 
         task.OnCompleted();
 
@@ -42,7 +41,7 @@ public class NavTaskWorldTests
     {
         var npc = new Nonplayer("n3") { CurrentFuelLevel = 3 };
         var world = new FakeWorld { SystemId = "somewhere-else" };
-        var task = new JumpTask(npc, null, "target", TaskState.Complete) { World = world };
+        var task = new JumpTask(npc, null, "target") { World = world };
 
         task.OnCompleted();
 
@@ -56,8 +55,7 @@ public class NavTaskWorldTests
         var player = new Player("p", "Shuttle") { Rotation = 0f }; // outbound heading from the jump
         var world = new FakeWorld { EdgeEntry = new Vector2(5000, 0) };
         world.KnownSystems.Add("target");
-        var task = new JumpTask(player, null, "target") { World = world }; // constructor validates against the owner's own system, so set the state afterwards
-        task.CurrentState = TaskState.SystemTranslation;
+        var task = new JumpTask(player, null, "target", JumpTask.Phase.SystemTranslation) { World = world };
 
         task.Update(0.016f);
 
@@ -65,15 +63,15 @@ public class NavTaskWorldTests
         Assert.Equal(new Vector2(5000, 0), player.Position);
         Assert.True(player.Velocity.X < 0); // heading inward
         Assert.Equal(MathF.PI, MathF.Abs(player.Rotation), 3); // and facing inward (toward -X) on arrival
-        Assert.Equal(TaskState.ArriveInSystem, task.CurrentState);
+        Assert.Equal(JumpTask.Phase.ArriveInSystem, task.CurrentPhase);
     }
 
     private static (JumpTask task, Player player, FakeWorld world) Arriving(Vector2 position)
     {
         var player = new Player("p", "Shuttle") { Position = position };
         var world = new FakeWorld { SystemRadius = 10000f };
-        var task = new JumpTask(player, null, "target") { World = world };
-        task.CurrentState = TaskState.ArriveInSystem;
+        world.KnownSystems.Add("target");
+        var task = new JumpTask(player, null, "target", JumpTask.Phase.ArriveInSystem) { World = world };
         return (task, player, world);
     }
 
@@ -85,7 +83,7 @@ public class NavTaskWorldTests
 
         Assert.Equal(player.ShipType.MaxSpeed * JumpTask.ArrivalSpeedMultiplier, player.Speed, 1);
         Assert.True(player.Velocity.X < 0);
-        Assert.Equal(TaskState.ArriveInSystem, task.CurrentState);
+        Assert.Equal(JumpTask.Phase.ArriveInSystem, task.CurrentPhase);
     }
 
     [Fact]
@@ -99,13 +97,13 @@ public class NavTaskWorldTests
             task.Update(0.016f);
             Assert.True(player.Speed < last, $"speed should fall as the ship moves in (x={x})");
             Assert.True(player.Speed > max, $"still above normal before the halfway point (x={x})");
-            Assert.Equal(TaskState.ArriveInSystem, task.CurrentState);
+            Assert.Equal(JumpTask.Phase.ArriveInSystem, task.CurrentPhase);
             last = player.Speed;
         }
 
         var (done, ship, _) = Arriving(new Vector2(5000, 0)); // exactly halfway
         done.Update(0.016f);
         Assert.Equal(max, ship.Speed, 1);
-        Assert.Equal(TaskState.Complete, done.CurrentState);
+        Assert.Equal(NavTaskStatus.Complete, done.Status);
     }
 }

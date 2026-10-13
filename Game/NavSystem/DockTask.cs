@@ -35,12 +35,24 @@ namespace Strange_Universe.Game.NavSystem
         public DockTask(Ship owner, Vector2 target, float? holdDuration = null) : base(owner)
         {
             _target = target;
-            CurrentState = TaskState.ApproachPosition;
+            CurrentPhase = Phase.Approach;
 
             // Default hold time is between 15 and 60 seconds, derived from the ship so it is reproducible.
             var rand = new Random(ProceduralHelpers.SeedHash($"{owner?.Id ?? owner?.Name}_dock"));
             _holdDuration = holdDuration ?? MinHoldSeconds + (float)(rand.NextDouble() * (MaxHoldSeconds - MinHoldSeconds));
         }
+
+        /// <summary>The stages of a dock task. When the hold time is up the task completes.</summary>
+        public enum Phase
+        {
+            /// <summary>Flying to the hold point and stopping there.</summary>
+            Approach,
+
+            /// <summary>Holding station at the hold point.</summary>
+            Hold,
+        }
+
+        public Phase CurrentPhase { get; private set; }
 
         public Vector2 Target => _target;
 
@@ -54,9 +66,9 @@ namespace Strange_Universe.Game.NavSystem
         {
             if (Owner == null) return;
 
-            switch (CurrentState)
+            switch (CurrentPhase)
             {
-                case TaskState.ApproachPosition:
+                case Phase.Approach:
                     Vector2 hold = EnsureHoldPoint();
                     Vector2 toHold = hold - Owner.Position;
                     float distance = toHold.Length();
@@ -64,7 +76,7 @@ namespace Strange_Universe.Game.NavSystem
                     if (distance <= HoldArrivalDistance &&
                         Owner.Speed <= Owner.ShipType.MaxSpeed * HoldArrivalSpeedFraction)
                     {
-                        CurrentState = TaskState.HoldPosition;
+                        CurrentPhase = Phase.Hold;
                         _holdTimer = 0f;
                         break;
                     }
@@ -72,22 +84,17 @@ namespace Strange_Universe.Game.NavSystem
                     Steering.Arrive(Owner, toHold, distance, arrivalSpeed: 0f, deltaTime);
                     break;
 
-                case TaskState.HoldPosition:
+                case Phase.Hold:
                     _holdTimer += deltaTime;
                     if (_holdTimer >= _holdDuration)
                     {
-                        CurrentState = TaskState.Complete;
+                        Complete();
                         break;
                     }
 
                     // Station-keeping: the same arrival logic, aimed at the hold point.
                     Vector2 toHoldPoint = _holdPoint.Value - Owner.Position;
                     Steering.Arrive(Owner, toHoldPoint, toHoldPoint.Length(), arrivalSpeed: 0f, deltaTime, HoldVelocityTolerance);
-                    break;
-
-                case TaskState.Complete:
-                case TaskState.Invalid:
-                    // Task is complete, remain in this state
                     break;
             }
         }

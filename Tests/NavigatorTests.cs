@@ -16,7 +16,9 @@ public class NavigatorTests
     private sealed class ProbeTask : NavTask
     {
         public int Updates, Completed, Failed;
-        public ProbeTask(Ship owner, TaskState state = TaskState.Patrolling) : base(owner) => CurrentState = state;
+        public ProbeTask(Ship owner, bool failed = false) : base(owner) { if (failed) Fail(); }
+        public void Finish() => Complete();
+        public void Break() => Fail();
         public override void Update(float deltaTime) => Updates++;
         public override void OnCompleted() => Completed++;
         public override void OnFailed() => Failed++;
@@ -55,7 +57,7 @@ public class NavigatorTests
         Assert.Same(first, ship.Navigator.ActiveTask);
         Assert.Equal(1, ship.Navigator.QueuedCount);
 
-        first.CurrentState = TaskState.Complete;
+        first.Finish();
         Step(ship);                      // first finishes, second starts
         Assert.Same(second, ship.Navigator.ActiveTask);
         Assert.Equal(0, ship.Navigator.QueuedCount);
@@ -111,7 +113,7 @@ public class NavigatorTests
         ship.Navigator.Enqueue(task);
         Step(ship);
 
-        task.CurrentState = TaskState.Complete;
+        task.Finish();
         Step(ship);
         Step(ship);
 
@@ -128,7 +130,7 @@ public class NavigatorTests
         ship.Navigator.Enqueue(task);
         Step(ship);
 
-        task.CurrentState = TaskState.Invalid;
+        task.Break();
         Step(ship);
         Step(ship);
 
@@ -141,7 +143,7 @@ public class NavigatorTests
     {
         var ship = Ship();
         ship.Navigator.Clear();
-        var bad = new ProbeTask(ship, TaskState.Invalid);
+        var bad = new ProbeTask(ship, failed: true);
         var good = new ProbeTask(ship);
         ship.Navigator.Enqueue(bad);
         ship.Navigator.Enqueue(good);
@@ -204,5 +206,103 @@ public class NavigatorTests
         Assert.NotEqual(0f, player.Rotation);
         Assert.True(player.Speed > 0f);
         u.Dispose();
+    }
+
+    // -- status and phases (step 5) ----------------------------------------
+
+    [Fact]
+    public void Status_CanOnlyBeChangedByTheTaskItself()
+    {
+        var status = typeof(NavTask).GetProperty(nameof(NavTask.Status));
+
+        Assert.NotNull(status);
+        Assert.True(status.GetMethod.IsPublic);
+        Assert.False(status.SetMethod?.IsPublic ?? false, "Status must not be settable from outside the task");
+        Assert.Null(typeof(NavTask).GetProperty("CurrentState")); // the shared state enum is gone
+    }
+
+    [Fact]
+    public void FinishedStatus_IsFinal()
+    {
+        var ship = Ship();
+        var done = new ProbeTask(ship);
+        done.Finish();
+        done.Break();
+        Assert.Equal(NavTaskStatus.Complete, done.Status);
+
+        var failed = new ProbeTask(ship, failed: true);
+        failed.Finish();
+        Assert.Equal(NavTaskStatus.Invalid, failed.Status);
+        Assert.True(failed.IsFinished);
+    }
+
+    [Fact]
+    public void NavigatorDoesNotUpdateAFinishedTask()
+    {
+        var ship = Ship();
+        ship.Navigator.Clear();
+        var task = new ProbeTask(ship, failed: true);
+        ship.Navigator.Enqueue(task);
+
+        Step(ship); // starts it
+        Step(ship); // sees it failed
+
+        Assert.Equal(0, task.Updates);
+        Assert.Equal(1, task.Failed);
+    }
+
+    [Fact]
+    public void RunningTask_IsUpdatedEveryFrame()
+    {
+        var ship = Ship();
+        ship.Navigator.Clear();
+        var task = new ProbeTask(ship);
+        ship.Navigator.Enqueue(task);
+
+        Step(ship);
+        Step(ship);
+        Step(ship);
+
+        Assert.Equal(2, task.Updates); // the first step only starts the task
+        Assert.Equal(NavTaskStatus.Running, task.Status);
+    }
+
+    [Fact]
+    public void PlayerJump_ToAnUnknownTarget_FailsOnItsFirstUpdate()
+    {
+        var world = new FakeWorld();
+        var player = new Player("p", "Shuttle");
+        var task = new JumpTask(player, null, "no-such-system") { World = world };
+
+        Assert.Equal(NavTaskStatus.Running, task.Status); // nothing is checked until it runs
+        task.Update(0.016f);
+
+        Assert.Equal(NavTaskStatus.Invalid, task.Status);
+    }
+
+    [Fact]
+    public void PlayerJump_WithoutATarget_FailsOnItsFirstUpdate()
+    {
+        var task = new JumpTask(new Player("p", "Shuttle"), null, null) { World = new FakeWorld() };
+        task.Update(0.016f);
+        Assert.Equal(NavTaskStatus.Invalid, task.Status);
+    }
+
+    [Fact]
+    public void NpcJump_NeedsNoTarget()
+    {
+        var npc = Ship();
+        var task = new JumpTask(npc, null, null) { World = new FakeWorld() };
+        task.Update(0.016f);
+        Assert.Equal(NavTaskStatus.Running, task.Status);
+    }
+
+    [Fact]
+    public void Tasks_StartInTheirFirstPhase()
+    {
+        var ship = Ship();
+        Assert.Equal(JumpTask.Phase.MoveToMandeville, new JumpTask(ship).CurrentPhase);
+        Assert.Equal(DockTask.Phase.Approach, new DockTask(ship, Vector2.Zero).CurrentPhase);
+        Assert.Equal(GuardTask.Phase.Approach, new GuardTask(ship, Vector2.Zero).CurrentPhase);
     }
 }

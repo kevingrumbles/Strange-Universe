@@ -35,7 +35,7 @@ public class NavTaskCompletionTests
     {
         var (universe, target) = Setup();
         var player = universe.Player;
-        var task = new JumpTask(player, null, target.SystemId, TaskState.Complete);
+        var task = new JumpTask(player, null, target.SystemId, JumpTask.Phase.ArriveInSystem) /* player is at the center, so it finishes on its first update */;
         universe.EnterSystem(target);
 
         var nav = Run(player, task);
@@ -52,7 +52,7 @@ public class NavTaskCompletionTests
         var (universe, target) = Setup();
         var player = universe.Player;
 
-        var nav = Run(player, new JumpTask(player, null, target.SystemId, TaskState.Complete));
+        var nav = Run(player, new JumpTask(player, null, target.SystemId, JumpTask.Phase.ArriveInSystem) /* player is at the center, so it finishes on its first update */);
 
         Assert.Contains(target.SystemId, universe.JumpRoute);
         Assert.Equal(5, player.CurrentFuelLevel);
@@ -66,7 +66,6 @@ public class NavTaskCompletionTests
         var (universe, target) = Setup();
         var player = universe.Player;
         var task = new JumpTask(player, null, "no-such-system");
-        Assert.Equal(TaskState.Invalid, task.CurrentState);
         universe.EnterSystem(target);
 
         var nav = Run(player, task);

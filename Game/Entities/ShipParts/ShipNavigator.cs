@@ -47,14 +47,15 @@ public class ShipNavigator
     {
         if (ActiveTask is not null)
         {
-            ActiveTask.Update(deltaTime);
-            switch (ActiveTask.CurrentState)
+            if (!ActiveTask.IsFinished)
+                ActiveTask.Update(deltaTime);
+            switch (ActiveTask.Status)
             {
-                case TaskState.Complete:
+                case NavTaskStatus.Complete:
                     ActiveTask.OnCompleted();
                     ActiveTask = null;
                     break;
-                case TaskState.Invalid:
+                case NavTaskStatus.Invalid:
                     ActiveTask.OnFailed();
                     ActiveTask = null;
                     break;

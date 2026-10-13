@@ -1,12 +1,34 @@
-﻿using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Game.NavSystem
 {
+    /// <summary>Whether a nav task is still running, or how it ended.</summary>
+    public enum NavTaskStatus
+    {
+        /// <summary>The task is flying. Its own phase (if it has several) says what it is doing.</summary>
+        Running,
+
+        /// <summary>The task did what it was for. The navigator calls <see cref="NavTask.OnCompleted"/>.</summary>
+        Complete,
+
+        /// <summary>The task can not be carried out. The navigator calls <see cref="NavTask.OnFailed"/>.</summary>
+        Invalid,
+    }
+
+    /// <summary>
+    /// An autopilot job for a ship. The navigator only needs to know whether it is still
+    /// <see cref="NavTaskStatus.Running"/>; tasks with several stages keep their own phase enum
+    /// (for example <see cref="JumpTask.Phase"/>), which only that task can change.
+    /// </summary>
     public abstract class NavTask
     {
-        public TaskState CurrentState { get; set; }
         public Ship Owner { get; private set; }
+
+        /// <summary>Running until the task finishes itself with <see cref="Complete"/> or <see cref="Fail"/>.</summary>
+        public NavTaskStatus Status { get; private set; } = NavTaskStatus.Running;
+
+        public bool IsFinished => Status != NavTaskStatus.Running;
 
         private IWorldContext _world;
 
@@ -16,35 +38,31 @@ namespace Strange_Universe.Game.NavSystem
             get => _world ?? Owner?.StarSystem;
             set => _world = value;
         }
-        public NavTask(Ship owner) 
-        { 
+
+        public NavTask(Ship owner)
+        {
             Owner = owner;
         }
+
+        /// <summary>Advances the task by one frame. The navigator only calls this while the task is running.</summary>
         public abstract void Update(float deltaTime);
 
-        /// <summary>Called once by the navigator when the task reaches <see cref="TaskState.Complete"/>, before it is cleared.</summary>
+        /// <summary>Marks the task as done. Has no effect once the task has finished.</summary>
+        protected void Complete()
+        {
+            if (Status == NavTaskStatus.Running) Status = NavTaskStatus.Complete;
+        }
+
+        /// <summary>Marks the task as impossible. Has no effect once the task has finished.</summary>
+        protected void Fail()
+        {
+            if (Status == NavTaskStatus.Running) Status = NavTaskStatus.Invalid;
+        }
+
+        /// <summary>Called once by the navigator when the task has completed, before it is cleared.</summary>
         public virtual void OnCompleted() { }
 
-        /// <summary>Called once by the navigator when the task reaches <see cref="TaskState.Invalid"/>, before it is cleared. Not called when a task is cancelled.</summary>
+        /// <summary>Called once by the navigator when the task has failed, before it is cleared. Not called when a task is cancelled.</summary>
         public virtual void OnFailed() { }
-    }
-    
-    public enum TaskState
-    {
-        MoveToMandeville,
-        Decelerate,
-        AlignForJump,
-        Jump,
-        SystemTranslation,
-        ArriveInSystem,
-        Complete,
-        Invalid,
-        Spawning,
-        Patrolling,
-        ApproachPosition,
-        HoldPosition,
-        Guarding,
-        Attacking,
-        Alerting,
     }
 }
