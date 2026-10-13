@@ -75,7 +75,7 @@ public class ArchitectureTests
     [Fact]
     public void WeaponLinger_EqualsVisualBurstDuration()
     {
-        foreach (var weapon in Equipment.Presets.Where(e => e.PrimaryWeapon))
+        foreach (var weapon in EquipmentCatalog.All.OfType<Weapon>().Where(w => w.IsPrimary))
         {
             if (weapon.EquipmentName is "Light Missile") continue; // no dedicated visual
             Assert.Equal(ProjectileVisuals.For(weapon.EquipmentName).BurstDuration, weapon.ImpactLingerSeconds);

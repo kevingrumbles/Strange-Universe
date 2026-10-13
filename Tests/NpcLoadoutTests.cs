@@ -14,7 +14,7 @@ public class NpcLoadoutTests
         var npc = new Nonplayer("n1");
 
         Assert.Equal(npc.ShipType.DefaultEquipment, npc.Equipment.Select(e => e.EquipmentName));
-        Assert.Contains(npc.Equipment, e => e.EquipmentName == "Light Laser" && e.PrimaryWeapon);
+        Assert.Contains(npc.Equipment, e => e is Weapon { IsPrimary: true } && e.EquipmentName == "Light Laser");
         Assert.True(npc.WeaponRange > 0f);
         Assert.True(npc.ProjectileSpeed > 0f);
     }
@@ -36,7 +36,7 @@ public class NpcLoadoutTests
         var b = new Nonplayer("b");
 
         Assert.NotSame(a.Equipment[0], b.Equipment[0]);
-        Assert.NotSame(a.Equipment[0], Equipment.Presets.Single(e => e.EquipmentName == "Light Laser")); // nor the shared preset
+        Assert.NotSame(a.Equipment[0], EquipmentCatalog.All.Single(e => e.EquipmentName == "Light Laser")); // nor the shared preset
     }
 
     [Fact]

@@ -180,19 +180,17 @@ public class ShipComponentTests
 
     // -- WeaponSystem --------------------------------------------------------
 
-    private static Equipment Utility(float? fireRate, float? range, float? accuracy) => new()
+    private static UtilityModule Utility(float? fireRate, float? range, float? accuracy) => new()
     {
         EquipmentName = "util",
-        EquipmentType = EquipmentType.Utility,
-        FireRate = fireRate,
-        Range = range,
-        Accuracy = accuracy,
+        AttackSpeedBonus = fireRate ?? 0f,
+        AttackRangeBonus = range ?? 0f,
+        AccuracyBonus = accuracy ?? 0f,
     };
 
-    private static Equipment Gun(float fireRate) => new()
+    private static Weapon Gun(float fireRate) => new(EquipmentType.FixedProjectile)
     {
         EquipmentName = "gun",
-        EquipmentType = EquipmentType.FixedProjectile,
         FireRate = fireRate,
         Range = 1000f,
         Accuracy = 1f,

@@ -17,17 +17,16 @@ public class WeaponSystem
         _equipment = equipment ?? throw new ArgumentNullException(nameof(equipment));
     }
 
-    /// <summary>Sums one stat over all utility equipment.</summary>
-    public static float SumUtilityBonus(IReadOnlyList<Equipment> equipment, Func<Equipment, float?> stat)
+    /// <summary>Sums one bonus over all utility modules.</summary>
+    public static float SumUtilityBonus(IReadOnlyList<Equipment> equipment, Func<UtilityModule, float> bonus)
     {
         float total = 0f;
         if (equipment == null) return total;
 
         for (int i = 0; i < equipment.Count; i++)
         {
-            var e = equipment[i];
-            if (e.EquipmentType == EquipmentType.Utility)
-                total += stat(e) ?? 0f;
+            if (equipment[i] is UtilityModule utility)
+                total += bonus(utility);
         }
         return total;
     }
@@ -36,22 +35,21 @@ public class WeaponSystem
     {
         var equipment = _equipment();
         return new WeaponBonuses(
-            SumUtilityBonus(equipment, e => e.FireRate),
-            SumUtilityBonus(equipment, e => e.Range),
-            SumUtilityBonus(equipment, e => e.Accuracy));
+            SumUtilityBonus(equipment, u => u.AttackSpeedBonus),
+            SumUtilityBonus(equipment, u => u.AttackRangeBonus),
+            SumUtilityBonus(equipment, u => u.AccuracyBonus));
     }
 
     /// <summary>The primary weapon with the longest range, or null when the ship is unarmed.</summary>
-    private Equipment LongestRangeWeapon()
+    private Weapon LongestRangeWeapon()
     {
         var equipment = _equipment();
-        Equipment best = null;
+        Weapon best = null;
         if (equipment == null) return null;
         for (int i = 0; i < equipment.Count; i++)
         {
-            var weapon = equipment[i];
-            if (weapon.PrimaryWeapon && (weapon.Range ?? 0f) > (best?.Range ?? 0f))
-                best = weapon;
+            if (equipment[i] is Weapon { IsPrimary: true } candidate && candidate.Range > (best?.Range ?? 0f))
+                best = candidate;
         }
         return best;
     }
@@ -60,14 +58,7 @@ public class WeaponSystem
     public float MaxRange => LongestRangeWeapon()?.Range ?? 0f;
 
     /// <summary>Muzzle speed (relative to the shooter) of the longest-range primary weapon; 0 when unarmed.</summary>
-    public float ProjectileSpeed
-    {
-        get
-        {
-            var weapon = LongestRangeWeapon();
-            return weapon == null ? 0f : (weapon.Speed ?? weapon.ProjectileSpeed);
-        }
-    }
+    public float ProjectileSpeed => LongestRangeWeapon()?.ProjectileSpeed ?? 0f;
 
     /// <summary>Advances cooldowns on all primary weapons.</summary>
     public void UpdateCooldowns(float deltaTime)
@@ -77,8 +68,8 @@ public class WeaponSystem
 
         for (int i = 0; i < equipment.Count; i++)
         {
-            if (equipment[i].PrimaryWeapon)
-                equipment[i].UpdateCooldown(deltaTime);
+            if (equipment[i] is Weapon { IsPrimary: true } weapon)
+                weapon.UpdateCooldown(deltaTime);
         }
     }
 
@@ -91,8 +82,7 @@ public class WeaponSystem
         WeaponBonuses bonuses = CalculateBonuses();
         for (int i = 0; i < equipment.Count; i++)
         {
-            var weapon = equipment[i];
-            if (!weapon.PrimaryWeapon) continue;
+            if (equipment[i] is not Weapon { IsPrimary: true } weapon) continue;
 
             Projectile projectile = weapon.TryFire(owner, bonuses.AttackSpeed, bonuses.AttackRange, bonuses.Accuracy);
             if (projectile != null)

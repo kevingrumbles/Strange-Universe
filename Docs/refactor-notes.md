@@ -532,3 +532,14 @@ The data-driven weapons from Phase 7.2 (`Definitions/weapons.json`, `DefinitionR
 - How a projectile looks is a rendering concern and `Equipment.cs` has no graphics types, so the looks are hardcoded `ProjectileVisual` presets in `Game/Systems/ProjectileVisual.cs`, chosen by weapon name in `ProjectileVisuals.For(name)` (default look for unknown names).
 - **No values changed.** Before deleting the JSON, every weapon stat and every look value (173 fields, including the default look) was compared with the file: it caught one mistyped value (Mining Beam burst particle count) which was fixed, and then there were zero differences.
 - `DefinitionTests` now tests the presets in code (the JSON-loading tests went away with the repository); `ArchitectureTests` still checks that each weapon's impact linger equals its look's burst duration.
+
+## Equipment refactor: one subclass per kind
+
+`Equipment` was one class with 13 nullable stat fields for every kind of item, plus the weapon firing logic, the preset catalog and the JSON converter. It is now split by kind:
+
+- **`Equipment`** (abstract): name, `EquipmentType`, `Mass`, `EnergyCost`, and `Create(name)`. Subclasses: **`Weapon`** (damage, projectile speed, range, fire rate, accuracy, firing offset and radius, impact linger, cooldown, `TryFire`, `IsPrimary`), **`Shield`**, **`HullPlating`**, **`Engine`**, **`UtilityModule`** (the attack speed, range and accuracy bonuses `WeaponSystem` adds up), and **`UnknownEquipment`** (the inert placeholder for a name that is no longer a known item).
+- Stats are plain values with the defaults the old null fallbacks used (fire rate 1, projectile speed 1000, everything else 0), instead of nullable fields. `Weapon` was `Speed` plus `ProjectileSpeed`; it is now only `ProjectileSpeed` (beams use the default 1000, as before). A weapon is created with its kind (`new Weapon(EquipmentType.FixedProjectile)`), and only weapon kinds are accepted.
+- **`EquipmentCatalog`** (internal) holds all 20 built-in items and replaces `Equipment.Presets`; `Equipment.Create(name)` copies from it. `EquipmentListConverter` is in its own file. The weapon firing code moved to `Weapon`, and its random spread now uses `Random.Shared`.
+- `WeaponSystem` works on `Weapon` and `UtilityModule` (`IsPrimary` replaces `PrimaryWeapon`).
+- **Nothing changed in behavior or in the save format** (saves still hold equipment names). Before the change a snapshot of every preset's values was taken; after it, the same snapshot from the new classes was identical for all 20 items, in the same order.
+- Tests: `DefinitionTests` checks each catalog item is the class for its type, missiles are weapons but not primary, and a weapon needs a weapon kind; `EquipmentInstanceTests` covers copies and cooldowns; the weapon-system tests in `ShipComponentTests` use `Weapon` and `UtilityModule`.

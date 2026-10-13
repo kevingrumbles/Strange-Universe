@@ -196,7 +196,7 @@ public abstract class Ship
         foreach (var name in ShipType.DefaultEquipment ?? System.Array.Empty<string>())
         {
             var item = Components.Equipment.Create(name);
-            if (item.EquipmentType != EquipmentType.Unkown) Equipment.Add(item); // a name that is not an equipment preset is skipped
+            if (item is not UnknownEquipment) Equipment.Add(item); // a name that is not a known item is skipped
         }
     }
 

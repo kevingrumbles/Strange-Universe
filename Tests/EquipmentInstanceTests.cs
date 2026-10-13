@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Linq;
-using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 using Xunit;
@@ -13,15 +12,21 @@ public class EquipmentInstanceTests
 {
     private static string TempPath() => Path.Combine(Path.GetTempPath(), $"su-equip-{Guid.NewGuid():N}.json");
 
+    /// <summary>The ship's only weapon.</summary>
+    private static Weapon Gun(Ship ship) => Assert.IsType<Weapon>(ship.Equipment.Single());
+
+    /// <summary>The shared item kept in the catalog. Ships must never hold it.</summary>
+    private static Weapon Preset(string name) => (Weapon)EquipmentCatalog.All.Single(e => e.EquipmentName == name);
+
     [Fact]
     public void ANewPlayersStartingWeapon_IsItsOwnCopy()
     {
         var a = new Universe("A", "a-seed").Player;
         var b = new Universe("B", "b-seed").Player;
 
-        Assert.Equal("Light Laser", a.Equipment.Single().EquipmentName);
-        Assert.NotSame(a.Equipment[0], b.Equipment[0]);
-        Assert.NotSame(a.Equipment[0], Preset("Light Laser")); // nor the preset kept in the list
+        Assert.Equal("Light Laser", Gun(a).EquipmentName);
+        Assert.NotSame(Gun(a), Gun(b));
+        Assert.NotSame(Gun(a), Preset("Light Laser")); // nor the shared item in the catalog
     }
 
     [Fact]
@@ -29,13 +34,13 @@ public class EquipmentInstanceTests
     {
         var a = new Universe("A", "a-seed").Player;
         var b = new Universe("B", "b-seed").Player;
-        Assert.True(a.Equipment[0].CanFire && b.Equipment[0].CanFire);
+        Assert.True(Gun(a).CanFire && Gun(b).CanFire);
 
         // A fired shot starts the cooldown on that weapon only.
-        a.Equipment[0].TryFire(a);
+        Gun(a).TryFire(a);
 
-        Assert.False(a.Equipment[0].CanFire);
-        Assert.True(b.Equipment[0].CanFire);
+        Assert.False(Gun(a).CanFire);
+        Assert.True(Gun(b).CanFire);
         Assert.True(Preset("Light Laser").CanFire);
     }
 
@@ -50,8 +55,8 @@ public class EquipmentInstanceTests
             saves.CreateUniverse(saves.LoadAll(), "Two");
             var loaded = new FileSaveService(path).LoadAll();
 
-            var first = loaded[0].Player.Equipment.Single();
-            var second = loaded[1].Player.Equipment.Single();
+            var first = Gun(loaded[0].Player);
+            var second = Gun(loaded[1].Player);
             Assert.Equal("Light Laser", first.EquipmentName);
             Assert.Equal(15, first.Damage); // the full stats are restored from the name
             Assert.NotSame(first, second);
@@ -71,12 +76,13 @@ public class EquipmentInstanceTests
         {
             var saves = new FileSaveService(path);
             var universe = new Universe("Old", "old-seed");
-            universe.Player.Equipment.Add(new Equipment { EquipmentName = "Retired Gizmo", EquipmentType = EquipmentType.Utility });
+            universe.Player.Equipment.Add(new UtilityModule { EquipmentName = "Retired Gizmo" });
             saves.Save(universe);
 
             var loaded = new FileSaveService(path).LoadAll().Single();
             var gizmo = loaded.Player.Equipment.Single(e => e.EquipmentName == "Retired Gizmo");
-            Assert.Equal(EquipmentType.Unkown, gizmo.EquipmentType); // inert, but it keeps its name
+            Assert.IsType<UnknownEquipment>(gizmo); // inert, but it keeps its name
+            Assert.Equal(EquipmentType.Unkown, gizmo.EquipmentType);
 
             new FileSaveService(path).Save(loaded);
             Assert.Contains("Retired Gizmo", File.ReadAllText(path));
@@ -87,8 +93,8 @@ public class EquipmentInstanceTests
     [Fact]
     public void Create_AlwaysReturnsANewObject_ForTheSameName()
     {
-        var first = Equipment.Create("Heavy Laser");
-        var second = Equipment.Create("heavy laser"); // names are not case sensitive
+        var first = Assert.IsType<Weapon>(Equipment.Create("Heavy Laser"));
+        var second = Assert.IsType<Weapon>(Equipment.Create("heavy laser")); // names are not case sensitive
 
         Assert.NotSame(first, second);
         Assert.NotSame(first, Preset("Heavy Laser"));
@@ -101,13 +107,23 @@ public class EquipmentInstanceTests
     {
         var unknown = Equipment.Create("No Such Thing");
 
-        Assert.NotNull(unknown);
+        Assert.IsType<UnknownEquipment>(unknown);
         Assert.Equal("No Such Thing", unknown.EquipmentName);
         Assert.Equal(EquipmentType.Unkown, unknown.EquipmentType);
-        Assert.False(unknown.PrimaryWeapon);
         Assert.NotSame(unknown, Equipment.Create("No Such Thing"));
     }
 
-    /// <summary>The preset instance kept in the list. Ships must never hold it.</summary>
-    private static Equipment Preset(string name) => Equipment.Presets.Single(e => e.EquipmentName == name);
+    [Fact]
+    public void ACreatedWeapon_StartsWithAFreshCooldown()
+    {
+        // A copy never inherits runtime state. Clone a weapon that is cooling down and check the copy is ready.
+        var original = Assert.IsType<Weapon>(Equipment.Create("Light Laser"));
+        original.TryFire(new Nonplayer("shooter"));
+        Assert.False(original.CanFire);
+
+        var copy = original.Clone();
+
+        Assert.True(((Weapon)copy).CanFire);
+        Assert.False(original.CanFire); // and the original is unaffected
+    }
 }
