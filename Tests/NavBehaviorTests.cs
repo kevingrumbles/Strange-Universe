@@ -89,7 +89,7 @@ public class NavBehaviorTests
         Assert.Equal(TaskState.Complete, task.CurrentState);
     }
 
-    [Fact(Skip = "bug: patrol never slows for a waypoint (second RotateTowards overrides thrust logic). See nav-system-review finding 3")]
+    [Fact]
     public void Patrol_SlowsDown_ForAWaypoint()
     {
         using var sim = new NavSim();
@@ -152,5 +152,36 @@ public class NavBehaviorTests
         sim.Run(80f, null, () => closest = System.Math.Min(closest, Vector2.Distance(sim.Ship.Position, planet.Position)));
 
         Assert.True(closest > planet.Radius, $"flew through the planet (closest {closest:F0})");
+    }
+
+    [Fact]
+    public void Patrol_LongRealisticRoute_KeepsMoving()
+    {
+        // Waypoints taken from a generated system: far apart, on opposite sides of the star.
+        var points = new List<Vector2>
+        {
+            new(14925, 1549), new(-13155, -13672), new(-14771, 12572), new(-12478, 1834),
+        };
+        using var sim = new NavSim();
+        sim.Place(points[3] + new Vector2(800, 0));
+        var task = sim.Start(new PatrolTask(sim.Ship, points));
+
+        int advances = 0, last = task.CurrentWaypointIndex;
+        var times = new List<float>();
+        sim.Run(600f, () => advances >= 8, () =>
+        {
+            if (task.CurrentWaypointIndex != last) { advances++; last = task.CurrentWaypointIndex; times.Add(sim.Time); }
+        });
+
+        string when = string.Join(", ", times.Select(t => t.ToString("F0")));
+        Assert.True(advances >= 8, $"only {advances} waypoints in {sim.Time:F0}s (at {when})");
+
+        // A leg is about 25,000 units at 580 units/s, so roughly 45 s; allow for slowing and turning at each waypoint.
+        float previous = 0f;
+        foreach (float t in times)
+        {
+            Assert.True(t - previous < 80f, $"a leg took {t - previous:F0}s (waypoints at {when})");
+            previous = t;
+        }
     }
 }

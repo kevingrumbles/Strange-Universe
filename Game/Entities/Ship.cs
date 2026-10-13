@@ -93,6 +93,8 @@ public abstract class Ship
     [JsonIgnore] public float CurrentHullPercentage => Durability.HullPercentage;
     [JsonIgnore] public float CurrentShieldPercentage => Durability.ShieldPercentage;
     [JsonIgnore] public float CurrentFuelPercentage => Durability.FuelPercentage;
+    /// <summary>Peak acceleration from the main engine, in units per second squared.</summary>
+    [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.ThrustForce / Physics.Body.Mass : 0f;
     [JsonIgnore] public float MandevilleRadius => StarSystem == null ? 0f : StarSystem.MandevilleRadius;
     [JsonIgnore] public float DistanceFromSystemCenter => DistanceTo(Vector2.Zero);
 

@@ -69,3 +69,13 @@ Gravity is switched off on purpose while the nav system is reworked (`GravityThr
 - **Known defects recorded as skipped tests** (to be un-skipped by the step that fixes them): Patrol does not slow for a waypoint; Guard does not hold the requested orbit radius; Guard approaches head-on and passes through the planet (new finding 2b, seen while writing the tests; planet collision is off by default, so it is not visible in play).
 
 Results: 126 pass, 3 skipped.
+
+### Step 3a done: `Steering` and Patrol
+
+- **`Steering`** (`Game/NavSystem/Steering.cs`): `Seek` (turn, thrust when aligned), `Brake`, `AllowedApproachSpeed` (the speed from which the ship can still slow to a target speed in a given distance, from the ship's real acceleration), `Arrive` and `AvoidObstacles` (moved out of `PatrolTask`). New `Ship.MaxAcceleration`.
+- **`Arrive` uses velocity matching**: it steers so the velocity converges on "direction x allowed speed". A first version that only gated thrust by speed left the ship circling a waypoint at about 800 units for 80 s at corner speed, because nothing cancelled its sideways velocity. Planning also allows for the time to turn around before braking can start.
+- **`PatrolTask` rebuilt on it.** Behavior changes: the ship now slows to 40% of max speed (`CornerSpeedFraction`) at each waypoint and then accelerates toward the next; the distance to the next waypoint is recomputed after advancing (it used to be stale); a waypoint also counts as reached when the ship came within twice the arrival radius and is moving away (`PassByFactor`). `CurrentWaypointIndex` is public.
+- **Tests**: `Patrol_SlowsDown_ForAWaypoint` is un-skipped and passes; new `Patrol_LongRealisticRoute_KeepsMoving` (waypoints from a real system, every leg under 80 s) and `SteeringTests`.
+- Still to move onto `Steering`: Guard (3b), Dock (3c), and the arrive/brake code in `JumpTask`.
+
+Results: 133 pass, 2 skipped (the two Guard defects).
