@@ -10,6 +10,7 @@ namespace Strange_Universe.Tests.Fakes;
 public sealed class FakeWorld : IWorldContext
 {
     public string SystemId { get; set; } = "fake_system";
+    public bool TestMode { get; set; }
     public float SystemRadius { get; set; } = 10000f;
     public float MandevilleRadius { get; set; } = 7500f;
     public List<Planet> PlanetList { get; } = new();

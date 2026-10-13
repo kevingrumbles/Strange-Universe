@@ -30,7 +30,7 @@ public sealed class NavSim : IDisposable
         Universe.Generate(new RecordingAssetRequests());
         System = Universe.ActiveStarSystem;
 
-        Ship = new Nonplayer(shipId);
+        Ship = new Nonplayer(shipId, TestShips.Name);
         System.AddNpc(Ship);
         // Let the spawn task finish, then park the ship where the test wants it.
         for (int i = 0; i < 3; i++) Ship.Navigator.Update(Dt);

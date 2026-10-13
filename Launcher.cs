@@ -12,6 +12,12 @@ namespace Strange_Universe
     {
         private readonly GraphicsDeviceManager _graphics;
         private readonly ScreenManager _screens = new();
+        /// <summary>
+        /// Developer switch. When true, every system's spawn event is the NPC test event (always, instead of the normal roll).
+        /// When false the events use their own probabilities as usual. Read when a universe is entered.
+        /// </summary>
+        public static bool TestMode { get; set; } = false;
+
         private readonly GameSettings _settings = new();
         private readonly ISaveService _saves = new FileSaveService();
 
@@ -89,8 +95,11 @@ namespace Strange_Universe
             _ctx = null;
         }
 
-        private void Play(Universe universe) =>
+        private void Play(Universe universe)
+        {
+            _settings.TestMode = TestMode;
             _screens.Switch(new PlayingScreen(_ctx, _projectileRenderer, universe));
+        }
 
         protected override void Update(GameTime gameTime)
         {

@@ -12,6 +12,9 @@ namespace Strange_Universe.Game.Components;
 public interface IWorldContext
 {
     string SystemId { get; }
+
+    /// <summary>True when the game is in test mode (see <see cref="GameSettings.TestMode"/>).</summary>
+    bool TestMode { get; }
     IReadOnlyList<Planet> Planets { get; }
     int NpcCount { get; }
 

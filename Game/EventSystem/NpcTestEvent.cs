@@ -6,7 +6,11 @@ namespace Strange_Universe.Game.EventSystem
 {
     public class NpcTestEvent : SystemEvent
     {
-        public static double EventProbability = 100; // 100% chance for this event to occur
+        /// <summary>
+        /// Percent chance that a system spawn is this event. 0 by default: it is a test event and normally never happens.
+        /// In test mode (<see cref="GameSettings.TestMode"/>) it always happens, whatever this is.
+        /// </summary>
+        public static double EventProbability = 0;
         public NpcTestEvent() 
         { 
             type = EventType.SpawnEvent;

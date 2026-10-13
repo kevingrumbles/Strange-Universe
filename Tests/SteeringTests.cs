@@ -12,7 +12,7 @@ public class SteeringTests
     [Fact]
     public void AllowedApproachSpeed_IsArrivalSpeed_AtTheTarget_AndGrowsWithDistance()
     {
-        var ship = new Nonplayer("s");
+        var ship = new Nonplayer("s", Strange_Universe.Tests.Fakes.TestShips.Name);
         float atTarget = Steering.AllowedApproachSpeed(ship, 0f, 100f);
         float near = Steering.AllowedApproachSpeed(ship, 500f, 100f);
         float far = Steering.AllowedApproachSpeed(ship, 5000f, 100f);

@@ -161,3 +161,13 @@ Results: 177 pass, 0 skipped. Remaining: step 7 (optional: real alert and attack
 ### Step 7b done: alert
 
 NPCs go on alert when shot: the shooter is flagged hostile, the previous task is stored, and its disposition decides the response (aggressive tasks hunt and attack; defensive tasks fight only if a hostile is in range, otherwise leave the system). The alert ends when no hostile is left, and the previous task resumes. NPCs inherit weapons and shields from their ship type, so they are now armed and can be destroyed. Details, decisions and open questions: [nav-alert.md](nav-alert.md). Results: 224 pass, 0 skipped.
+
+### Test mode and the NPC test event
+
+- **`Launcher.TestMode`** (public static bool, default `false`). It is copied into `GameSettings.TestMode` when a universe is played, and `IWorldContext.TestMode` exposes it to the event system (so the simulation does not reference `Launcher`).
+- **`EventController.SpawnEvent`**: `NpcTestEvent` is the first case of the system spawn roll. Its share is 100% in test mode (every system spawn is the test event, so the "discovered" messages and the normal patrol or guard spawns do not happen), otherwise `NpcTestEvent.EventProbability`.
+- **`NpcTestEvent.EventProbability` is now 0.** It used to be 100, which would have made the test event happen all the time in normal mode once it was enabled in the roll. At 0 a normal game behaves exactly as before (tested: identical spawns and messages for 60 systems, and no extra random draw). Raise it to let the event appear in normal play.
+- `EventController.NpcTestProbabilityOverride` overrides the share (used by tests).
+- The test event spawns one armed, jump-in NPC per planet, each docking for a very long hold, which makes them convenient targets for the alert behavior.
+- **Tests:** `TestModeEventTests` (test mode: every spawn is the test event across 100 systems, one NPC per planet, nothing else; normal mode: never with the default, about half at 50%, always at 100%, identical to before at 0; an explicit probability wins over test mode; the setting reaches the world).
+- **Nav tests no longer depend on the live ship tuning.** The Shuttle's stats were retuned (max speed 580 to 58, hull 1 to 30, shield 1 to 15) and 15 nav and combat tests that hard-coded the old speeds failed. They now run on a fixed `TestShuttle` ship type (`Tests/Fakes/TestShips.cs`, the Shuttle's old numbers, registered before the tests run).

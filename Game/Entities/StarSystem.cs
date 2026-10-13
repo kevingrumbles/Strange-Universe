@@ -160,6 +160,7 @@ public class StarSystem : IWorldContext
 
     // -- IWorldContext ---------------------------------------------------------
     IReadOnlyList<Planet> IWorldContext.Planets => Planets;
+    bool IWorldContext.TestMode => Universe?.Settings?.TestMode ?? false;
     int IWorldContext.NpcCount => Npcs.Count;
     IEnumerable<Ship> IWorldContext.Ships => AllShips();
 
