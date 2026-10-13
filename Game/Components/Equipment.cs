@@ -244,8 +244,11 @@ public class Equipment
         Mass          = 150f,
     };
 
-    /// <summary>All built-in equipment definitions.</summary>
-    public static List<Equipment> Presets { get; } = new()
+    /// <summary>
+    /// All built-in equipment definitions. These are shared instances (weapons carry a cooldown), so they are internal: ships
+    /// get their own copies from <see cref="Create"/>, and nothing outside this assembly can reach the shared ones.
+    /// </summary>
+    internal static List<Equipment> Presets { get; } = new()
     {
         LightLaser,
         HeavyLaser,
