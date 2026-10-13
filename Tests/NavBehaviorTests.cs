@@ -28,11 +28,11 @@ public class NavBehaviorTests
         sim.Place(planet.Position + new Vector2(5000, 0));
         var task = sim.Start(new DockTask(sim.Ship, planet.Position, holdDuration: 20f));
 
-        float largestStep = sim.RunAndMeasureLargestStep(120f, () => task.Status == NavTaskStatus.Complete);
+        float largestStep = sim.RunAndMeasureLargestStep(sim.TravelTime(5000f) + 20f, () => task.Status == NavTaskStatus.Complete);
 
         Assert.Equal(NavTaskStatus.Complete, task.Status);
-        // A ship at top speed moves under 10 units per step; a NaN reset to the origin moves thousands.
-        Assert.True(largestStep < 50f, $"ship jumped {largestStep:F0} units in one step");
+        // A ship moves at most its top speed times the step; a NaN reset to the origin moves thousands.
+        Assert.True(largestStep < sim.MaxSpeed * NavSim.Dt * 3f + 1f, $"ship jumped {largestStep:F0} units in one step");
         Assert.True(Vector2.Distance(sim.Ship.Position, planet.Position) < 1500f,
             "docked ship should still be near the planet");
         Assert.True(float.IsFinite(sim.Ship.Velocity.X) && float.IsFinite(sim.Ship.Velocity.Y));
@@ -46,7 +46,7 @@ public class NavBehaviorTests
         sim.Place(planet.Position + new Vector2(5000, 0));
         var task = sim.Start(new DockTask(sim.Ship, planet.Position, holdDuration: 30f));
 
-        sim.Run(60f, () => task.CurrentPhase == DockTask.Phase.Hold);
+        sim.Run(sim.TravelTime(5000f), () => task.CurrentPhase == DockTask.Phase.Hold);
         Assert.Equal(DockTask.Phase.Hold, task.CurrentPhase);
 
         // Let the approach speed bleed off, then the ship must stay put.
@@ -70,7 +70,7 @@ public class NavBehaviorTests
         sim.Start(new PatrolTask(sim.Ship, points));
 
         var visited = new List<int>();
-        sim.Run(300f, () => visited.Count >= 6, () =>
+        sim.Run(sim.TravelTime(2500f) * 6f, () => visited.Count >= 6, () =>
         {
             int next = visited.Count % points.Count;
             if (Vector2.Distance(sim.Ship.Position, points[next]) < 500f) visited.Add(next);
@@ -99,7 +99,7 @@ public class NavBehaviorTests
         sim.Start(new PatrolTask(sim.Ship, points));
 
         float speedAtArrival = float.NaN;
-        sim.Run(120f, () => !float.IsNaN(speedAtArrival), () =>
+        sim.Run(sim.TravelTime(6000f), () => !float.IsNaN(speedAtArrival), () =>
         {
             if (float.IsNaN(speedAtArrival) && Vector2.Distance(sim.Ship.Position, points[0]) < 500f)
                 speedAtArrival = sim.Ship.Speed;
@@ -119,7 +119,7 @@ public class NavBehaviorTests
         sim.Place(planet.Position + new Vector2(2000, 0));
         sim.Start(new GuardTask(sim.Ship, planet.Position, orbit));
 
-        sim.Run(40f); // settle
+        sim.Run(sim.TravelTime(2000f)); // settle
         var radii = new List<float>();
         sim.Run(40f, null, () => radii.Add(Vector2.Distance(sim.Ship.Position, planet.Position)));
 
@@ -136,7 +136,7 @@ public class NavBehaviorTests
         sim.Start(new GuardTask(sim.Ship, planet.Position, planet.Radius * 2f));
 
         float farthest = 0f;
-        sim.Run(80f, null, () => farthest = System.Math.Max(farthest, Vector2.Distance(sim.Ship.Position, planet.Position)));
+        sim.Run(sim.TravelTime(2000f) + 50f, null, () => farthest = System.Math.Max(farthest, Vector2.Distance(sim.Ship.Position, planet.Position)));
 
         Assert.True(farthest < 6000f, $"drifted away from the target (farthest {farthest:F0})");
     }
@@ -150,7 +150,7 @@ public class NavBehaviorTests
         sim.Start(new GuardTask(sim.Ship, planet.Position, planet.Radius * 2f));
 
         float closest = float.MaxValue;
-        sim.Run(80f, null, () => closest = System.Math.Min(closest, Vector2.Distance(sim.Ship.Position, planet.Position)));
+        sim.Run(sim.TravelTime(2000f) + 50f, null, () => closest = System.Math.Min(closest, Vector2.Distance(sim.Ship.Position, planet.Position)));
 
         Assert.True(closest > planet.Radius, $"flew through the planet (closest {closest:F0})");
     }
@@ -169,7 +169,7 @@ public class NavBehaviorTests
 
         int advances = 0, last = task.CurrentWaypointIndex;
         var times = new List<float>();
-        sim.Run(600f, () => advances >= 8, () =>
+        sim.Run(sim.TravelTime(32000f) * 8f, () => advances >= 8, () =>
         {
             if (task.CurrentWaypointIndex != last) { advances++; last = task.CurrentWaypointIndex; times.Add(sim.Time); }
         });
@@ -177,11 +177,17 @@ public class NavBehaviorTests
         string when = string.Join(", ", times.Select(t => t.ToString("F0")));
         Assert.True(advances >= 8, $"only {advances} waypoints in {sim.Time:F0}s (at {when})");
 
-        // A leg is about 25,000 units at 580 units/s, so roughly 45 s; allow for slowing and turning at each waypoint.
+        // Each leg should take about its length divided by the ship's top speed, with some allowance for slowing and turning
+        // at the waypoint. A ship that loiters around a waypoint (an old bug) takes far longer.
+        Vector2 start = points[3] + new Vector2(800, 0);
+        float LegLength(int leg) => leg == 0 ? Vector2.Distance(start, points[0]) : Vector2.Distance(points[(leg - 1) % 4], points[leg % 4]);
+        int legIndex = 0;
         float previous = 0f;
         foreach (float t in times)
         {
-            Assert.True(t - previous < 80f, $"a leg took {t - previous:F0}s (waypoints at {when})");
+            float limit = LegLength(legIndex) / sim.MaxSpeed * 1.3f + 25f;
+            Assert.True(t - previous < limit, $"leg {legIndex} took {t - previous:F0}s, limit {limit:F0}s (waypoints at {when})");
+            legIndex++;
             previous = t;
         }
     }
@@ -199,7 +205,7 @@ public class NavBehaviorTests
         sim.Place(planet.Position + new Vector2(dx, dy));
         var task = sim.Start(new GuardTask(sim.Ship, planet.Position, orbit));
 
-        sim.Run(60f); // settle
+        sim.Run(sim.TravelTime(new Vector2(dx, dy).Length())); // settle
         float minRadius = float.MaxValue, maxRadius = 0f, minSpeed = float.MaxValue, maxSpeed = 0f;
         sim.Run(30f, null, () =>
         {
@@ -243,7 +249,7 @@ public class NavBehaviorTests
         var task = sim.Start(new DockTask(sim.Ship, planet.Position, holdDuration: 25f));
 
         float closest = float.MaxValue, maxDrift = 0f, speedAtHold = float.NaN, holdStart = float.NaN, doneAt = float.NaN;
-        sim.Run(200f, () => !float.IsNaN(doneAt), () =>
+        sim.Run(sim.TravelTime(new Vector2(dx, dy).Length()) + 40f, () => !float.IsNaN(doneAt), () =>
         {
             closest = System.Math.Min(closest, Vector2.Distance(sim.Ship.Position, planet.Position));
             if (task.CurrentPhase == DockTask.Phase.Hold)
@@ -299,19 +305,20 @@ public class NavBehaviorTests
         { JumpTask.Phase.MoveToMandeville, JumpTask.Phase.Decelerate, JumpTask.Phase.AlignForJump, JumpTask.Phase.Jump };
 
     [Theory]
+    // Velocities are multiples of the ship's top speed, so the cases keep their meaning when the ship is retuned.
     [InlineData(1000f, 0f, 0f, 0f)]          // at rest, inside Mandeville
-    [InlineData(4000f, 0f, 0f, 580f)]        // flying sideways at full speed
-    [InlineData(14000f, 0f, -580f, 0f)]      // flying inward at full speed
+    [InlineData(4000f, 0f, 0f, 1f)]          // flying sideways at full speed
+    [InlineData(14000f, 0f, -1f, 0f)]        // flying inward at full speed
     [InlineData(0f, 0f, 0f, 0f)]             // exactly at the center
     public void Jump_RunsThePhasesInOrder_AndLeavesTheSystem(float x, float y, float vx, float vy)
     {
         using var sim = new NavSim();
-        sim.Place(new Vector2(x, y), new Vector2(vx, vy));
+        sim.Place(new Vector2(x, y), new Vector2(vx, vy) * sim.MaxSpeed);
         var task = sim.Start(new JumpTask(sim.Ship));
 
         var seen = new List<JumpTask.Phase>();
         float speedWhenJumpStarted = float.NaN;
-        sim.Run(120f, () => sim.Ship.Remove, () =>
+        sim.Run(sim.TravelTime(sim.System.SystemRadius * 1.5f), () => sim.Ship.Remove, () =>
         {
             if (seen.Count == 0 || seen[^1] != task.CurrentPhase)
             {
@@ -323,7 +330,7 @@ public class NavBehaviorTests
         Assert.True(sim.Ship.Remove, "ship never left the system");
         Assert.Equal(PreJumpOrder, seen);
         Assert.Equal(NavTaskStatus.Complete, task.Status);
-        Assert.True(speedWhenJumpStarted <= 50f + 1f, $"started the jump at speed {speedWhenJumpStarted:F0}");
+        Assert.True(speedWhenJumpStarted <= PrepareJumpTask.SafeJumpSpeed + 1f, $"started the jump at speed {speedWhenJumpStarted:F0}");
     }
 
     [Fact]
@@ -332,13 +339,15 @@ public class NavBehaviorTests
         // Outside the Mandeville radius and drifting inward slowly: the jump used to follow the drift,
         // sending the ship backwards through the system.
         using var sim = new NavSim();
-        sim.Place(new Vector2(16000, 0), new Vector2(-45, 0));
+        float drift = System.Math.Min(PrepareJumpTask.SafeJumpSpeed, sim.MaxSpeed) * 0.9f; // slow enough that the ship does not brake first
+        sim.Place(new Vector2(16000, 0), new Vector2(-drift, 0));
         var task = sim.Start(new JumpTask(sim.Ship));
 
         float worstAngle = 0f;
         sim.Run(60f, () => sim.Ship.Remove, () =>
         {
-            if (task.CurrentPhase == JumpTask.Phase.Jump && sim.Ship.Speed > 300f)
+            // Only once the drive has clearly overcome the leftover drift (which is not a heading in itself).
+            if (task.CurrentPhase == JumpTask.Phase.Jump && sim.Ship.Speed > System.Math.Max(drift * 4f, sim.MaxSpeed * 0.5f))
             {
                 float cos = Vector2.Dot(Vector2.Normalize(sim.Ship.Velocity), sim.Ship.Forward);
                 worstAngle = System.Math.Max(worstAngle, MathHelper.ToDegrees(MathF.Acos(MathHelper.Clamp(cos, -1f, 1f))));
@@ -348,20 +357,20 @@ public class NavBehaviorTests
         Assert.True(sim.Ship.Remove);
         Assert.True(sim.Time < 6f, $"took {sim.Time:F1}s");
         Assert.True(worstAngle < 10f, $"travelled {worstAngle:F0} degrees off its facing");
-        Assert.True(sim.Ship.Position.X > 19000f, "should leave outward, on the side it started");
+        Assert.True(sim.Ship.Position.X > sim.System.SystemRadius * 0.97f, "should leave outward, on the side it started");
     }
 
     [Fact]
     public void Jump_FromASidewaysStart_StillGoesOutward()
     {
         using var sim = new NavSim();
-        sim.Place(new Vector2(4000, 0), new Vector2(0, 580));
+        sim.Place(new Vector2(4000, 0), new Vector2(0, sim.MaxSpeed)); // sideways at full speed
         sim.Start(new JumpTask(sim.Ship));
 
-        sim.Run(120f, () => sim.Ship.Remove);
+        sim.Run(sim.TravelTime(sim.System.SystemRadius * 1.5f), () => sim.Ship.Remove);
 
         Assert.True(sim.Ship.Remove);
-        Assert.True(sim.Time < 40f, $"took {sim.Time:F1}s");
+        Assert.True(sim.Time < sim.TravelTime(sim.System.SystemRadius), $"took {sim.Time:F1}s");
         // Leaves roughly radially from where it left the Mandeville region, not on a long chord.
         float cos = Vector2.Dot(Vector2.Normalize(sim.Ship.Position), Vector2.Normalize(sim.Ship.Velocity));
         Assert.True(cos > 0.99f, $"left {MathHelper.ToDegrees(MathF.Acos(cos)):F0} degrees off radial");

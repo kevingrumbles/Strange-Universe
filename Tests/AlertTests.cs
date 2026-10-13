@@ -206,7 +206,7 @@ public class AlertTests
 
         sim.Ship.ApplyDamage(Shot(attacker));
         var phases = new HashSet<AlertTask.Phase>();
-        sim.RunSystem(60f, () => attacker.CurrentHullStrength < hullBefore, () =>
+        sim.RunSystem(sim.TravelTime(6000f) + 30f, () => attacker.CurrentHullStrength < hullBefore, () =>
         {
             if (Alert(sim.Ship) is { } alert) phases.Add(alert.CurrentPhase);
         });
@@ -315,7 +315,7 @@ public class AlertTests
         sim.Run(1f);
 
         sim.Ship.ApplyDamage(Shot(attacker));
-        sim.RunSystem(120f, () => sim.Ship.Remove);
+        sim.RunSystem(sim.TravelTime(sim.System.SystemRadius * 1.5f), () => sim.Ship.Remove);
 
         Assert.True(sim.Ship.Remove);
         Assert.True(jump.IsFinished); // it was the original jump that finished, not a second one

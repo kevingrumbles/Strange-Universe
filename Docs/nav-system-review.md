@@ -98,7 +98,7 @@ Results: 140 pass, 0 skipped. Still to move onto `Steering`: Dock (3c) and the a
 `DockTask` rebuilt on `Steering`. Behavior changes:
 
 - **Approach:** the ship flies to a hold point `SafeDistance` (500) from the target on the side it comes from (fixed on the first update), using `Steering.Arrive` with arrival speed zero. It no longer heads for the target's center, and it brakes in time instead of overshooting. The approach ends within `HoldArrivalDistance` (100) of the hold point at no more than 10% of max speed.
-- **Hold:** the same `Arrive` aimed at the hold point, with a tighter velocity tolerance (`HoldVelocityTolerance`, 1% of max speed). The gravity-compensation code is gone: velocity matching corrects any drift, gravity included, so the task works with gravity on or off.
+- **Hold:** the same `Arrive` aimed at the hold point, with a tighter velocity tolerance (`HoldToleranceSeconds`: the speed error the engine can remove in 0.016 s; about 1% of top speed at the original tuning). The gravity-compensation code is gone: velocity matching corrects any drift, gravity included, so the task works with gravity on or off.
 - **Hold duration:** still 15 to 60 s by default, but derived from the owner's id instead of `new Random()`, so it is reproducible; a ship exactly on the target picks a fixed side instead of a random one.
 - **Measured** (Shuttle, planet radius 163; starts 5,000 east, 6,000 north-west, 700 and 1,200 away): reaches the hold in 2.6 to 17 s at speed about 53, never closer to the planet than 490 (hold distance is 500), stays within about 55 of the hold point, and completes exactly `HoldDuration` after the hold starts. Before: the ship passed through at 232 and, with the NaN, was reset to the origin.
 - **`Steering.Arrive`** takes an optional velocity tolerance.
@@ -170,4 +170,17 @@ NPCs go on alert when shot: the shooter is flagged hostile, the previous task is
 - `EventController.NpcTestProbabilityOverride` overrides the share (used by tests).
 - The test event spawns one armed, jump-in NPC per planet, each docking for a very long hold, which makes them convenient targets for the alert behavior.
 - **Tests:** `TestModeEventTests` (test mode: every spawn is the test event across 100 systems, one NPC per planet, nothing else; normal mode: never with the default, about half at 50%, always at 100%, identical to before at 0; an explicit probability wins over test mode; the setting reaches the world).
-- **Nav tests no longer depend on the live ship tuning.** The Shuttle's stats were retuned (max speed 580 to 58, hull 1 to 30, shield 1 to 15) and 15 nav and combat tests that hard-coded the old speeds failed. They now run on a fixed `TestShuttle` ship type (`Tests/Fakes/TestShips.cs`, the Shuttle's old numbers, registered before the tests run).
+
+### Nav tests follow the ship stats
+
+Ship tuning changes (the Shuttle's max speed, hull and shield were retuned during this work), so the nav, combat and jump tests must not assume particular speeds. They read them from the ship's `ShipStats`:
+
+- `NavSim.MaxSpeed` and `NavSim.TravelTime(distance)` (distance over top speed, plus slack and a fixed allowance for turning and settling) give every time limit; start velocities are multiples of top speed; speed thresholds are fractions of it or constants read from the tasks (`PrepareJumpTask.SafeJumpSpeed`).
+- **Sweep.** `Tests/Fakes/TuningOverride.cs` lets a run override the Shuttle's numbers without editing the game: set `SU_TEST_MAXSPEED`, `SU_TEST_THRUST` and `SU_TEST_ROTATION` before `dotnet test`. Nothing changes when they are not set. The suite (241 tests) passes at all of these (max speed / thrust / rotation speed): 58/360/3.5, 290/360/3.5, 580/360/3.5, 1160/360/3.5, 580/90/3.5, 580/1440/3.5, 580/360/1.75, 580/360/7, 58/90/1.75, 1160/1440/7, 290/90/7, 1160/90/1.75, 2000/360/3.5, 1160/1440/3.5.
+- **Edge of the supported range.** One extreme combination (max speed 290, thrust 1440, rotation 1.75: a ship that can stop in a fifth of a second but needs nearly two seconds to turn around) still fails the dock test by overshooting its hold point by 12% (the test allows 10%). A ship that reaches top speed in under a tenth of a second (thrust 14 times its max speed per second) is also outside the range the controllers are tuned for.
+
+Running the suite at other tuning exposed three behaviors that were not independent of top speed. They are fixed in the game code (no change at the original tuning):
+
+1. **Guard orbit** accepted a velocity error of 5% of the ship's *top* speed, so a faster ship orbited more sloppily (about 13% too wide at max speed 1160). The tolerance is now relative to the orbit speed.
+2. **Pursuit, engage and dock-hold tolerances** were fractions of top speed. They are now `Steering.CorrectableSpeed(ship, seconds)`: the speed error the engine can remove in a short time (`PursuitToleranceSeconds` 0.032, `AlertTask.EngageToleranceSeconds` 0.08, `DockTask.HoldToleranceSeconds` 0.016), identical to the old values at the original tuning. `Steering.Arrive` and `MatchVelocity` take an absolute tolerance (default: 5% of top speed).
+3. **`Steering.Pursue` bug:** the turn-around allowance used the ship's own speed instead of its speed relative to the target. A ship cruising alongside a moving target is not closing on it, but the planner behaved as if it needed hundreds of units to brake and refused to correct any distance error smaller than that. It now uses the relative speed.

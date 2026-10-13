@@ -26,8 +26,8 @@ namespace Strange_Universe.Game.NavSystem
         /// <summary>Speed (as a fraction of max speed) below which the ship counts as stopped on arrival.</summary>
         public const float HoldArrivalSpeedFraction = 0.1f;
 
-        /// <summary>Tighter than the flight default: a ship holding station should not coast away at speeds the default ignores.</summary>
-        public const float HoldVelocityTolerance = 0.01f;
+        /// <summary>Speed error tolerated while holding station: what the engine can remove in this many seconds, tighter than the flight default.</summary>
+        public const float HoldToleranceSeconds = 0.016f;
 
         public const float MinHoldSeconds = 15f;
         public const float MaxHoldSeconds = 60f;
@@ -94,7 +94,7 @@ namespace Strange_Universe.Game.NavSystem
 
                     // Station-keeping: the same arrival logic, aimed at the hold point.
                     Vector2 toHoldPoint = _holdPoint.Value - Owner.Position;
-                    Steering.Arrive(Owner, toHoldPoint, toHoldPoint.Length(), arrivalSpeed: 0f, deltaTime, HoldVelocityTolerance);
+                    Steering.Arrive(Owner, toHoldPoint, toHoldPoint.Length(), arrivalSpeed: 0f, deltaTime, Steering.CorrectableSpeed(Owner, HoldToleranceSeconds));
                     break;
             }
         }

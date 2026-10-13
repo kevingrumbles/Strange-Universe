@@ -42,8 +42,8 @@ namespace Strange_Universe.Game.NavSystem
         /// <summary>Once aiming, it keeps at it until the hostile is farther than this fraction of its range (so it does not flip back and forth).</summary>
         public const float EngageLeaveFraction = 1.0f;
 
-        /// <summary>Speed difference to the hostile (as a fraction of max speed) tolerated while aiming.</summary>
-        public const float EngageSpeedTolerance = 0.05f;
+        /// <summary>Speed difference to the hostile tolerated while aiming: what the engine can remove in this many seconds.</summary>
+        public const float EngageToleranceSeconds = 0.08f;
 
         private JumpTask _flee;
 
@@ -125,7 +125,7 @@ namespace Strange_Universe.Game.NavSystem
             Vector2 desired = Response == TaskDisposition.Aggressive
                 ? Steering.PursuitVelocity(Owner, Target.Position, Target.Velocity, Owner.WeaponRange * EngageRangeFraction)
                 : Target.Velocity;
-            bool matched = Steering.MatchVelocity(Owner, desired, deltaTime, EngageSpeedTolerance);
+            bool matched = Steering.MatchVelocity(Owner, desired, deltaTime, Steering.CorrectableSpeed(Owner, EngageToleranceSeconds));
             if (!matched)
                 return; // turned and thrusting to match speed; aim once that is done
 

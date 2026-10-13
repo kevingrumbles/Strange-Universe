@@ -72,11 +72,11 @@ public class CombatSteeringTests
     public void MatchVelocity_ConvergesOnTheDesiredVelocity()
     {
         using var sim = new NavSim();
-        sim.Place(Vector2.Zero, new Vector2(400, 0));
-        var desired = new Vector2(0, 200);
+        sim.Place(Vector2.Zero, new Vector2(sim.MaxSpeed * 0.7f, 0));
+        var desired = new Vector2(0, sim.MaxSpeed * 0.35f);
 
         bool matched = false;
-        sim.Run(30f, () => matched, () => matched = Steering.MatchVelocity(sim.Ship, desired, NavSim.Dt));
+        sim.Run(sim.TravelTime(sim.MaxSpeed) / 3f + 30f, () => matched, () => matched = Steering.MatchVelocity(sim.Ship, desired, NavSim.Dt));
 
         Assert.True(Vector2.Distance(sim.Ship.Velocity, desired) < sim.Ship.ShipType.MaxSpeed * Steering.VelocityTolerance + 1f);
     }
@@ -85,11 +85,11 @@ public class CombatSteeringTests
     public void Pursue_CatchesAMovingTarget_AndSettlesAtTheStopDistance()
     {
         using var sim = new NavSim();
-        var targetVelocity = new Vector2(0, 200);
+        var targetVelocity = new Vector2(0, sim.MaxSpeed * 0.35f);
         var targetPosition = new Vector2(5000, 0);
         sim.Place(Vector2.Zero);
 
-        sim.Run(120f, null, () =>
+        sim.Run(sim.TravelTime(5000f) + 60f, null, () =>
         {
             targetPosition += targetVelocity * NavSim.Dt;
             Steering.Pursue(sim.Ship, targetPosition, targetVelocity, stopDistance: 800f, NavSim.Dt);
@@ -111,15 +111,16 @@ public class CombatSteeringTests
         attacker.CurrentHullStrength = 1000;
         attacker.CurrentShieldStrength = 0;
         attacker.Position = new Vector2(5000, 0);
-        attacker.Velocity = new Vector2(0, 250);
+        attacker.Velocity = new Vector2(0, sim.MaxSpeed * 0.43f);
         sim.Place(Vector2.Zero);
         sim.Start(new PatrolTask(sim.Ship, new List<Vector2> { new(-3000, 0) }));
         sim.Ship.Navigator.Update(NavSim.Dt);
         int hullBefore = attacker.CurrentHullStrength.Value;
 
         sim.Ship.ApplyDamage(Shot(attacker));
-        // The player is not flown here, so keep it moving at a steady velocity.
-        sim.RunSystem(90f, () => attacker.CurrentHullStrength < hullBefore, () => attacker.Velocity = new Vector2(0, 250));
+        // The player is not flown here, so keep it moving at a steady velocity (well below the NPC's top speed).
+        var attackerVelocity = new Vector2(0, sim.MaxSpeed * 0.43f);
+        sim.RunSystem(sim.TravelTime(5000f) + 60f, () => attacker.CurrentHullStrength < hullBefore, () => attacker.Velocity = attackerVelocity);
 
         Assert.True(attacker.CurrentHullStrength < hullBefore, "should have caught up and hit it");
     }
@@ -165,7 +166,7 @@ public class CombatSteeringTests
         sim.Run(0.1f);
         Assert.Equal(GuardTask.Phase.Approach, guard.CurrentPhase);
 
-        sim.Run(90f);
+        sim.Run(sim.TravelTime(9000f) + 60f);
         float radius = Vector2.Distance(sim.Ship.Position, planet.Position);
         Assert.InRange(radius, orbit * 0.9f, orbit * 1.1f);
         Assert.Equal(GuardTask.Phase.Orbit, guard.CurrentPhase);

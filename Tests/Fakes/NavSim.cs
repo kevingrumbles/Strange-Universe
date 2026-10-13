@@ -21,6 +21,15 @@ public sealed class NavSim : IDisposable
     /// <summary>Where the ship's spawn task put it.</summary>
     public Vector2 SpawnPosition { get; }
 
+    /// <summary>The ship's top speed, from its ship stats. Tests must derive speeds and time limits from this, not hard-code them.</summary>
+    public float MaxSpeed => Ship.ShipType.MaxSpeed;
+
+    /// <summary>
+    /// A generous time limit for the ship to cover <paramref name="distance"/> at its top speed (50% slack plus a fixed allowance
+    /// for turning, braking and settling), so a slower or faster ship gets a proportionate limit.
+    /// </summary>
+    public float TravelTime(float distance) => distance / MaxSpeed * 1.5f + 30f;
+
     /// <summary>Total simulated seconds.</summary>
     public float Time { get; private set; }
 
@@ -30,7 +39,7 @@ public sealed class NavSim : IDisposable
         Universe.Generate(new RecordingAssetRequests());
         System = Universe.ActiveStarSystem;
 
-        Ship = new Nonplayer(shipId, TestShips.Name);
+        Ship = new Nonplayer(shipId);
         System.AddNpc(Ship);
         // Let the spawn task finish, then park the ship where the test wants it.
         for (int i = 0; i < 3; i++) Ship.Navigator.Update(Dt);

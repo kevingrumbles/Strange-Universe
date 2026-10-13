@@ -21,7 +21,7 @@ public class JumpStageTests
         var prepare = sim.Start(new PrepareJumpTask(sim.Ship));
 
         var phases = new List<PrepareJumpTask.Phase>();
-        sim.Run(120f, () => prepare.Status == NavTaskStatus.Complete, () =>
+        sim.Run(sim.TravelTime(sim.System.SystemRadius), () => prepare.Status == NavTaskStatus.Complete, () =>
         {
             if (phases.Count == 0 || phases[^1] != prepare.CurrentPhase) phases.Add(prepare.CurrentPhase);
         });

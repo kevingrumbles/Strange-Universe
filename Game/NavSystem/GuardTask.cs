@@ -111,7 +111,8 @@ namespace Strange_Universe.Game.NavSystem
                     Vector2 desiredVelocity = tangent * orbitSpeed + radial * radialSpeed;
 
                     Vector2 steer = desiredVelocity - Owner.Velocity;
-                    if (steer.Length() >= Owner.ShipType.MaxSpeed * Steering.VelocityTolerance)
+                    // The tolerance is relative to the orbit speed, not the ship's top speed: a faster ship must not orbit more sloppily.
+                    if (steer.Length() >= orbitSpeed * Steering.VelocityTolerance)
                         Steering.Seek(Owner, steer, deltaTime);
                     break;
             }

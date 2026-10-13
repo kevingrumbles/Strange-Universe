@@ -68,7 +68,7 @@ namespace Strange_Universe.Game.NavSystem
         /// <paramref name="arrivalSpeed"/> at <paramref name="distance"/>, correcting both speed and sideways drift.
         /// </summary>
         public static void Arrive(Ship ship, Vector2 direction, float distance, float arrivalSpeed, float deltaTime,
-            float velocityTolerance = VelocityTolerance)
+            float? velocityTolerance = null)
         {
             if (direction.LengthSquared() < 1e-6f)
                 return;
@@ -81,7 +81,7 @@ namespace Strange_Universe.Game.NavSystem
             // when too fast and also cancels sideways drift, which speed-only control would leave as an orbit.
             Vector2 desiredVelocity = Vector2.Normalize(direction) * allowed;
             Vector2 steer = desiredVelocity - ship.Velocity;
-            if (steer.Length() < ship.ShipType.MaxSpeed * velocityTolerance)
+            if (steer.Length() < (velocityTolerance ?? ship.ShipType.MaxSpeed * VelocityTolerance))
                 return; // close enough: coast
 
             Seek(ship, steer, deltaTime);
@@ -130,12 +130,12 @@ namespace Strange_Universe.Game.NavSystem
 
         /// <summary>
         /// Steers so the velocity converges on <paramref name="desiredVelocity"/>. Returns true when it already matches
-        /// closely enough that the ship is just coasting.
+        /// closely enough (within <paramref name="velocityTolerance"/> units per second; a fraction of top speed by default) that the ship is just coasting.
         /// </summary>
-        public static bool MatchVelocity(Ship ship, Vector2 desiredVelocity, float deltaTime, float velocityTolerance = VelocityTolerance)
+        public static bool MatchVelocity(Ship ship, Vector2 desiredVelocity, float deltaTime, float? velocityTolerance = null)
         {
             Vector2 steer = desiredVelocity - ship.Velocity;
-            if (steer.Length() < ship.ShipType.MaxSpeed * velocityTolerance)
+            if (steer.Length() < (velocityTolerance ?? ship.ShipType.MaxSpeed * VelocityTolerance))
                 return true;
 
             Seek(ship, steer, deltaTime);
@@ -147,7 +147,7 @@ namespace Strange_Universe.Game.NavSystem
         /// The approach speed is relative to the target, so the ship slows in time instead of overshooting.
         /// </summary>
         public static void Pursue(Ship ship, Vector2 targetPosition, Vector2 targetVelocity, float stopDistance, float deltaTime)
-            => MatchVelocity(ship, PursuitVelocity(ship, targetPosition, targetVelocity, stopDistance), deltaTime, PursuitVelocityTolerance);
+            => MatchVelocity(ship, PursuitVelocity(ship, targetPosition, targetVelocity, stopDistance), deltaTime, CorrectableSpeed(ship, PursuitToleranceSeconds));
 
         /// <summary>The velocity a ship should have to close in on a moving target and settle <paramref name="stopDistance"/> from it.</summary>
         public static Vector2 PursuitVelocity(Ship ship, Vector2 targetPosition, Vector2 targetVelocity, float stopDistance)
@@ -162,7 +162,10 @@ namespace Strange_Universe.Game.NavSystem
             // Closing speed from which the ship can still stop relative to the target at stopDistance,
             // allowing for the time it takes to turn around.
             float turnAroundTime = ship.ShipType.RotationSpeed > 0f ? MathF.PI / ship.ShipType.RotationSpeed : 0f;
-            float planned = AllowedApproachSpeed(ship, distance - stopDistance - ship.Speed * turnAroundTime, 0f);
+            // The turn-around allowance depends on how fast the ship is moving relative to the target, not on its own speed:
+            // a ship cruising alongside a moving target is not closing on it at all.
+            float relativeSpeed = (ship.Velocity - targetVelocity).Length();
+            float planned = AllowedApproachSpeed(ship, distance - stopDistance - relativeSpeed * turnAroundTime, 0f);
 
             // Near the stop distance the closing speed follows the distance error (backing off when too close), so the
             // ship settles there instead of coasting through at a speed too small to correct.
@@ -219,8 +222,15 @@ namespace Strange_Universe.Game.NavSystem
             return true;
         }
 
-        /// <summary>Tighter than normal flight: a pursuer should end up level with its target, not coasting just short of it.</summary>
-        public const float PursuitVelocityTolerance = 0.02f;
+        /// <summary>
+        /// Pursuit corrects velocity errors larger than what the engine can remove in this many seconds. Tighter than normal
+        /// flight (a pursuer should end up level with its target, not coasting just short of it), and tied to the ship's
+        /// acceleration rather than its top speed, so a faster ship is not any sloppier.
+        /// </summary>
+        public const float PursuitToleranceSeconds = 0.032f;
+
+        /// <summary>The speed error the main engine can remove in <paramref name="seconds"/>. A precision limit that does not depend on top speed.</summary>
+        public static float CorrectableSpeed(Ship ship, float seconds) => ship.MaxAcceleration * seconds;
 
         /// <summary>Closing speed per unit of distance error (1/s) when a pursuer is near its stop distance.</summary>
         public const float PursuitGain = 1.5f;
