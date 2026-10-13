@@ -196,7 +196,9 @@ namespace Strange_Universe.Game.NavSystem
                         // Apply thrust proportional to gravity strength and position error
                         if (isAligned)
                         {
-                            float gravityStrength = gravityForce.Length() / (Owner.ShipType.ThrustForce * GravityWell.GravityThrustRatio);
+                            // Gravity can be disabled (ratio 0), which must not divide by zero.
+                            float gravityReference = Owner.ShipType.ThrustForce * GravityWell.GravityThrustRatio;
+                            float gravityStrength = gravityReference > 0f ? gravityForce.Length() / gravityReference : 0f;
                             float thrustMultiplier = Math.Max(0.3f, Math.Clamp(gravityStrength + 0.5f, 0.3f, 1.0f));
                             Owner.ApplyThrust(deltaTime * thrustMultiplier);
                         }

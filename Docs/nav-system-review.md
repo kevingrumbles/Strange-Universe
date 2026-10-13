@@ -56,3 +56,16 @@ NPC `Shuttle` (max speed 580, thrust 360, rotation 3.5 rad/s) in the real genera
 7. **Optional**: split `JumpTask` into steering phases and a scripted arrival; add real Alert/Attack behavior for Guard.
 
 Items 1 and 2 are independent and safe to do first. Items 3 to 5 change behavior and should be done one at a time, with the harness in place.
+
+## Progress
+
+Gravity is switched off on purpose while the nav system is reworked (`GravityThrustRatio = 0`), so the gravity-compensation code is left as it is and the tests describe the no-gravity mode.
+
+### Steps 1 and 2 done
+
+- **Dock NaN fixed.** `DockTask` now treats a zero gravity reference as zero gravity strength instead of dividing by zero. The ship no longer teleports to the system origin when it starts holding.
+- **Simulation harness**: `Tests/Fakes/NavSim.cs` (a real generated system, one NPC, a fixed 60 Hz step, `Run(seconds, until, onStep)`).
+- **Tests** (`Tests/NavBehaviorTests.cs`): Dock never jumps, completes near the planet and holds station; Patrol visits waypoints in order and completes with none; Guard does not drift away. The Dock tests failed before the fix.
+- **Known defects recorded as skipped tests** (to be un-skipped by the step that fixes them): Patrol does not slow for a waypoint; Guard does not hold the requested orbit radius; Guard approaches head-on and passes through the planet (new finding 2b, seen while writing the tests; planet collision is off by default, so it is not visible in play).
+
+Results: 126 pass, 3 skipped.
