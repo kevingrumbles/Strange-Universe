@@ -24,6 +24,9 @@ namespace Strange_Universe.Game.NavSystem
 
         /// <summary>Called once by the navigator when the task reaches <see cref="TaskState.Complete"/>, before it is cleared.</summary>
         public virtual void OnCompleted() { }
+
+        /// <summary>Called once by the navigator when the task reaches <see cref="TaskState.Invalid"/>, before it is cleared. Not called when a task is cancelled.</summary>
+        public virtual void OnFailed() { }
     }
     
     public enum TaskState

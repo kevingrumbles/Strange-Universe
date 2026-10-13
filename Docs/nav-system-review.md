@@ -29,7 +29,7 @@ NPC `Shuttle` (max speed 580, thrust 360, rotation 3.5 rad/s) in the real genera
 1. **`DockTask` divides by zero.** `gravityStrength = gravityForce.Length() / (ThrustForce * GravityWell.GravityThrustRatio)`, and `GravityThrustRatio` is `0f` (`GravityWell.cs:16`). So `0 / 0 = NaN`, which flows into `ApplyThrust` and corrupts velocity and position. The `Integrate` guard hides it by teleporting the ship to the origin. Every merchant that docks hits this. It only appears when a correction is needed during hold, which is almost always. Also note that gravity is effectively disabled game-wide right now (ratio 0), so all gravity compensation in the tasks is dead code.
 2. **`GuardTask` cannot orbit.** It thrusts at full power along the tangent with only a crude radial correction. Without speed control, the turning circle of the ship (speed squared over lateral acceleration) is far larger than the requested orbit.
 3. **`PatrolTask` brakes ineffectively.** It applies forward thrust when aligned and then, in the same frame, calls `RotateTowards` a second time for "retrograde". The second call overrides the first and the ship swings back and forth rather than braking. In practice the slowdown never happens. It also uses a stale `distanceToTarget` after advancing to the next waypoint.
-4. **Player input fights the autopilot.** `Player.Update` applies manual rotation, retrograde and thrust before `Navigator.Update`, so keys held during a jump perturb the autopilot, and there is no way to cancel a jump.
+4. ~~**Player input fights the autopilot.**~~ **Withdrawn (my error).** The manual rotation, retrograde, thrust and jump handlers in `Player` already return while a nav task is active; I read `Player.Update` and missed those guards. What remains is only that there is no way to cancel a jump (the chosen rule is to ignore manual flight input while jumping, which is the current behavior).
 
 ### Structure
 
@@ -118,3 +118,13 @@ The three autopilot phases now use `Steering`; the scripted parts (jump accelera
 - **Tests:** phase order and speed-at-jump-start over four starts; jump leaves along its facing from an inward drift (the old bug); a sideways start still leaves radially.
 
 Results: 152 pass, 0 skipped. Remaining from the review: step 4 (navigator cancel and failure hooks, player input while a task is active), step 5 (per-task states), step 6 (seeded randomness; Dock and Guard are already done), step 7 (optional).
+
+### Step 4 done: navigator control and hooks
+
+- **Decision:** manual input is ignored while the autopilot is flying a task (no cancel key). This is what `Player` already did for rotation, retrograde, thrust and jump; finding 4 above was my misreading, now withdrawn. Weapons, targeting and the map are not blocked. A test locks the behavior in (all flight keys held for 60 frames during an active task: rotation, velocity and the jump queue are unchanged; with no task the keys work).
+- **`ShipNavigator`:** `Enqueue` rejects a null task or one that belongs to another ship; new `QueuedCount`, `CancelActive()` (drops the active task, the next queued one starts on the next update) and `Clear()` (drops everything). Cancel and clear run no hooks.
+- **`NavTask.OnFailed()`**: called once when a task reaches `Invalid`, before it is cleared (a counterpart of `OnCompleted`). An invalid task no longer needs special handling by callers, and it does not stop the queue.
+- No production code uses `CancelActive` or `Clear` yet; they are for AI and events (for example, a guard that must drop its task when threatened).
+- **Tests:** `NavigatorTests` (queue order, ownership checks, cancel, clear, hooks run exactly once, invalid task does not block the queue, player input).
+
+Results: 161 pass, 0 skipped. Remaining: step 5 (per-task states), step 6 (seeded randomness; Dock and Guard already done), step 7 (optional).
