@@ -59,30 +59,11 @@ namespace Strange_Universe.Game.NavSystem
                     }
                     else
                     {
-                        // Calculate outbound direction (away from system center)
-                        Vector2 outboundDirection = Owner.Position - Vector2.Zero;
-
-                        if (outboundDirection.LengthSquared() > 0.1f)
-                        {
-                            // Calculate target rotation angle
-                            float targetAngle = (float)Math.Atan2(outboundDirection.Y, outboundDirection.X);
-
-                            // Rotate toward outbound direction
-                            const float alignmentThreshold = 0.2f; // ~11 degrees
-                            bool isAligned = Owner.RotateTowards(targetAngle, deltaTime, alignmentThreshold);
-
-                            // Once aligned, apply thrust to accelerate outward
-                            if (isAligned)
-                            {
-                                Owner.ApplyThrust(deltaTime);
-                            }
-                        }
-                        else
-                        {
-                            // At system center, pick arbitrary outbound direction and thrust
-                            Owner.RotateTowards(0f, deltaTime); // Face right
-                            Owner.ApplyThrust(deltaTime);
-                        }
+                        // Fly straight out from the system center (face right when exactly at the center).
+                        // Matching an outbound velocity also cancels any sideways drift the ship started with.
+                        Vector2 outboundDirection = MathHelpers.SafeNormalize(Owner.Position, Vector2.UnitX);
+                        Vector2 outboundSteer = outboundDirection * Owner.ShipType.MaxSpeed - Owner.Velocity;
+                        Steering.Seek(Owner, outboundSteer, deltaTime);
                     }
                     break;
 
@@ -97,34 +78,17 @@ namespace Strange_Universe.Game.NavSystem
                     }
                     else
                     {
-                        // Calculate retrograde angle (opposite of velocity)
-                        if (Owner.Velocity.LengthSquared() > 1f)
-                        {
-                            float retrogradeAngle = (float)Math.Atan2(-Owner.Velocity.Y, -Owner.Velocity.X);
-
-                            // Rotate toward retrograde
-                            const float brakeAlignmentThreshold = 0.2f;
-                            bool isFacingRetrograde = Owner.RotateTowards(retrogradeAngle, deltaTime, brakeAlignmentThreshold);
-
-                            // Apply thrust retrograde to slow down
-                            if (isFacingRetrograde)
-                            {
-                                Owner.ApplyThrust(deltaTime);
-                            }
-                        }
+                        Steering.Brake(Owner, deltaTime);
                     }
                     break;
 
                 case TaskState.AlignForJump:
                     // GOAL: Align ship for jump (pointing away from system center)
                     Vector2 jumpDirection = MathHelpers.SafeNormalize(Owner.Position, Owner.Forward);
-                    float jumpAngle = (float)Math.Atan2(jumpDirection.Y, jumpDirection.X);
 
-                    // Rotate toward jump angle with tighter alignment tolerance
-                    const float jumpAlignmentThreshold = 0.05f; // ~3 degrees
-                    bool isAlignedForJump = Owner.RotateTowards(jumpAngle, deltaTime, jumpAlignmentThreshold);
-
-                    if (isAlignedForJump)
+                    // Rotate only; tighter alignment tolerance than normal flight (~3 degrees)
+                    const float jumpAlignmentThreshold = 0.05f;
+                    if (Steering.Seek(Owner, jumpDirection, deltaTime, jumpAlignmentThreshold, thrust: false))
                     {
                         CurrentState = TaskState.Jump;
                     }
@@ -165,20 +129,10 @@ namespace Strange_Universe.Game.NavSystem
                         // Exponential acceleration: starts at BaseAcceleration, grows exponentially
                         float currentAcceleration = BaseAcceleration * (float)Math.Pow(accelerationGrowthRate, jumpProgress * 10f);
 
-                        // Apply acceleration in the direction of current velocity (continuing jump trajectory)
-                        if (Owner.Velocity.LengthSquared() > 1f)
-                        {
-                            Vector2 velocityDirection = Vector2.Normalize(Owner.Velocity);
-
-                            // Directly modify velocity to bypass MaxSpeed soft cap
-                            // This simulates the ship's jump drive overriding normal thrust limits
-                            Owner.Velocity += velocityDirection * currentAcceleration * deltaTime;
-                        }
-                        else
-                        {
-                            // If somehow velocity was lost, accelerate in facing direction
-                            Owner.Velocity += Owner.Forward * currentAcceleration * deltaTime;
-                        }
+                        // Accelerate along the facing direction the ship aligned to. (Following the current velocity
+                        // instead would send a ship with leftover drift off sideways or even backwards.)
+                        // Directly modify velocity to bypass the MaxSpeed soft cap: the jump drive overrides normal thrust limits.
+                        Owner.Velocity += Owner.Forward * currentAcceleration * deltaTime;
                     }
                     break;
 

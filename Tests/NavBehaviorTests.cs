@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
@@ -290,5 +291,78 @@ public class NavBehaviorTests
         Assert.NotEqual(a1.HoldDuration, b.HoldDuration);
         foreach (var t in new[] { a1, b })
             Assert.InRange(t.HoldDuration, DockTask.MinHoldSeconds, DockTask.MaxHoldSeconds);
+    }
+
+    // -- Jump (pre-jump phases) ---------------------------------------------
+
+    private static readonly TaskState[] PreJumpOrder =
+        { TaskState.MoveToMandeville, TaskState.Decelerate, TaskState.AlignForJump, TaskState.Jump };
+
+    [Theory]
+    [InlineData(1000f, 0f, 0f, 0f)]          // at rest, inside Mandeville
+    [InlineData(4000f, 0f, 0f, 580f)]        // flying sideways at full speed
+    [InlineData(14000f, 0f, -580f, 0f)]      // flying inward at full speed
+    [InlineData(0f, 0f, 0f, 0f)]             // exactly at the center
+    public void Jump_RunsThePhasesInOrder_AndLeavesTheSystem(float x, float y, float vx, float vy)
+    {
+        using var sim = new NavSim();
+        sim.Place(new Vector2(x, y), new Vector2(vx, vy));
+        var task = sim.Start(new JumpTask(sim.Ship));
+
+        var seen = new List<TaskState>();
+        float speedWhenJumpStarted = float.NaN;
+        sim.Run(120f, () => sim.Ship.Remove, () =>
+        {
+            if (seen.Count == 0 || seen[^1] != task.CurrentState)
+            {
+                seen.Add(task.CurrentState);
+                if (task.CurrentState == TaskState.Jump) speedWhenJumpStarted = sim.Ship.Speed;
+            }
+        });
+
+        Assert.True(sim.Ship.Remove, "ship never left the system");
+        Assert.Equal(PreJumpOrder.Concat(new[] { TaskState.Complete }), seen);
+        Assert.True(speedWhenJumpStarted <= 50f + 1f, $"started the jump at speed {speedWhenJumpStarted:F0}");
+    }
+
+    [Fact]
+    public void Jump_LeavesAlongItsFacing_NotAlongLeftoverDrift()
+    {
+        // Outside the Mandeville radius and drifting inward slowly: the jump used to follow the drift,
+        // sending the ship backwards through the system.
+        using var sim = new NavSim();
+        sim.Place(new Vector2(16000, 0), new Vector2(-45, 0));
+        var task = sim.Start(new JumpTask(sim.Ship));
+
+        float worstAngle = 0f;
+        sim.Run(60f, () => sim.Ship.Remove, () =>
+        {
+            if (task.CurrentState == TaskState.Jump && sim.Ship.Speed > 300f)
+            {
+                float cos = Vector2.Dot(Vector2.Normalize(sim.Ship.Velocity), sim.Ship.Forward);
+                worstAngle = System.Math.Max(worstAngle, MathHelper.ToDegrees(MathF.Acos(MathHelper.Clamp(cos, -1f, 1f))));
+            }
+        });
+
+        Assert.True(sim.Ship.Remove);
+        Assert.True(sim.Time < 6f, $"took {sim.Time:F1}s");
+        Assert.True(worstAngle < 10f, $"travelled {worstAngle:F0} degrees off its facing");
+        Assert.True(sim.Ship.Position.X > 19000f, "should leave outward, on the side it started");
+    }
+
+    [Fact]
+    public void Jump_FromASidewaysStart_StillGoesOutward()
+    {
+        using var sim = new NavSim();
+        sim.Place(new Vector2(4000, 0), new Vector2(0, 580));
+        sim.Start(new JumpTask(sim.Ship));
+
+        sim.Run(120f, () => sim.Ship.Remove);
+
+        Assert.True(sim.Ship.Remove);
+        Assert.True(sim.Time < 40f, $"took {sim.Time:F1}s");
+        // Leaves roughly radially from where it left the Mandeville region, not on a long chord.
+        float cos = Vector2.Dot(Vector2.Normalize(sim.Ship.Position), Vector2.Normalize(sim.Ship.Velocity));
+        Assert.True(cos > 0.99f, $"left {MathHelper.ToDegrees(MathF.Acos(cos)):F0} degrees off radial");
     }
 }

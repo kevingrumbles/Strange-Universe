@@ -105,3 +105,16 @@ Results: 140 pass, 0 skipped. Still to move onto `Steering`: Dock (3c) and the a
 - **Tests:** theory over four starting positions (stops at the hold point without overshoot, hold lasts as long as asked), hold point is on the arrival side, default duration is in range and reproducible.
 
 Results: 146 pass, 0 skipped. Still to move onto `Steering`: the arrive/brake code in `JumpTask`.
+
+### Step 3d done: `JumpTask` pre-jump phases (step 3 complete)
+
+The three autopilot phases now use `Steering`; the scripted parts (jump acceleration, system translation, arrival) are unchanged.
+
+- **MoveToMandeville:** flies straight out from the system center by matching an outbound velocity (`Steering.Seek` on the velocity error), so any sideways drift is cancelled instead of kept. Exactly at the center it still faces right.
+- **Decelerate:** `Steering.Brake`, down to the same 50 units/s as before.
+- **AlignForJump:** `Steering.Seek` with thrust off, same 0.05 rad tolerance.
+- **Bug fixed in Jump:** the jump accelerated along the ship's *velocity*, not its facing. The brake stops at 50 units/s in any direction, so a ship with a small leftover drift would jump sideways (90 degrees off its facing) or even backwards (a ship drifting inward at 45 crossed the whole system, 12.4 s instead of 2.2 s). It now accelerates along the facing it aligned to. **Behavior change.**
+- **Timings** (Shuttle, system radius 19,656, Mandeville 14,742) are unchanged from before, within 0.4 s: from rest near the center 30.1 s, from the center 31.9 s, inward at full speed 10.2 s, outside Mandeville at rest 2.6 s, sideways at full speed 25.3 s (was 24.9 s; it now flies out radially instead of carrying its drift).
+- **Tests:** phase order and speed-at-jump-start over four starts; jump leaves along its facing from an inward drift (the old bug); a sideways start still leaves radially.
+
+Results: 152 pass, 0 skipped. Remaining from the review: step 4 (navigator cancel and failure hooks, player input while a task is active), step 5 (per-task states), step 6 (seeded randomness; Dock and Guard are already done), step 7 (optional).
