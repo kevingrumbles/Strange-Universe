@@ -49,6 +49,18 @@ namespace Strange_Universe.Game.EventSystem
             }
 
         }
+        /// <summary>A generator for the next event, drawn from the controller's own seeded stream.</summary>
+        private Random NextEventRandom() => new Random(_random.Next());
+
+        /// <summary>
+        /// Share of system spawns (percent) taken by <see cref="NpcTestEvent"/>: always 100 in test mode, otherwise the
+        /// event's own <see cref="NpcTestEvent.EventProbability"/>. Set it to override (tests do).
+        /// </summary>
+        public double? NpcTestProbabilityOverride { get; set; }
+
+        private double NpcTestProbability =>
+            NpcTestProbabilityOverride ?? (_owner.TestMode ? 100 : NpcTestEvent.EventProbability);
+
         public void SpawnEvent()
         {
             if (_owner == null)
@@ -58,18 +70,19 @@ namespace Strange_Universe.Game.EventSystem
             SystemEvent spawnEvent = null;
             switch ((int)(_random.NextDouble() * 100))
             {
-                //case int n when (n < NpcTestEvent.EventProbability):
-                //    _owner.Universe.Messages.Post(
-                //    spawnEvent = new NpcTestEvent();
-                //    break;
+                // The NPC test event comes first, so it takes its share of the rolls before the others. In test mode that
+                // share is everything: every system spawn is the test event.
+                case int n when (n < NpcTestProbability):
+                    spawnEvent = new NpcTestEvent { random = NextEventRandom() };
+                    break;
                 case int n when (n < DefendedSystemSpawn.EventProbability):
                     _owner.PostMessage($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
-                    spawnEvent = new DefendedSystemSpawn();
+                    spawnEvent = new DefendedSystemSpawn { random = NextEventRandom() };
                     break;
 
                 case int n when (n < ScoutedSystemSpawn.EventProbability):
                     _owner.PostMessage($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
-                    spawnEvent = new ScoutedSystemSpawn();
+                    spawnEvent = new ScoutedSystemSpawn { random = NextEventRandom() };
                     break;
             }
             if (spawnEvent is not null)
@@ -86,7 +99,7 @@ namespace Strange_Universe.Game.EventSystem
             switch ((int)(_random.NextDouble() * 100))
             {
                 case int n when (n < MerchantMissionEvent.EventProbability):
-                    spawnEvent = new MerchantMissionEvent();
+                    spawnEvent = new MerchantMissionEvent { random = NextEventRandom() };
                     break;
             }
             if (spawnEvent is not null)

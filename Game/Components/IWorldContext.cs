@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
@@ -11,8 +12,14 @@ namespace Strange_Universe.Game.Components;
 public interface IWorldContext
 {
     string SystemId { get; }
+
+    /// <summary>True when the game is in test mode (see <see cref="GameSettings.TestMode"/>).</summary>
+    bool TestMode { get; }
     IReadOnlyList<Planet> Planets { get; }
     int NpcCount { get; }
+
+    /// <summary>Every ship in the world: the player and all NPCs.</summary>
+    IEnumerable<Ship> Ships { get; }
     float SystemRadius { get; }
     float MandevilleRadius { get; }
     IReadOnlyList<Star> Stars { get; }
@@ -20,14 +27,17 @@ public interface IWorldContext
     /// <summary>Adds an NPC to the world and attaches it.</summary>
     void AddNpc(Nonplayer npc);
 
-    /// <summary>A random position clear of the asteroid belt and bodies, for patrol routes.</summary>
-    Vector2 GetRandomSafeLocationOutsideAsteroidBelt();
+    /// <summary>
+    /// A random position clear of the asteroid belt and bodies, for patrol routes. Pass a seeded
+    /// <paramref name="random"/> for a reproducible result; without one the system's own generator is used.
+    /// </summary>
+    Vector2 GetRandomSafeLocationOutsideAsteroidBelt(Random random = null);
 
     /// <summary>Where a ship arriving from <paramref name="fromGalaxyPosition"/> crosses the system edge.</summary>
-    Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null);
+    Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null, Random random = null);
 
     /// <summary>A clear position and heading for a ship appearing in the system.</summary>
-    Transform GetSafeEntryTransform();
+    Transform GetSafeEntryTransform(Random random = null);
 
     /// <summary>True when a system with this id exists in the galaxy (a valid jump target).</summary>
     bool SystemExists(string systemId);

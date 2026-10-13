@@ -41,8 +41,9 @@ public class SystemSpatialQueries
     /// Calculates an entry position at the edge of the system radius based on incoming direction
     /// from a galaxy position, with random variance on angle and distance.
     /// </summary>
-    public Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null)
+    public Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null, Random random = null)
     {
+        Random rng = random ?? _random;
         float baseAngle;
         if (fromGalaxyPosition.HasValue)
         {
@@ -51,16 +52,16 @@ public class SystemSpatialQueries
         }
         else
         {
-            baseAngle = (float)(_random.NextDouble() * Math.PI * 2);
+            baseAngle = (float)(rng.NextDouble() * Math.PI * 2);
         }
 
         // Angular variance ±15 degrees (±0.26 radians)
-        float angleVariance = (float)((_random.NextDouble() - 0.5) * 0.52);
+        float angleVariance = (float)((rng.NextDouble() - 0.5) * 0.52);
         float entryAngle = baseAngle + angleVariance;
         Vector2 entryDirection = new Vector2((float)Math.Cos(entryAngle), (float)Math.Sin(entryAngle));
 
         // Distance variance ±5% of system radius
-        float distanceVariance = (float)((_random.NextDouble() - 0.5) * 0.1);
+        float distanceVariance = (float)((rng.NextDouble() - 0.5) * 0.1);
         float entryDistance = _system.SystemRadius * (1f + distanceVariance);
 
         return entryDirection * entryDistance;
@@ -69,9 +70,10 @@ public class SystemSpatialQueries
     /// <summary>
     /// A position just inside the Mandeville radius, facing the system centre.
     /// </summary>
-    public Transform GetSafeEntryTransform(float? arrivalAngle = null)
+    public Transform GetSafeEntryTransform(float? arrivalAngle = null, Random random = null)
     {
-        float angle = arrivalAngle ?? (float)(_random.NextDouble() * Math.PI * 2);
+        Random rng = random ?? _random;
+        float angle = arrivalAngle ?? (float)(rng.NextDouble() * Math.PI * 2);
 
         Vector2 outwardDirection = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
         Vector2 entryPosition = outwardDirection * (_system.MandevilleRadius * 0.9f);
@@ -91,8 +93,9 @@ public class SystemSpatialQueries
     /// Returns <paramref name="location"/> pushed clear of all stars and planets.
     /// If the location is already safe, returns it unchanged.
     /// </summary>
-    public Vector2 GetSafeLocation(Vector2 location)
+    public Vector2 GetSafeLocation(Vector2 location, Random random = null)
     {
+        Random rng = random ?? _random;
         const float MinimumClearance = 1000f;
         Vector2 safeLocation = location;
         bool needsAdjustment = true;
@@ -107,20 +110,20 @@ public class SystemSpatialQueries
             if (_system.Stars != null)
             {
                 foreach (var star in _system.Stars)
-                    needsAdjustment |= PushClear(ref safeLocation, star.Position, star.Radius + MinimumClearance);
+                    needsAdjustment |= PushClear(ref safeLocation, star.Position, star.Radius + MinimumClearance, rng);
             }
 
             if (_system.Planets != null)
             {
                 foreach (var planet in _system.Planets)
-                    needsAdjustment |= PushClear(ref safeLocation, planet.Position, planet.Radius + MinimumClearance);
+                    needsAdjustment |= PushClear(ref safeLocation, planet.Position, planet.Radius + MinimumClearance, rng);
             }
         }
 
         return safeLocation;
     }
 
-    private bool PushClear(ref Vector2 location, Vector2 body, float requiredDistance)
+    private bool PushClear(ref Vector2 location, Vector2 body, float requiredDistance, Random rng)
     {
         if (Vector2.Distance(location, body) >= requiredDistance)
             return false;
@@ -129,7 +132,7 @@ public class SystemSpatialQueries
         if (away.LengthSquared() < 0.1f)
         {
             // At the exact body position: pick a random direction.
-            float randomAngle = (float)(_random.NextDouble() * Math.PI * 2);
+            float randomAngle = (float)(rng.NextDouble() * Math.PI * 2);
             away = new Vector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle));
         }
         else
@@ -144,19 +147,20 @@ public class SystemSpatialQueries
     /// <summary>
     /// A random safe location between the asteroid belt outer radius and the system radius.
     /// </summary>
-    public Vector2 GetRandomSafeLocationOutsideAsteroidBelt()
+    public Vector2 GetRandomSafeLocationOutsideAsteroidBelt(Random random = null)
     {
+        Random rng = random ?? _random;
         float inner = _system.AsteroidBeltOuterRadius;
         float outer = _system.SystemRadius;
 
         const int maxAttempts = 20;
         for (int attempt = 0; attempt < maxAttempts; attempt++)
         {
-            float angle = (float)(_random.NextDouble() * Math.PI * 2);
-            float distance = inner + (float)(_random.NextDouble() * (outer - inner));
+            float angle = (float)(rng.NextDouble() * Math.PI * 2);
+            float distance = inner + (float)(rng.NextDouble() * (outer - inner));
 
             Vector2 candidate = new Vector2((float)Math.Cos(angle) * distance, (float)Math.Sin(angle) * distance);
-            Vector2 safePosition = GetSafeLocation(candidate);
+            Vector2 safePosition = GetSafeLocation(candidate, rng);
 
             float safeDistance = safePosition.Length();
             if (safeDistance >= inner && safeDistance <= outer)
@@ -164,7 +168,7 @@ public class SystemSpatialQueries
         }
 
         // Fallback: mid-range on a random angle
-        float fallbackAngle = (float)(_random.NextDouble() * Math.PI * 2);
+        float fallbackAngle = (float)(rng.NextDouble() * Math.PI * 2);
         float fallbackDistance = (inner + outer) / 2f;
         return new Vector2((float)Math.Cos(fallbackAngle) * fallbackDistance, (float)Math.Sin(fallbackAngle) * fallbackDistance);
     }

@@ -200,6 +200,30 @@ public class Equipment
         => Presets.Find(e => string.Equals(e.EquipmentName, equipmentName, StringComparison.OrdinalIgnoreCase))
            ?? new Equipment { EquipmentName = equipmentName, EquipmentType = EquipmentType.Unkown };
 
+    /// <summary>
+    /// A new, separate copy of the weapon called <paramref name="weaponName"/> (so cooldowns are not shared with other ships),
+    /// or null when there is no such weapon definition. <see cref="FromName"/> returns the shared preset instead.
+    /// </summary>
+    public static Equipment CreateWeapon(string weaponName) => DefinitionRepository.Default.FindWeapon(weaponName)?.ToEquipment();
+
+    /// <summary>A new, separate copy of any preset by name (weapons come from the definitions), or null when the name is unknown.</summary>
+    public static Equipment Create(string equipmentName)
+    {
+        var weapon = CreateWeapon(equipmentName);
+        if (weapon != null) return weapon;
+
+        var preset = FromName(equipmentName);
+        return preset.EquipmentType == EquipmentType.Unkown ? null : preset.Clone();
+    }
+
+    /// <summary>A copy with its own cooldown state.</summary>
+    public Equipment Clone()
+    {
+        var copy = (Equipment)MemberwiseClone();
+        copy._cooldown = 0f;
+        return copy;
+    }
+
     public string EquipmentName { get; set; }
     public EquipmentType EquipmentType { get; set; }
     public int? Damage { get; set; } = null;

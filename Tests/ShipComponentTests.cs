@@ -265,7 +265,7 @@ public class ShipComponentTests
         var ship = new Nonplayer();
         ship.ShipType = new ShipStats { ShipTypeName = "shuttle" };
 
-        Assert.Equal(ShipStats.Shuttle.MaxSpeed, ship.ShipType.MaxSpeed);
+        Assert.Equal(ShipStats.FromName("Shuttle").MaxSpeed, ship.ShipType.MaxSpeed);
         Assert.Equal("Shuttle", ship.ShipType.ShipTypeName);
     }
 }

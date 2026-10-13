@@ -24,6 +24,7 @@ public sealed class PlayingScreen : IScreen
     private WorldRenderer _world;
     private HudRenderer _hudRenderer;
     private GalaxyMapOverlay _galaxyMap;
+    private PlayerDeathMonitor _deathMonitor;
 
     public PlayingScreen(ScreenContext ctx, ProjectileRenderer projectileRenderer, Universe universe)
     {
@@ -45,6 +46,7 @@ public sealed class PlayingScreen : IScreen
         _galaxyMap = new GalaxyMapOverlay(_ctx.Font, _ctx.GraphicsDevice, _ctx.Render);
 
         _universe.Settings = _ctx.Settings;
+        _deathMonitor = new PlayerDeathMonitor(_universe.Events, _universe.Player);
         _sprites.ImpactEffects.Connect(_universe.Events);
         _universe.Generate(_services.Assets, _hud);
         _ctx.SetMouseVisible(false);
@@ -52,7 +54,20 @@ public sealed class PlayingScreen : IScreen
 
     public void OnExit()
     {
-        _ctx.Saves.Save(_universe);
+        // Decided before the monitor goes away: a ship destroyed in the same frame the window closes is not saved either.
+        bool playerDestroyed = _deathMonitor?.PlayerDestroyed ?? false;
+        _deathMonitor?.Dispose();
+        _deathMonitor = null;
+
+        if (playerDestroyed)
+        {
+            // The player was destroyed: nothing from this session is saved. The menu offers the last saved state again.
+            _ctx.Saves.ReloadInto(_ctx.Universes);
+        }
+        else
+        {
+            _ctx.Saves.Save(_universe);
+        }
         _sprites?.ImpactEffects.Disconnect();
         _universe.Dispose();
         _galaxyMap?.Dispose();
@@ -64,6 +79,13 @@ public sealed class PlayingScreen : IScreen
     public void Update(GameTime gameTime)
     {
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+
+        // Destroyed: back to the menu without saving (OnExit sees the flag).
+        if (_deathMonitor.PlayerDestroyed)
+        {
+            _ctx.ShowMenu();
+            return;
+        }
 
         // Galaxy map intercepts all input while open.
         if (_galaxyMap.IsOpen)

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
@@ -9,6 +10,7 @@ namespace Strange_Universe.Tests.Fakes;
 public sealed class FakeWorld : IWorldContext
 {
     public string SystemId { get; set; } = "fake_system";
+    public bool TestMode { get; set; }
     public float SystemRadius { get; set; } = 10000f;
     public float MandevilleRadius { get; set; } = 7500f;
     public List<Planet> PlanetList { get; } = new();
@@ -24,11 +26,14 @@ public sealed class FakeWorld : IWorldContext
     public IReadOnlyList<Planet> Planets => PlanetList;
     public IReadOnlyList<Star> Stars => StarList;
     public int NpcCount => Added.Count;
+    public List<Ship> ShipList { get; } = new();
+    public IEnumerable<Ship> Ships => ShipList;
     public void AddNpc(Nonplayer npc) => Added.Add(npc);
-    public Vector2 GetRandomSafeLocationOutsideAsteroidBelt() => new(100, 100);
+    public List<Random> RandomsUsed { get; } = new();
+    public Vector2 GetRandomSafeLocationOutsideAsteroidBelt(Random random = null) { RandomsUsed.Add(random); return new(100, 100); }
     public void PostMessage(string message, int durationSeconds = 3) => Messages.Add(message);
-    public Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null) => EdgeEntry;
-    public Transform GetSafeEntryTransform() => new() { Position = SafeEntry };
+    public Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null, Random random = null) { RandomsUsed.Add(random); return EdgeEntry; }
+    public Transform GetSafeEntryTransform(Random random = null) { RandomsUsed.Add(random); return new() { Position = SafeEntry }; }
     public bool SystemExists(string systemId) => KnownSystems.Contains(systemId);
     public void RemoveFromJumpRoute(string systemId) => RemovedFromRoute.Add(systemId);
     public void EnterSystem(string systemId) { Entered.Add(systemId); SystemId = systemId; }

@@ -24,3 +24,17 @@ public sealed class FileSaveService : ISaveService
     public void Save(Universe universe) => Persistence.Persist(universe, _path);
     public void Delete(Universe universe) => Persistence.Remove(universe, _path);
 }
+
+public static class SaveServiceExtensions
+{
+    /// <summary>
+    /// Replaces the contents of <paramref name="universes"/> with what is saved. This throws away anything that changed
+    /// in memory since the last save (and universes that were never saved), so it is how a session is abandoned.
+    /// </summary>
+    public static void ReloadInto(this ISaveService saves, List<Universe> universes)
+    {
+        var saved = saves.LoadAll();
+        universes.Clear();
+        universes.AddRange(saved);
+    }
+}

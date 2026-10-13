@@ -23,9 +23,10 @@ public class Nonplayer : Ship
     public Nonplayer(string npcId, string shipType = "Shuttle", string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType)
     {
         Id = npcId;
+        EquipFromShipType();
         if (jumpSpawn)
         {
-            EnqueueNavTask(new JumpTask(this, currentState: TaskState.SystemTranslation));
+            EnqueueNavTask(new JumpTask(this, startPhase: JumpTask.Phase.SystemTranslation));
         }
         else
         {
@@ -37,6 +38,15 @@ public class Nonplayer : Ship
     [JsonConstructor]
     public Nonplayer() : base()
     {
+    }
+
+    /// <summary>Flags the attacker as hostile and puts the navigator on alert (see <see cref="AlertTask"/>).</summary>
+    protected override void OnAttacked(Ship attacker)
+    {
+        if (attacker == null || ReferenceEquals(attacker, this)) return;
+
+        MarkHostile(attacker);
+        Navigator.RaiseAlert();
     }
 
     public new void Update(float deltaTime)
