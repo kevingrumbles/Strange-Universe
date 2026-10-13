@@ -156,7 +156,8 @@ public class Universe : IDisposable
         Player.CurrentFuelLevel = Player.MaxFuelLevel;
         Player.CurrentHullStrength = Player.MaxHullStrength;
         Player.CurrentShieldStrength = Player.MaxShieldStrength;
-        Player.Equipment.Add(Equipment.Create("Light Laser"));
+        foreach (var itemName in Player.ShipType.DefaultEquipment)
+            Player.Equipment.Add(Equipment.Create(itemName));
     }
 
     public void Update(float deltaTime, InputState input)

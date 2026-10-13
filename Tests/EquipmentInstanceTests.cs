@@ -13,7 +13,7 @@ public class EquipmentInstanceTests
     private static string TempPath() => Path.Combine(Path.GetTempPath(), $"su-equip-{Guid.NewGuid():N}.json");
 
     /// <summary>The ship's only weapon.</summary>
-    private static Weapon Gun(Ship ship) => Assert.IsType<Weapon>(ship.Equipment.Single());
+    private static Weapon Gun(Ship ship) => ship.Equipment.OfType<Weapon>().Single();
 
     [Fact]
     public void ANewPlayersStartingWeapon_IsItsOwnCopy()
@@ -23,6 +23,21 @@ public class EquipmentInstanceTests
 
         Assert.Equal("Light Laser", Gun(a).EquipmentName);
         Assert.NotSame(Gun(a), Gun(b));
+    }
+
+    [Fact]
+    public void TheShuttle_StartsWithALaserABasicShieldAndBasicHull()
+    {
+        var player = new Universe("A", "a-seed").Player;
+        var npc = new Nonplayer("npc");
+
+        foreach (var ship in new Ship[] { player, npc })
+        {
+            Assert.Equal(new[] { "Light Laser", "Basic Shield Generator", "Light Hull Plating" },
+                         ship.Equipment.Select(e => e.EquipmentName));
+            Assert.Single(ship.Equipment.OfType<Shield>());
+            Assert.Single(ship.Equipment.OfType<HullPlating>());
+        }
     }
 
     [Fact]

@@ -263,6 +263,7 @@ public class ShipComponentTests
     public void ShieldRecharge_AShipWithAGenerator_RechargesInTheGame()
     {
         var npc = new Nonplayer("npc");
+        npc.Equipment.Clear();
         npc.Equipment.Add(Equipment.Create("Military Shield Generator")); // 80/s after a 2 s delay
         npc.CurrentShieldStrength = 1;
         npc.CurrentHullStrength = npc.MaxHullStrength;
