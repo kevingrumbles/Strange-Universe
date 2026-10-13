@@ -161,6 +161,13 @@ public class StarSystem : IWorldContext
     // -- IWorldContext ---------------------------------------------------------
     IReadOnlyList<Planet> IWorldContext.Planets => Planets;
     int IWorldContext.NpcCount => Npcs.Count;
+    IEnumerable<Ship> IWorldContext.Ships => AllShips();
+
+    private IEnumerable<Ship> AllShips()
+    {
+        if (ActivePlayer != null) yield return ActivePlayer;
+        foreach (var npc in Npcs) yield return npc;
+    }
     Vector2 IWorldContext.GetRandomSafeLocationOutsideAsteroidBelt(Random random) => Spatial.GetRandomSafeLocationOutsideAsteroidBelt(random);
     void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Messages.Post(message, durationSeconds);
     IReadOnlyList<Star> IWorldContext.Stars => Stars;

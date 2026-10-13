@@ -17,6 +17,7 @@ public class ShipStats
         SpriteName           = "Art/Shuttle_sprite.png",
         SplashName           = "Art/Shuttle_splash.png",
         SpriteScale          = 1.5f,
+        DefaultEquipment     = new[] { "Light Laser" },
         MaxHull              = 1,
         MaxShield            = 1,
         MaxFuel              = 5,
@@ -52,4 +53,7 @@ public class ShipStats
     [JsonIgnore] public int MaxShield { get; set; }
     [JsonIgnore] public int MaxFuel { get; set; }
     [JsonIgnore] public float Mass { get; set; } = 1.0f;
+
+    /// <summary>Names of the equipment a ship of this type starts with (ships that are not set up by hand, such as NPCs).</summary>
+    [JsonIgnore] public string[] DefaultEquipment { get; set; } = System.Array.Empty<string>();
 }

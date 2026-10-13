@@ -23,6 +23,7 @@ public class Nonplayer : Ship
     public Nonplayer(string npcId, string shipType = "Shuttle", string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType)
     {
         Id = npcId;
+        EquipFromShipType();
         if (jumpSpawn)
         {
             EnqueueNavTask(new JumpTask(this, startPhase: JumpTask.Phase.SystemTranslation));

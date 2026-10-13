@@ -25,6 +25,8 @@ public sealed class FakeWorld : IWorldContext
     public IReadOnlyList<Planet> Planets => PlanetList;
     public IReadOnlyList<Star> Stars => StarList;
     public int NpcCount => Added.Count;
+    public List<Ship> ShipList { get; } = new();
+    public IEnumerable<Ship> Ships => ShipList;
     public void AddNpc(Nonplayer npc) => Added.Add(npc);
     public List<Random> RandomsUsed { get; } = new();
     public Vector2 GetRandomSafeLocationOutsideAsteroidBelt(Random random = null) { RandomsUsed.Add(random); return new(100, 100); }

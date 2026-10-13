@@ -41,6 +41,34 @@ public class WeaponSystem
             SumUtilityBonus(equipment, e => e.Accuracy));
     }
 
+    /// <summary>The primary weapon with the longest range, or null when the ship is unarmed.</summary>
+    private Equipment LongestRangeWeapon()
+    {
+        var equipment = _equipment();
+        Equipment best = null;
+        if (equipment == null) return null;
+        for (int i = 0; i < equipment.Count; i++)
+        {
+            var weapon = equipment[i];
+            if (weapon.PrimaryWeapon && (weapon.Range ?? 0f) > (best?.Range ?? 0f))
+                best = weapon;
+        }
+        return best;
+    }
+
+    /// <summary>Longest range among primary weapons, 0 when the ship is unarmed.</summary>
+    public float MaxRange => LongestRangeWeapon()?.Range ?? 0f;
+
+    /// <summary>Muzzle speed (relative to the shooter) of the longest-range primary weapon; 0 when unarmed.</summary>
+    public float ProjectileSpeed
+    {
+        get
+        {
+            var weapon = LongestRangeWeapon();
+            return weapon == null ? 0f : (weapon.Speed ?? weapon.ProjectileSpeed);
+        }
+    }
+
     /// <summary>Advances cooldowns on all primary weapons.</summary>
     public void UpdateCooldowns(float deltaTime)
     {

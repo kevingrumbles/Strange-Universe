@@ -182,6 +182,50 @@ public abstract class Ship
         Weapons.Fire(this, StarSystem.Projectiles);
     }
 
+    /// <summary>
+    /// Gives the ship the equipment its type starts with, and fills hull, shield and fuel to the type's maximums.
+    /// Used for ships that are not set up by hand (NPCs).
+    /// </summary>
+    protected void EquipFromShipType()
+    {
+        CurrentHullStrength = MaxHullStrength;
+        CurrentShieldStrength = MaxShieldStrength;
+        CurrentFuelLevel = MaxFuelLevel;
+
+        Equipment.Clear();
+        foreach (var name in ShipType.DefaultEquipment ?? System.Array.Empty<string>())
+        {
+            var item = Components.Equipment.Create(name);
+            if (item != null) Equipment.Add(item);
+        }
+    }
+
+    // -- Hostility ----------------------------------------------------------
+    private readonly HashSet<Ship> _hostiles = new();
+
+    /// <summary>Ships this ship treats as enemies (for example, ones that shot it). Not saved.</summary>
+    [JsonIgnore] public IReadOnlyCollection<Ship> Hostiles => _hostiles;
+
+    public bool IsHostileTo(Ship other) => other != null && _hostiles.Contains(other);
+
+    /// <summary>Flags <paramref name="other"/> as hostile. A ship is never hostile to itself.</summary>
+    public void MarkHostile(Ship other)
+    {
+        if (other != null && !ReferenceEquals(other, this))
+            _hostiles.Add(other);
+    }
+
+    public void ForgetHostile(Ship other) => _hostiles.Remove(other);
+
+    /// <summary>Called after this ship has been damaged by <paramref name="attacker"/> and is still alive.</summary>
+    protected virtual void OnAttacked(Ship attacker) { }
+
+    /// <summary>Longest range of this ship's primary weapons; 0 when unarmed.</summary>
+    [JsonIgnore] public float WeaponRange => Weapons.MaxRange;
+
+    /// <summary>Muzzle speed of this ship's longest-range weapon, relative to the ship; 0 when unarmed.</summary>
+    [JsonIgnore] public float ProjectileSpeed => Weapons.ProjectileSpeed;
+
     // -- Damage -------------------------------------------------------------
     /// <summary>
     /// Applies an incoming projectile, depleting shields first and then hull, and
@@ -199,6 +243,8 @@ public abstract class Ship
         StarSystem?.Universe?.Events.Publish(new ShipDamaged(this, projectile, shieldWasUp));
         if (IsDestroyed)
             StarSystem?.Universe?.Events.Publish(new ShipDestroyed(this, projectile.Owner));
+        else
+            OnAttacked(projectile.Owner);
     }
 
     /// <inheritdoc cref="ShipDurability.ApplyDamage"/>

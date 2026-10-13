@@ -14,6 +14,9 @@ public interface IWorldContext
     string SystemId { get; }
     IReadOnlyList<Planet> Planets { get; }
     int NpcCount { get; }
+
+    /// <summary>Every ship in the world: the player and all NPCs.</summary>
+    IEnumerable<Ship> Ships { get; }
     float SystemRadius { get; }
     float MandevilleRadius { get; }
     IReadOnlyList<Star> Stars { get; }
