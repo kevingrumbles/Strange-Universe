@@ -110,6 +110,7 @@ public class CombatSteeringTests
         attacker.Navigator.Clear();
         attacker.CurrentHullStrength = 1000;
         attacker.CurrentShieldStrength = 0;
+        attacker.Equipment.Clear(); // no generator, so the shield stays down instead of recharging
         attacker.Position = new Vector2(5000, 0);
         attacker.Velocity = new Vector2(0, sim.MaxSpeed * 0.43f);
         sim.Place(Vector2.Zero);
@@ -133,6 +134,7 @@ public class CombatSteeringTests
         attacker.Navigator.Clear();
         attacker.CurrentHullStrength = 1000;
         attacker.CurrentShieldStrength = 0;
+        attacker.Equipment.Clear(); // no generator, so the shield stays down instead of recharging
         var planet = sim.System.Planets[^1];
         attacker.Position = new Vector2(0, -sim.System.SystemRadius * 0.9f);
         attacker.Velocity = Vector2.Zero;

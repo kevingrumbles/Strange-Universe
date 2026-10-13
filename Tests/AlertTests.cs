@@ -25,6 +25,7 @@ public class AlertTests
         attacker.Navigator.Clear(); // its opening spawn task would move it to the entry point
         attacker.CurrentHullStrength = 1000; // survives return fire
         attacker.CurrentShieldStrength = 0;
+        attacker.Equipment.Clear(); // no generator, so the shield stays down instead of recharging
         return (sim, attacker);
     }
 

@@ -113,7 +113,7 @@ public abstract class Ship
     protected Ship()
     {
         Physics    = new ShipPhysics(() => ShipType);
-        Durability = new ShipDurability(() => ShipType, () => Equipment.OfType<Shield>().FirstOrDefault());
+        Durability = new ShipDurability(() => ShipType, () => Equipment);
         Sensors    = new ShipSensors(this);
         Weapons    = new WeaponSystem(() => Equipment);
         Navigator  = new ShipNavigator(this);
@@ -190,16 +190,17 @@ public abstract class Ship
     /// </summary>
     protected void EquipFromShipType()
     {
-        CurrentHullStrength = MaxHullStrength;
-        CurrentShieldStrength = MaxShieldStrength;
-        CurrentFuelLevel = MaxFuelLevel;
-
         Equipment.Clear();
         foreach (var name in ShipType.DefaultEquipment ?? System.Array.Empty<string>())
         {
             var item = Components.Equipment.Create(name);
             if (item is not UnknownEquipment) Equipment.Add(item); // a name that is not a known item is skipped
         }
+
+        // Filled last: the maximums include what the equipment adds.
+        CurrentHullStrength = MaxHullStrength;
+        CurrentShieldStrength = MaxShieldStrength;
+        CurrentFuelLevel = MaxFuelLevel;
     }
 
     // -- Hostility ----------------------------------------------------------

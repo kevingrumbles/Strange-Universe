@@ -24,8 +24,8 @@ public class NpcLoadoutTests
     {
         var npc = new Nonplayer("n1");
 
-        Assert.Equal(npc.ShipType.MaxHull, npc.CurrentHullStrength);
-        Assert.Equal(npc.ShipType.MaxShield, npc.CurrentShieldStrength);
+        Assert.Equal(npc.MaxHullStrength, npc.CurrentHullStrength);
+        Assert.Equal(npc.MaxShieldStrength, npc.CurrentShieldStrength);
         Assert.Equal(npc.ShipType.MaxFuel, npc.CurrentFuelLevel);
     }
 

@@ -178,6 +178,42 @@ public class ShipComponentTests
         Assert.Equal(0f, d.FuelPercentage);
     }
 
+    // -- Equipment adds to the ship's base strength ---------------------------
+
+    [Fact]
+    public void MaxShieldAndHull_AreTheShipTypesValuesPlusTheEquipments()
+    {
+        var gear = new List<Equipment>();
+        var d = new ShipDurability(() => Stats, () => gear); // base 100 hull, 50 shield
+        Assert.Equal(100, d.MaxHull);
+        Assert.Equal(50, d.MaxShield);
+
+        gear.Add(new Shield { ShieldStrength = 500f });
+        gear.Add(new Shield { ShieldStrength = 200f });
+        gear.Add(new HullPlating { HullStrength = 300f });
+        Assert.Equal(750, d.MaxShield);
+        Assert.Equal(400, d.MaxHull);
+
+        d.Shield = 375;
+        Assert.Equal(50f, d.ShieldPercentage);
+    }
+
+    [Fact]
+    public void AShip_StartsFullAtTheTypesValuesPlusItsEquipment()
+    {
+        var shuttle = ShipStats.Shuttle;
+        var player = new Universe("A", "a-seed").Player;
+        var npc = new Nonplayer("npc");
+
+        foreach (var ship in new Ship[] { player, npc })
+        {
+            Assert.Equal(shuttle.MaxShield + 500, ship.MaxShieldStrength); // Basic Shield Generator
+            Assert.Equal(shuttle.MaxHull + 300, ship.MaxHullStrength);     // Light Hull Plating
+            Assert.Equal(ship.MaxShieldStrength, ship.CurrentShieldStrength);
+            Assert.Equal(ship.MaxHullStrength, ship.CurrentHullStrength);
+        }
+    }
+
     // -- Shield recharge -----------------------------------------------------
 
     private static Shield Generator(float rate = 10f, float delay = 2f) => new()
@@ -194,7 +230,7 @@ public class ShipComponentTests
     [Fact]
     public void ShieldRecharge_WaitsForTheDelay_ThenRegainsAtTheRechargeRate()
     {
-        var d = new ShipDurability(() => Stats, () => Generator(rate: 10f, delay: 2f)) { Hull = 100, Shield = 5 };
+        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 10f, delay: 2f) }) { Hull = 100, Shield = 5 };
         d.ApplyDamage(5); // the shield goes down
         Assert.Equal(0, d.Shield);
 
@@ -208,7 +244,7 @@ public class ShipComponentTests
     [Fact]
     public void ShieldRecharge_StopsAtTheMaximum()
     {
-        var d = new ShipDurability(() => Stats, () => Generator(rate: 100f, delay: 0f)) { Hull = 100, Shield = 40 };
+        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 100f, delay: 0f) }) { Hull = 100, Shield = 40 };
 
         Run(d, 5f);
 
@@ -218,7 +254,7 @@ public class ShipComponentTests
     [Fact]
     public void ShieldRecharge_DelayRestartsEachTimeTheShieldGoesDown()
     {
-        var d = new ShipDurability(() => Stats, () => Generator(rate: 10f, delay: 2f)) { Hull = 100, Shield = 5 };
+        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 10f, delay: 2f) }) { Hull = 100, Shield = 5 };
         d.ApplyDamage(5);
         Run(d, 3f);
         Assert.True(d.Shield > 0);
@@ -233,7 +269,7 @@ public class ShipComponentTests
     [Fact]
     public void ShieldRecharge_AHitWhileTheShieldIsDown_RestartsTheDelay()
     {
-        var d = new ShipDurability(() => Stats, () => Generator(rate: 10f, delay: 2f)) { Hull = 100, Shield = 5 };
+        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 10f, delay: 2f) }) { Hull = 100, Shield = 5 };
         d.ApplyDamage(5);
         Run(d, 1.5f);
         Assert.Equal(0, d.Shield); // still waiting, 0.5 s to go
@@ -254,7 +290,7 @@ public class ShipComponentTests
         Run(bare, 10f);
         Assert.Equal(0, bare.Shield);
 
-        var dead = new ShipDurability(() => Stats, () => Generator(delay: 0f)) { Hull = 0, Shield = 0 };
+        var dead = new ShipDurability(() => Stats, () => new[] { Generator(delay: 0f) }) { Hull = 0, Shield = 0 };
         Run(dead, 10f);
         Assert.Equal(0, dead.Shield);
     }
@@ -273,7 +309,7 @@ public class ShipComponentTests
         for (int i = 0; i < 60 * 3; i++)
             npc.Update(1f / 60f);
 
-        Assert.Equal(npc.MaxShieldStrength, npc.CurrentShieldStrength); // 15 points: full within a second of the delay
+        Assert.InRange(npc.CurrentShieldStrength!.Value, 75, 85); // 3 s in, 2 s of it delay: about 1 s at 80 per second
     }
 
     // -- WeaponSystem --------------------------------------------------------

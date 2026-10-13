@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Strange_Universe.Game.Components;
 
 namespace Strange_Universe.Game.Entities.ShipParts;
@@ -8,16 +10,16 @@ public class ShipDurability
 {
     private readonly Func<ShipStats> _stats;
 
-    private readonly Func<Shield> _shieldGenerator;
+    private readonly Func<IEnumerable<Equipment>> _equipment;
     private float _rechargeDelayLeft;
     private float _rechargeRemainder; // the fraction of a shield point not yet added
 
     /// <param name="stats">The ship's current stats.</param>
-    /// <param name="shieldGenerator">The shield generator the ship carries (null when it has none); it sets how the shield recharges.</param>
-    public ShipDurability(Func<ShipStats> stats, Func<Shield> shieldGenerator = null)
+    /// <param name="equipment">The ship's equipment (null for none). Shields and hull plating add to the ship type's base values, and the first shield generator sets how the shield recharges.</param>
+    public ShipDurability(Func<ShipStats> stats, Func<IEnumerable<Equipment>> equipment = null)
     {
         _stats = stats ?? throw new ArgumentNullException(nameof(stats));
-        _shieldGenerator = shieldGenerator;
+        _equipment = equipment;
     }
 
     /// <summary>Seconds left before a downed shield starts to recharge; 0 when it is not waiting.</summary>
@@ -27,8 +29,14 @@ public class ShipDurability
     public int? Shield { get; set; }
     public int? Fuel   { get; set; }
 
-    public int MaxHull   => _stats().MaxHull;
-    public int MaxShield => _stats().MaxShield;
+    private IEnumerable<Equipment> Carried => _equipment?.Invoke() ?? Enumerable.Empty<Equipment>();
+    private Shield ShieldGenerator => Carried.OfType<Shield>().FirstOrDefault();
+
+    /// <summary>The ship type's hull plus the strength of every hull plating it carries.</summary>
+    public int MaxHull   => _stats().MaxHull + (int)Carried.OfType<HullPlating>().Sum(h => h.HullStrength);
+
+    /// <summary>The ship type's shield plus the strength of every shield generator it carries.</summary>
+    public int MaxShield => _stats().MaxShield + (int)Carried.OfType<Shield>().Sum(g => g.ShieldStrength);
     public int MaxFuel   => _stats().MaxFuel;
 
     public float HullPercentage   => Percent(Hull, MaxHull);
@@ -59,7 +67,7 @@ public class ShipDurability
         // A hit that takes the shield down, or lands while it is already down, restarts the generator's recharge delay.
         if (Shield == 0)
         {
-            _rechargeDelayLeft = _shieldGenerator?.Invoke()?.RechargeDelay ?? 0f;
+            _rechargeDelayLeft = ShieldGenerator?.RechargeDelay ?? 0f;
             _rechargeRemainder = 0f;
         }
 
@@ -85,7 +93,7 @@ public class ShipDurability
             deltaTime -= waited; // time left over after the delay counts towards recharging
         }
 
-        var generator = _shieldGenerator?.Invoke();
+        var generator = ShieldGenerator;
         if (deltaTime <= 0f || generator == null || generator.RechargeRate <= 0f || Shield >= MaxShield)
             return;
 

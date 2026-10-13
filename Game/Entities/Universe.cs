@@ -153,11 +153,12 @@ public class Universe : IDisposable
         Name = name;
         Seed = seed ?? id.ToString();
         Player = new Player(name, "Shuttle");
+        foreach (var itemName in Player.ShipType.DefaultEquipment)
+            Player.Equipment.Add(Equipment.Create(itemName));
+        // Filled after the equipment is added: the maximums include what it adds.
         Player.CurrentFuelLevel = Player.MaxFuelLevel;
         Player.CurrentHullStrength = Player.MaxHullStrength;
         Player.CurrentShieldStrength = Player.MaxShieldStrength;
-        foreach (var itemName in Player.ShipType.DefaultEquipment)
-            Player.Equipment.Add(Equipment.Create(itemName));
     }
 
     public void Update(float deltaTime, InputState input)
