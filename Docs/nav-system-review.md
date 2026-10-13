@@ -79,3 +79,16 @@ Results: 126 pass, 3 skipped.
 - Still to move onto `Steering`: Guard (3b), Dock (3c), and the arrive/brake code in `JumpTask`.
 
 Results: 133 pass, 2 skipped (the two Guard defects).
+
+### Step 3b done: Guard
+
+`GuardTask` rebuilt on `Steering`. Behavior changes:
+
+- **Approach:** the ship aims at the point of the orbit ring facing it and slows to orbit speed on the way (`Steering.Arrive`), instead of flying at full speed at the target's center. It starts orbiting when it is within the orbit radius plus `EntryMargin` (300) of the target.
+- **Orbit:** the ship matches velocity to "tangent at orbit speed plus a radial correction" (`RadialGain`). Orbit speed is `min(0.5 x max speed, sqrt(0.5 x acceleration x radius))`, so the engine can always supply the centripetal acceleration (`OrbitSpeedFor`). Direction is unchanged (counterclockwise).
+- **No randomness:** the `new Random()` for the "on top of the target" case is gone; it uses a fixed direction.
+- **Measured** (Shuttle, orbit radius 437 around a planet of radius 218; start 2,000 away, 9,000 away, inside the ring, on the ring): orbiting within 5 to 16 s; steady radius 464 (about 6% above the request, constant) and steady speed 280; the approach never came closer than 445 to the target (old behavior: orbit radius 1,100 to 1,564 at speed 676, and a pass within 6 of the planet's center).
+- **Not done:** guards do not steer around other stars and planets while approaching (the old guard did not either).
+- **Tests:** the two skipped Guard tests are un-skipped (tolerance tightened to 10%); new theory over four starting positions; orbit-speed bound test.
+
+Results: 140 pass, 0 skipped. Still to move onto `Steering`: Dock (3c) and the arrive/brake code in `JumpTask`.

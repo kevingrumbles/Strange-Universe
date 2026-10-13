@@ -1,26 +1,50 @@
-﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
-using Strange_Universe;
 using System;
-using System.Linq;
 
 namespace Strange_Universe.Game.NavSystem
 {
     /// <summary>
-    /// Handles guarding a specific location by maintaining an orbital patrol around it.
-    /// Uses Ship's RotateTowards and ApplyThrust methods to control navigation.
+    /// Guards a location by flying a circular orbit around it. The ship first flies to the orbit ring,
+    /// slowing to orbit speed on the way (it never aims at the target's center), then keeps its velocity
+    /// matched to "tangent at orbit speed plus a radial correction" so the radius holds.
+    /// Flight control comes from <see cref="Steering"/>.
     /// </summary>
     public class GuardTask : NavTask
     {
-        private Vector2 _target;
-        private const float ApproachThreshold = 600f; // When to transition to orbit
-        private float _orbitRadius;
+        private readonly Vector2 _target;
+        private readonly float _orbitRadius;
+
+        /// <summary>Orbit speed as a fraction of the ship's max speed (upper bound; see <see cref="OrbitSpeedFor"/>).</summary>
+        public const float OrbitSpeedFraction = 0.5f;
+
+        /// <summary>
+        /// Share of the ship's acceleration that may go to turning the orbit. Orbiting at speed v and radius r
+        /// needs v²/r, which must stay well below what the engine can deliver.
+        /// </summary>
+        public const float CentripetalBudget = 0.5f;
+
+        /// <summary>The ship starts orbiting once it is this much farther than the orbit radius from the target.</summary>
+        public const float EntryMargin = 300f;
+
+        /// <summary>Radial speed per unit of radius error (1/s), so a ship off the ring drifts back to it smoothly.</summary>
+        public const float RadialGain = 1f;
 
         public GuardTask(Ship owner, Vector2 target, float orbitRadius = 500f) : base(owner)
         {
             _target = target;
-            _orbitRadius = orbitRadius;
+            _orbitRadius = Math.Max(1f, orbitRadius);
             CurrentState = TaskState.ApproachPosition;
+        }
+
+        public Vector2 Target => _target;
+        public float OrbitRadius => _orbitRadius;
+
+        /// <summary>Speed the ship flies its orbit at: slow enough that the engine can supply the centripetal acceleration.</summary>
+        public float OrbitSpeedFor(Ship ship)
+        {
+            float centripetalLimited = MathF.Sqrt(ship.MaxAcceleration * CentripetalBudget * _orbitRadius);
+            return Math.Min(ship.ShipType.MaxSpeed * OrbitSpeedFraction, centripetalLimited);
         }
 
         public override void Update(float deltaTime)
@@ -30,97 +54,40 @@ namespace Strange_Universe.Game.NavSystem
             switch (CurrentState)
             {
                 case TaskState.ApproachPosition:
-                    // APPROACH PHASE: Move at full speed toward orbit position
-                    float distanceFromTarget = Vector2.Distance(Owner.Position, _target);
+                    Vector2 fromTarget = Owner.Position - _target;
+                    float distanceFromTarget = fromTarget.Length();
 
-                    // Check if we're close enough to enter orbit
-                    if (distanceFromTarget <= ApproachThreshold)
+                    if (distanceFromTarget <= _orbitRadius + EntryMargin)
                     {
                         CurrentState = TaskState.Guarding;
                         break;
                     }
 
-                    Vector2 directionToTarget = _target - Owner.Position;
+                    // Aim at the ring point facing the ship, so the approach never heads for the target's center.
+                    Vector2 outward = fromTarget / distanceFromTarget;
+                    Vector2 ringPoint = _target + outward * _orbitRadius;
+                    Vector2 toRing = ringPoint - Owner.Position;
 
-                    if (directionToTarget.LengthSquared() > 0.1f)
-                    {
-                        directionToTarget.Normalize();
-
-                        // Calculate target rotation angle
-                        float targetAngle = (float)Math.Atan2(directionToTarget.Y, directionToTarget.X);
-
-                        // Rotate toward target
-                        const float alignmentThreshold = 0.15f; // ~8.6 degrees
-                        bool isAligned = Owner.RotateTowards(targetAngle, deltaTime, alignmentThreshold);
-
-                        // Apply full thrust when aligned
-                        if (isAligned)
-                        {
-                            Owner.ApplyThrust(deltaTime);
-                        }
-                    }
+                    Steering.Arrive(Owner, toRing, toRing.Length() - EntryMargin, OrbitSpeedFor(Owner), deltaTime);
                     break;
 
                 case TaskState.Guarding:
-                    // ORBIT PHASE: Maintain circular orbit close to target
+                    Vector2 radial = Owner.Position - _target;
+                    float distance = radial.Length();
+                    // Exactly on top of the target there is no radial direction; pick a fixed one.
+                    radial = distance > 1f ? radial / distance : Vector2.UnitX;
 
-                    // Calculate vector from target to owner
-                    Vector2 toOwner = Owner.Position - _target;
-                    float distanceFromGuardTarget = toOwner.Length();
+                    // Counterclockwise tangent.
+                    Vector2 tangent = new Vector2(-radial.Y, radial.X);
+                    float orbitSpeed = OrbitSpeedFor(Owner);
 
-                    // Normalize radial vector
-                    if (distanceFromGuardTarget < 10f)
-                    {
-                        // Very close to target - pick a direction to move away
-                        Random rand = new Random();
-                        float randomAngle = (float)(rand.NextDouble() * Math.PI * 2);
-                        toOwner = new Vector2((float)Math.Cos(randomAngle), (float)Math.Sin(randomAngle)) * _orbitRadius;
-                        distanceFromGuardTarget = _orbitRadius;
-                    }
-                    else
-                    {
-                        toOwner = Vector2.Normalize(toOwner);
-                    }
+                    // Radius error becomes a radial speed back toward the ring (positive error = too far out).
+                    float radialSpeed = Math.Clamp(-(distance - _orbitRadius) * RadialGain, -orbitSpeed, orbitSpeed);
+                    Vector2 desiredVelocity = tangent * orbitSpeed + radial * radialSpeed;
 
-                    // Calculate perpendicular vector for orbital motion (90 degrees counterclockwise)
-                    Vector2 tangentDirection = new Vector2(-toOwner.Y, toOwner.X);
-
-                    // Calculate how far we are from ideal orbit radius
-                    float radiusError = distanceFromGuardTarget - _orbitRadius;
-                    float radiusErrorRatio = Math.Abs(radiusError) / _orbitRadius;
-
-                    // Determine desired direction based on distance from orbit
-                    Vector2 desiredDirection;
-                    if (distanceFromGuardTarget > _orbitRadius * 1.05f)
-                    {
-                        // Too far - move inward with stronger correction
-                        float correction = Math.Clamp(radiusErrorRatio * 3f, 0.8f, 3f);
-                        desiredDirection = Vector2.Normalize(tangentDirection - toOwner * correction);
-                    }
-                    else if (distanceFromGuardTarget < _orbitRadius * 0.95f)
-                    {
-                        // Too close - move outward with stronger correction
-                        float correction = Math.Clamp(radiusErrorRatio * 3f, 0.8f, 3f);
-                        desiredDirection = Vector2.Normalize(tangentDirection + toOwner * correction);
-                    }
-                    else
-                    {
-                        // At correct distance - maintain pure tangential motion
-                        desiredDirection = tangentDirection;
-                    }
-
-                    // Calculate target angle
-                    float orbitTargetAngle = (float)Math.Atan2(desiredDirection.Y, desiredDirection.X);
-
-                    // Rotate toward desired direction
-                    const float orbitAlignmentThreshold = 0.2f; // ~11 degrees
-                    bool isOrbitAligned = Owner.RotateTowards(orbitTargetAngle, deltaTime, orbitAlignmentThreshold);
-
-                    // Apply thrust to maintain orbital motion
-                    if (isOrbitAligned)
-                    {
-                        Owner.ApplyThrust(deltaTime);
-                    }
+                    Vector2 steer = desiredVelocity - Owner.Velocity;
+                    if (steer.Length() >= Owner.ShipType.MaxSpeed * Steering.VelocityTolerance)
+                        Steering.Seek(Owner, steer, deltaTime);
                     break;
 
                 case TaskState.Complete:

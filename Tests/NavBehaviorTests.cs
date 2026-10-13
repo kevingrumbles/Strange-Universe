@@ -109,7 +109,7 @@ public class NavBehaviorTests
 
     // -- Guard --------------------------------------------------------------
 
-    [Fact(Skip = "bug: guard settles at about 3x the requested orbit radius. See nav-system-review finding 2")]
+    [Fact]
     public void Guard_KeepsRequestedOrbitRadius()
     {
         using var sim = new NavSim();
@@ -122,8 +122,8 @@ public class NavBehaviorTests
         var radii = new List<float>();
         sim.Run(40f, null, () => radii.Add(Vector2.Distance(sim.Ship.Position, planet.Position)));
 
-        Assert.InRange(radii.Min(), orbit * 0.7f, orbit * 1.3f);
-        Assert.InRange(radii.Max(), orbit * 0.7f, orbit * 1.3f);
+        Assert.InRange(radii.Min(), orbit * 0.9f, orbit * 1.1f);
+        Assert.InRange(radii.Max(), orbit * 0.9f, orbit * 1.1f);
     }
 
     [Fact]
@@ -140,7 +140,7 @@ public class NavBehaviorTests
         Assert.True(farthest < 6000f, $"drifted away from the target (farthest {farthest:F0})");
     }
 
-    [Fact(Skip = "bug: guard approaches the target's centre at full speed and passes through the planet. See nav-system-review finding 2")]
+    [Fact]
     public void Guard_NeverPassesThroughItsTarget()
     {
         using var sim = new NavSim();
@@ -182,6 +182,50 @@ public class NavBehaviorTests
         {
             Assert.True(t - previous < 80f, $"a leg took {t - previous:F0}s (waypoints at {when})");
             previous = t;
+        }
+    }
+
+    [Theory]
+    [InlineData(2000f, 0f)]      // near, outside the ring
+    [InlineData(-9000f, 300f)]   // far across the system
+    [InlineData(80f, 0f)]        // starting inside the ring
+    [InlineData(0f, 437f)]       // starting on the ring
+    public void Guard_SettlesIntoASteadyOrbit_FromAnyStart(float dx, float dy)
+    {
+        using var sim = new NavSim();
+        var planet = sim.System.Planets[0];
+        float orbit = planet.Radius * 2f;
+        sim.Place(planet.Position + new Vector2(dx, dy));
+        var task = sim.Start(new GuardTask(sim.Ship, planet.Position, orbit));
+
+        sim.Run(60f); // settle
+        float minRadius = float.MaxValue, maxRadius = 0f, minSpeed = float.MaxValue, maxSpeed = 0f;
+        sim.Run(30f, null, () =>
+        {
+            float d = Vector2.Distance(sim.Ship.Position, planet.Position);
+            minRadius = System.Math.Min(minRadius, d); maxRadius = System.Math.Max(maxRadius, d);
+            minSpeed = System.Math.Min(minSpeed, sim.Ship.Speed); maxSpeed = System.Math.Max(maxSpeed, sim.Ship.Speed);
+        });
+
+        Assert.InRange(minRadius, orbit * 0.9f, orbit * 1.1f);
+        Assert.InRange(maxRadius, orbit * 0.9f, orbit * 1.1f);
+        float orbitSpeed = task.OrbitSpeedFor(sim.Ship);
+        Assert.InRange(minSpeed, orbitSpeed * 0.9f, orbitSpeed * 1.1f);
+        Assert.InRange(maxSpeed, orbitSpeed * 0.9f, orbitSpeed * 1.1f);
+    }
+
+    [Fact]
+    public void Guard_OrbitSpeed_IsWithinWhatTheEngineCanTurn()
+    {
+        var ship = new Nonplayer("g");
+        foreach (float radius in new[] { 50f, 200f, 437f, 2000f })
+        {
+            var task = new GuardTask(ship, Vector2.Zero, radius);
+            float v = task.OrbitSpeedFor(ship);
+
+            Assert.True(v <= ship.ShipType.MaxSpeed * GuardTask.OrbitSpeedFraction + 0.01f);
+            Assert.True(v * v / radius <= ship.MaxAcceleration * GuardTask.CentripetalBudget + 0.01f,
+                $"radius {radius}: needs {v * v / radius:F0} of {ship.MaxAcceleration:F0}");
         }
     }
 }
