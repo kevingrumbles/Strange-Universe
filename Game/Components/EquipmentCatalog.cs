@@ -113,8 +113,8 @@ internal static class EquipmentCatalog
     public static Shield BasicShieldGenerator => new()
     {
         EquipmentName = "Basic Shield Generator",
-        ShieldStrength = 500f,
-        RechargeRate   = 25f,
+        ShieldStrength = 25f,
+        RechargeRate   = 5f,
         RechargeDelay  = 5f,
         EnergyCost     = 20f,
         Mass           = 200f,
@@ -123,8 +123,8 @@ internal static class EquipmentCatalog
     public static Shield AdvancedShieldGenerator => new()
     {
         EquipmentName = "Advanced Shield Generator",
-        ShieldStrength = 1200f,
-        RechargeRate   = 50f,
+        ShieldStrength = 60f,
+        RechargeRate   = 10f,
         RechargeDelay  = 3f,
         EnergyCost     = 40f,
         Mass           = 400f,
@@ -133,8 +133,8 @@ internal static class EquipmentCatalog
     public static Shield MilitaryShieldGenerator => new()
     {
         EquipmentName = "Military Shield Generator",
-        ShieldStrength = 2500f,
-        RechargeRate   = 80f,
+        ShieldStrength = 125f,
+        RechargeRate   = 16f,
         RechargeDelay  = 2f,
         EnergyCost     = 70f,
         Mass           = 600f,
@@ -145,21 +145,21 @@ internal static class EquipmentCatalog
     public static HullPlating LightHullPlating => new()
     {
         EquipmentName = "Light Hull Plating",
-        HullStrength  = 300f,
+        HullStrength  = 25f,
         Mass          = 150f,
     };
 
     public static HullPlating ReinforcedHull => new()
     {
         EquipmentName = "Reinforced Hull",
-        HullStrength  = 800f,
+        HullStrength  = 65f,
         Mass          = 400f,
     };
 
     public static HullPlating MilitaryArmor => new()
     {
         EquipmentName = "Military Armor",
-        HullStrength  = 1500f,
+        HullStrength  = 125f,
         Mass          = 800f,
     };
 

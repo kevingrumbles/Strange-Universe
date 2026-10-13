@@ -207,8 +207,8 @@ public class ShipComponentTests
 
         foreach (var ship in new Ship[] { player, npc })
         {
-            Assert.Equal(shuttle.MaxShield + 500, ship.MaxShieldStrength); // Basic Shield Generator
-            Assert.Equal(shuttle.MaxHull + 300, ship.MaxHullStrength);     // Light Hull Plating
+            Assert.Equal(shuttle.MaxShield + 25, ship.MaxShieldStrength); // Basic Shield Generator
+            Assert.Equal(shuttle.MaxHull + 25, ship.MaxHullStrength);     // Light Hull Plating
             Assert.Equal(ship.MaxShieldStrength, ship.CurrentShieldStrength);
             Assert.Equal(ship.MaxHullStrength, ship.CurrentHullStrength);
         }
@@ -300,7 +300,7 @@ public class ShipComponentTests
     {
         var npc = new Nonplayer("npc");
         npc.Equipment.Clear();
-        npc.Equipment.Add(Equipment.Create("Military Shield Generator")); // 80/s after a 2 s delay
+        npc.Equipment.Add(Equipment.Create("Military Shield Generator")); // 16/s after a 2 s delay
         npc.CurrentShieldStrength = 1;
         npc.CurrentHullStrength = npc.MaxHullStrength;
         npc.ApplyDamage(1);
@@ -309,7 +309,7 @@ public class ShipComponentTests
         for (int i = 0; i < 60 * 3; i++)
             npc.Update(1f / 60f);
 
-        Assert.InRange(npc.CurrentShieldStrength!.Value, 75, 85); // 3 s in, 2 s of it delay: about 1 s at 80 per second
+        Assert.InRange(npc.CurrentShieldStrength!.Value, 15, 17); // 3 s in, 2 s of it delay: about 1 s at 16 per second
     }
 
     // -- WeaponSystem --------------------------------------------------------

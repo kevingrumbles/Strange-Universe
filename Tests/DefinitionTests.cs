@@ -26,7 +26,8 @@ public class DefinitionTests
         // Other equipment is looked up the same way, and is the class for its kind.
         var shield = Assert.IsType<Shield>(Equipment.Create("Basic Shield Generator"));
         Assert.Equal(EquipmentType.Shield, shield.EquipmentType);
-        Assert.Equal(500f, shield.ShieldStrength);
+        Assert.Equal(25f, shield.ShieldStrength);
+        Assert.Equal(5f, shield.RechargeRate);
         Assert.IsType<HullPlating>(Equipment.Create("Reinforced Hull"));
         Assert.IsType<Engine>(Equipment.Create("Standard Engine"));
         Assert.IsType<UtilityModule>(Equipment.Create("Sensor Array"));
