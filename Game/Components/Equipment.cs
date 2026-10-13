@@ -408,7 +408,7 @@ public class Equipment
 
 /// <summary>
 /// Serializes <see cref="Ship.Equipment"/> as a JSON array of name strings.
-/// On read each name is looked up in <see cref="EquipmentStats.Presets"/> to restore the full stat set.
+/// On read each name is looked up in <see cref="Equipment.Presets"/> to restore the full stat set.
 /// </summary>
 public class EquipmentListConverter : JsonConverter<List<Equipment>>
 {
@@ -423,7 +423,10 @@ public class EquipmentListConverter : JsonConverter<List<Equipment>>
             string name = reader.GetString()
                 ?? throw new JsonException("Expected a non-null equipment name string.");
 
-            list.Add(Equipment.FromName(name));
+            // Each ship gets its own copy (weapons have a cooldown, which must not be shared). A name that is not a known
+            // preset (for example an item that no longer exists) becomes an inert placeholder that keeps its name, so it
+            // is written back out unchanged.
+            list.Add(Equipment.Create(name) ?? Equipment.FromName(name));
         }
         return list;
     }
