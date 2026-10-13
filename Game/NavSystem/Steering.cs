@@ -67,7 +67,8 @@ namespace Strange_Universe.Game.NavSystem
         /// Flies toward <paramref name="direction"/> at the highest speed that still lets the ship reach
         /// <paramref name="arrivalSpeed"/> at <paramref name="distance"/>, correcting both speed and sideways drift.
         /// </summary>
-        public static void Arrive(Ship ship, Vector2 direction, float distance, float arrivalSpeed, float deltaTime)
+        public static void Arrive(Ship ship, Vector2 direction, float distance, float arrivalSpeed, float deltaTime,
+            float velocityTolerance = VelocityTolerance)
         {
             if (direction.LengthSquared() < 1e-6f)
                 return;
@@ -80,7 +81,7 @@ namespace Strange_Universe.Game.NavSystem
             // when too fast and also cancels sideways drift, which speed-only control would leave as an orbit.
             Vector2 desiredVelocity = Vector2.Normalize(direction) * allowed;
             Vector2 steer = desiredVelocity - ship.Velocity;
-            if (steer.Length() < ship.ShipType.MaxSpeed * VelocityTolerance)
+            if (steer.Length() < ship.ShipType.MaxSpeed * velocityTolerance)
                 return; // close enough: coast
 
             Seek(ship, steer, deltaTime);

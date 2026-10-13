@@ -228,4 +228,67 @@ public class NavBehaviorTests
                 $"radius {radius}: needs {v * v / radius:F0} of {ship.MaxAcceleration:F0}");
         }
     }
+
+    [Theory]
+    [InlineData(5000f, 0f)]       // straight in from the east
+    [InlineData(-6000f, 6000f)]   // far, from the north-west
+    [InlineData(700f, 0f)]        // starting close
+    [InlineData(0f, -1200f)]      // starting just outside the hold distance
+    public void Dock_StopsAtTheHoldPoint_WithoutOvershooting(float dx, float dy)
+    {
+        using var sim = new NavSim();
+        var planet = sim.System.Planets[^1];
+        sim.Place(planet.Position + new Vector2(dx, dy));
+        var task = sim.Start(new DockTask(sim.Ship, planet.Position, holdDuration: 25f));
+
+        float closest = float.MaxValue, maxDrift = 0f, speedAtHold = float.NaN, holdStart = float.NaN, doneAt = float.NaN;
+        sim.Run(200f, () => !float.IsNaN(doneAt), () =>
+        {
+            closest = System.Math.Min(closest, Vector2.Distance(sim.Ship.Position, planet.Position));
+            if (task.CurrentState == TaskState.HoldPosition)
+            {
+                if (float.IsNaN(holdStart)) { holdStart = sim.Time; speedAtHold = sim.Ship.Speed; }
+                maxDrift = System.Math.Max(maxDrift, Vector2.Distance(sim.Ship.Position, task.HoldPoint.Value));
+            }
+            if (task.CurrentState == TaskState.Complete && float.IsNaN(doneAt)) doneAt = sim.Time;
+        });
+
+        Assert.False(float.IsNaN(doneAt), "dock never completed");
+        // It slows in time: never gets much closer than the hold distance, and is nearly stopped on arrival.
+        Assert.True(closest > DockTask.SafeDistance * 0.9f, $"came within {closest:F0} of the target");
+        Assert.True(speedAtHold <= sim.Ship.ShipType.MaxSpeed * DockTask.HoldArrivalSpeedFraction + 1f, $"arrived at speed {speedAtHold:F0}");
+        Assert.True(maxDrift < DockTask.HoldArrivalDistance, $"drifted {maxDrift:F0} from the hold point while holding");
+        // The hold lasts as long as asked.
+        Assert.InRange(doneAt - holdStart, 24.9f, 25.2f);
+    }
+
+    [Fact]
+    public void Dock_HoldPoint_IsOnTheSideTheShipArrivesFrom()
+    {
+        using var sim = new NavSim();
+        var planet = sim.System.Planets[^1];
+        sim.Place(planet.Position + new Vector2(0, 3000));
+        var task = sim.Start(new DockTask(sim.Ship, planet.Position, 10f));
+
+        sim.Run(1f);
+
+        var hold = task.HoldPoint.Value;
+        Assert.Equal(DockTask.SafeDistance, Vector2.Distance(hold, planet.Position), 1);
+        Assert.Equal(planet.Position.X, hold.X, 1);
+        Assert.True(hold.Y > planet.Position.Y);
+    }
+
+    [Fact]
+    public void Dock_DefaultHoldDuration_IsInRange_AndReproducible()
+    {
+        Nonplayer Ship(string id) => new(id);
+        var a1 = new DockTask(Ship("Npc_merchant_1"), Vector2.Zero);
+        var a2 = new DockTask(Ship("Npc_merchant_1"), Vector2.Zero);
+        var b = new DockTask(Ship("Npc_merchant_2"), Vector2.Zero);
+
+        Assert.Equal(a1.HoldDuration, a2.HoldDuration);
+        Assert.NotEqual(a1.HoldDuration, b.HoldDuration);
+        foreach (var t in new[] { a1, b })
+            Assert.InRange(t.HoldDuration, DockTask.MinHoldSeconds, DockTask.MaxHoldSeconds);
+    }
 }

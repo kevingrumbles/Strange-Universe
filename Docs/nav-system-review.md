@@ -92,3 +92,16 @@ Results: 133 pass, 2 skipped (the two Guard defects).
 - **Tests:** the two skipped Guard tests are un-skipped (tolerance tightened to 10%); new theory over four starting positions; orbit-speed bound test.
 
 Results: 140 pass, 0 skipped. Still to move onto `Steering`: Dock (3c) and the arrive/brake code in `JumpTask`.
+
+### Step 3c done: Dock
+
+`DockTask` rebuilt on `Steering`. Behavior changes:
+
+- **Approach:** the ship flies to a hold point `SafeDistance` (500) from the target on the side it comes from (fixed on the first update), using `Steering.Arrive` with arrival speed zero. It no longer heads for the target's center, and it brakes in time instead of overshooting. The approach ends within `HoldArrivalDistance` (100) of the hold point at no more than 10% of max speed.
+- **Hold:** the same `Arrive` aimed at the hold point, with a tighter velocity tolerance (`HoldVelocityTolerance`, 1% of max speed). The gravity-compensation code is gone: velocity matching corrects any drift, gravity included, so the task works with gravity on or off.
+- **Hold duration:** still 15 to 60 s by default, but derived from the owner's id instead of `new Random()`, so it is reproducible; a ship exactly on the target picks a fixed side instead of a random one.
+- **Measured** (Shuttle, planet radius 163; starts 5,000 east, 6,000 north-west, 700 and 1,200 away): reaches the hold in 2.6 to 17 s at speed about 53, never closer to the planet than 490 (hold distance is 500), stays within about 55 of the hold point, and completes exactly `HoldDuration` after the hold starts. Before: the ship passed through at 232 and, with the NaN, was reset to the origin.
+- **`Steering.Arrive`** takes an optional velocity tolerance.
+- **Tests:** theory over four starting positions (stops at the hold point without overshoot, hold lasts as long as asked), hold point is on the arrival side, default duration is in range and reproducible.
+
+Results: 146 pass, 0 skipped. Still to move onto `Steering`: the arrive/brake code in `JumpTask`.
