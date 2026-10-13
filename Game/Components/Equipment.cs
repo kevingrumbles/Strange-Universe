@@ -25,6 +25,86 @@ public class Equipment
 {
     // -- Weapons -----------------------------------------------------------------
 
+    public static Equipment LightLaser => new()
+    {
+        EquipmentName       = "Light Laser",
+        EquipmentType       = EquipmentType.FixedProjectile,
+        Damage              = 15,
+        Speed               = 2000f,
+        Range               = 1500f,
+        FireRate            = 3f,
+        EnergyCost          = 10f,
+        Mass                = 50f,
+        Accuracy            = 0.9f,
+        ImpactLingerSeconds = 0.16f,
+    };
+
+    public static Equipment HeavyLaser => new()
+    {
+        EquipmentName       = "Heavy Laser",
+        EquipmentType       = EquipmentType.FixedProjectile,
+        Damage              = 35,
+        Speed               = 1800f,
+        Range               = 2000f,
+        FireRate            = 1.5f,
+        EnergyCost          = 25f,
+        Mass                = 120f,
+        Accuracy            = 0.85f,
+        ImpactLingerSeconds = 0.26f,
+    };
+
+    public static Equipment PulseCannon => new()
+    {
+        EquipmentName       = "Pulse Cannon",
+        EquipmentType       = EquipmentType.TurretProjectile,
+        Damage              = 20,
+        Speed               = 1500f,
+        Range               = 1200f,
+        FireRate            = 4f,
+        EnergyCost          = 12f,
+        Mass                = 80f,
+        Accuracy            = 0.9f,
+        ImpactLingerSeconds = 0.22f,
+    };
+
+    public static Equipment GatlingGun => new()
+    {
+        EquipmentName       = "Gatling Gun",
+        EquipmentType       = EquipmentType.FixedProjectile,
+        Damage              = 8,
+        Speed               = 2500f,
+        Range               = 1000f,
+        FireRate            = 10f,
+        EnergyCost          = 5f,
+        Mass                = 60f,
+        Accuracy            = 0.95f,
+        ImpactLingerSeconds = 0.10f,
+    };
+
+    public static Equipment PlasmaBeam => new()
+    {
+        EquipmentName       = "Plasma Beam",
+        EquipmentType       = EquipmentType.FixedBeam,
+        Damage              = 50,
+        Range               = 2500f,
+        EnergyCost          = 40f,
+        Mass                = 150f,
+        Accuracy            = 0.8f,
+        ImpactLingerSeconds = 0.34f,
+    };
+
+    public static Equipment MiningBeam => new()
+    {
+        EquipmentName       = "Mining Beam",
+        EquipmentType       = EquipmentType.TurretBeam,
+        Damage              = 5,
+        Range               = 800f,
+        EnergyCost          = 15f,
+        Mass                = 90f,
+        Accuracy            = 0.95f,
+        ImpactLingerSeconds = 0.20f,
+    };
+
     public static Equipment LightMissile => new()
     {
         EquipmentName = "Light Missile",
@@ -165,14 +245,14 @@ public class Equipment
     };
 
     /// <summary>All built-in equipment definitions.</summary>
-    public static List<Equipment> Presets { get; } = BuildPresets();
-
-    /// <summary>Weapons come from <see cref="DefinitionRepository.Default"/>; everything else is defined here.</summary>
-    private static List<Equipment> BuildPresets()
+    public static List<Equipment> Presets { get; } = new()
     {
-        var presets = DefinitionRepository.Default.CreateWeapons();
-        presets.AddRange(new[]
-        {
+        LightLaser,
+        HeavyLaser,
+        PulseCannon,
+        GatlingGun,
+        PlasmaBeam,
+        MiningBeam,
         LightMissile,
         HeavyTorpedo,
         BasicShieldGenerator,
@@ -187,13 +267,11 @@ public class Equipment
         CargoExpander,
         SensorArray,
         AutoRepairModule,
-        });
-        return presets;
-    }
+    };
 
     /// <summary>
     /// Resolves a preset by name. Only <see cref="EquipmentName"/> is persisted, so this
-    /// restores the full stat set (including <see cref="ImpactLingerSeconds"/>) on load.
+    /// restores the full stat set on load.
     /// Returns an inert <see cref="EquipmentType.Unkown"/> item if the name is unrecognized.
     /// </summary>
     public static Equipment FromName(string equipmentName)
@@ -201,17 +279,11 @@ public class Equipment
            ?? new Equipment { EquipmentName = equipmentName, EquipmentType = EquipmentType.Unkown };
 
     /// <summary>
-    /// A new, separate copy of the weapon called <paramref name="weaponName"/> (so cooldowns are not shared with other ships),
-    /// or null when there is no such weapon definition. <see cref="FromName"/> returns the shared preset instead.
+    /// A new, separate copy of the preset called <paramref name="equipmentName"/> (so cooldowns are not shared with other
+    /// ships), or null when there is no such preset. <see cref="FromName"/> returns the shared preset instead.
     /// </summary>
-    public static Equipment CreateWeapon(string weaponName) => DefinitionRepository.Default.FindWeapon(weaponName)?.ToEquipment();
-
-    /// <summary>A new, separate copy of any preset by name (weapons come from the definitions), or null when the name is unknown.</summary>
     public static Equipment Create(string equipmentName)
     {
-        var weapon = CreateWeapon(equipmentName);
-        if (weapon != null) return weapon;
-
         var preset = FromName(equipmentName);
         return preset.EquipmentType == EquipmentType.Unkown ? null : preset.Clone();
     }

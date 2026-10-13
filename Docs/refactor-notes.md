@@ -523,3 +523,12 @@ Requested: arrive much faster and taper to normal travel speed halfway to the sy
 - During `ArriveInSystem` the speed is set from the ship's position (frame-rate independent): `normal + (entry - normal) * (1 - p)^2`, where `p` runs from 0 at the system edge to 1 at `ArrivalTaperEndFraction` (0.5) of the system radius. At that point the ship is at normal speed (`MaxSpeed`) and the task completes.
 - The old arrival logic (exponential deceleration toward the Mandeville radius, snapping the ship to that point) is removed. The ship is no longer moved on completion, and it now completes at half the system radius instead of the Mandeville radius (75%).
 - Tests: `Arrival_StartsMuchFasterThanNormal_AtTheEdge`, `Arrival_Tapers_ThenCompletesAtNormalSpeedHalfwayToCenter`.
+
+## Round 2 / Phase 7.2 reverted: weapons are code again
+
+The data-driven weapons from Phase 7.2 (`Definitions/weapons.json`, `DefinitionRepository`, the embedded resource and the projectile style data) were removed on request: all equipment is handled the same way, and hardcoding it is fine.
+
+- The six weapons (Light Laser, Heavy Laser, Pulse Cannon, Gatling Gun, Plasma Beam, Mining Beam) are static presets in `Equipment.cs`, next to the missiles, shields, hulls, engines and utilities, and in `Equipment.Presets`. `Equipment.FromName` looks them all up the same way, and `Equipment.Create(name)` returns a separate copy of any preset (it replaces `CreateWeapon`).
+- How a projectile looks is a rendering concern and `Equipment.cs` has no graphics types, so the looks are hardcoded `ProjectileVisual` presets in `Game/Systems/ProjectileVisual.cs`, chosen by weapon name in `ProjectileVisuals.For(name)` (default look for unknown names).
+- **No values changed.** Before deleting the JSON, every weapon stat and every look value (173 fields, including the default look) was compared with the file: it caught one mistyped value (Mining Beam burst particle count) which was fixed, and then there were zero differences.
+- `DefinitionTests` now tests the presets in code (the JSON-loading tests went away with the repository); `ArchitectureTests` still checks that each weapon's impact linger equals its look's burst duration.
