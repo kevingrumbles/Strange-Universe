@@ -68,3 +68,8 @@ NPCs can now shoot the player, so a destroyed player ends the session:
 - Saves happen only when leaving play normally, so "the last persist point" is the last time you left play, or the last time you quit.
 
 Tests: `PlayerDeathTests` (the monitor flags only the player's destruction, stops when disposed, handles an already-destroyed player and a kill inside a full system update; reload replaces in-memory changes with the saved state, drops never-saved universes, works with both save services). The screen change itself needs a display and was not run.
+
+## Decisions (confirmed)
+
+- **Aggressive ships never lose interest.** They pursue until the hostile is destroyed or leaves the system. There is no give-up time or distance, and none is planned.
+- **No friend-or-foe check yet.** Factions do not exist, so projectiles cannot tell friend from foe: any shot that hits an NPC flags its owner hostile, including another NPC's. Revisit when factions are added: that is where a check on `Ship.OnAttacked` (and on who a ship may flag hostile) belongs.
