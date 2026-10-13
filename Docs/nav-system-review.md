@@ -153,3 +153,7 @@ What was left after Dock and Guard (see step 3) was in the events and in how NPC
 - **Tests** (`NavDeterminismTests`): the same system replays the same events and messages; every event hands its own generator to the world; the patrol-point count is decided once; NPC spawn and jump-in arrival positions are reproducible in a real system (same seed and ship id, same spot; a different ship id, a different spot); the player gets no seeded generator.
 
 Results: 177 pass, 0 skipped. Remaining: step 7 (optional: real alert and attack behavior for Guard; split `JumpTask` into steering phases and a scripted arrival).
+
+### Step 7a done: `JumpTask` split into stages
+
+`JumpTask` is now an orchestrator over `PrepareJumpTask` (flown), `JumpDriveTask` and `ArrivalTask` (scripted), with no behavior change (identical timings, all earlier tests pass unchanged). Details: [nav-jump-split.md](nav-jump-split.md). Results: 194 pass, 0 skipped. Remaining from step 7: real alert and attack behavior for Guard.

@@ -31,6 +31,9 @@ namespace Strange_Universe.Game.NavSystem
 
         public bool IsFinished => Status != NavTaskStatus.Running;
 
+        /// <summary>The world assigned through <see cref="World"/>, or null when the owner's own system is used. Lets a task that runs sub-tasks hand them the same world.</summary>
+        protected IWorldContext AssignedWorld => _world;
+
         private IWorldContext _world;
 
         /// <summary>The world the owner is in. Defaults to the owner's system; assign a fake to test a task in isolation.</summary>
