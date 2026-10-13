@@ -54,13 +54,13 @@ public class ShipDurability
             int absorbed = Math.Min(Shield.Value, remaining);
             Shield    -= absorbed;
             remaining -= absorbed;
+        }
 
-            // The shield just went down: it stays off for the generator's recharge delay.
-            if (Shield == 0)
-            {
-                _rechargeDelayLeft = _shieldGenerator?.Invoke()?.RechargeDelay ?? 0f;
-                _rechargeRemainder = 0f;
-            }
+        // A hit that takes the shield down, or lands while it is already down, restarts the generator's recharge delay.
+        if (Shield == 0)
+        {
+            _rechargeDelayLeft = _shieldGenerator?.Invoke()?.RechargeDelay ?? 0f;
+            _rechargeRemainder = 0f;
         }
 
         if (remaining > 0 && Hull.HasValue)

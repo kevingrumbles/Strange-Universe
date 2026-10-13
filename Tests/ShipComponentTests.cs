@@ -231,6 +231,23 @@ public class ShipComponentTests
     }
 
     [Fact]
+    public void ShieldRecharge_AHitWhileTheShieldIsDown_RestartsTheDelay()
+    {
+        var d = new ShipDurability(() => Stats, () => Generator(rate: 10f, delay: 2f)) { Hull = 100, Shield = 5 };
+        d.ApplyDamage(5);
+        Run(d, 1.5f);
+        Assert.Equal(0, d.Shield); // still waiting, 0.5 s to go
+
+        d.ApplyDamage(3); // hits the hull
+        Assert.Equal(2f, d.RechargeDelayRemaining);
+
+        Run(d, 1.5f);
+        Assert.Equal(0, d.Shield); // would have recharged by now without the restart
+        Run(d, 1f);
+        Assert.True(d.Shield > 0);
+    }
+
+    [Fact]
     public void ShieldRecharge_DoesNotHappenWithoutAGenerator_OrOnADestroyedShip()
     {
         var bare = new ShipDurability(() => Stats) { Hull = 100, Shield = 0 };
