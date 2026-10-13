@@ -8,6 +8,9 @@ namespace Strange_Universe.Game.NavSystem
     /// </summary>
     public class SpawnTask : NavTask
     {
+        /// <summary>Placing the ship happens in a single update; an alert must not skip it.</summary>
+        public override bool CanBeInterrupted => false;
+
         public SpawnTask(Ship owner) : base(owner)
         {
         }

@@ -30,6 +30,9 @@ namespace Strange_Universe.Game.NavSystem
         /// <summary>Radial speed per unit of radius error (1/s), so a ship off the ring drifts back to it smoothly.</summary>
         public const float RadialGain = 1f;
 
+        /// <summary>An orbiting ship farther than the orbit radius plus this many entry margins goes back to approaching.</summary>
+        public const float ReapproachFactor = 3f;
+
         public GuardTask(Ship owner, Vector2 target, float orbitRadius = 500f) : base(owner)
         {
             _target = target;
@@ -48,6 +51,9 @@ namespace Strange_Universe.Game.NavSystem
         }
 
         public Phase CurrentPhase { get; private set; }
+
+        /// <summary>A guard hunts down whoever attacks its ship.</summary>
+        public override TaskDisposition Disposition => TaskDisposition.Aggressive;
 
         public Vector2 Target => _target;
         public float OrbitRadius => _orbitRadius;
@@ -84,6 +90,13 @@ namespace Strange_Universe.Game.NavSystem
                     break;
 
                 case Phase.Orbit:
+                    // Pulled far off the ring (for example after chasing a hostile): approach it again.
+                    if (Vector2.Distance(Owner.Position, _target) > _orbitRadius + EntryMargin * ReapproachFactor)
+                    {
+                        CurrentPhase = Phase.Approach;
+                        break;
+                    }
+
                     Vector2 radial = Owner.Position - _target;
                     float distance = radial.Length();
                     // Exactly on top of the target there is no radial direction; pick a fixed one.

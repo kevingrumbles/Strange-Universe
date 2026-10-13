@@ -4,6 +4,16 @@ using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Game.NavSystem
 {
+    /// <summary>How a task wants its ship to behave when the ship is attacked while carrying it out.</summary>
+    public enum TaskDisposition
+    {
+        /// <summary>Avoid a fight: shoot back only at hostiles that are already close, otherwise leave the system.</summary>
+        Defensive,
+
+        /// <summary>Seek out hostiles and attack them.</summary>
+        Aggressive,
+    }
+
     /// <summary>Whether a nav task is still running, or how it ended.</summary>
     public enum NavTaskStatus
     {
@@ -30,6 +40,18 @@ namespace Strange_Universe.Game.NavSystem
         public NavTaskStatus Status { get; private set; } = NavTaskStatus.Running;
 
         public bool IsFinished => Status != NavTaskStatus.Running;
+
+        /// <summary>
+        /// How the ship should react when attacked during this task. An <see cref="AlertTask"/> takes this from the task it interrupted.
+        /// Defensive unless a task says otherwise.
+        /// </summary>
+        public virtual TaskDisposition Disposition => TaskDisposition.Defensive;
+
+        /// <summary>
+        /// False while the task is doing something that would leave the ship in a bad state if it were suspended
+        /// (for example, scripted hyperspace movement). An alert waits until such a task has finished.
+        /// </summary>
+        public virtual bool CanBeInterrupted => true;
 
         /// <summary>The world assigned through <see cref="World"/>, or null when the owner's own system is used. Lets a task that runs sub-tasks hand them the same world.</summary>
         protected IWorldContext AssignedWorld => _world;

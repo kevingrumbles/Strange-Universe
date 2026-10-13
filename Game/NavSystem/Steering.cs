@@ -127,5 +127,111 @@ namespace Strange_Universe.Game.NavSystem
             Vector2 blended = desired + avoidance * 1.5f; // favor avoidance when threatened
             return blended.LengthSquared() > 0.1f ? Vector2.Normalize(blended) : desired;
         }
+
+        /// <summary>
+        /// Steers so the velocity converges on <paramref name="desiredVelocity"/>. Returns true when it already matches
+        /// closely enough that the ship is just coasting.
+        /// </summary>
+        public static bool MatchVelocity(Ship ship, Vector2 desiredVelocity, float deltaTime, float velocityTolerance = VelocityTolerance)
+        {
+            Vector2 steer = desiredVelocity - ship.Velocity;
+            if (steer.Length() < ship.ShipType.MaxSpeed * velocityTolerance)
+                return true;
+
+            Seek(ship, steer, deltaTime);
+            return false;
+        }
+
+        /// <summary>
+        /// Flies toward a moving target and settles at <paramref name="stopDistance"/> from it, moving along with it.
+        /// The approach speed is relative to the target, so the ship slows in time instead of overshooting.
+        /// </summary>
+        public static void Pursue(Ship ship, Vector2 targetPosition, Vector2 targetVelocity, float stopDistance, float deltaTime)
+            => MatchVelocity(ship, PursuitVelocity(ship, targetPosition, targetVelocity, stopDistance), deltaTime, PursuitVelocityTolerance);
+
+        /// <summary>The velocity a ship should have to close in on a moving target and settle <paramref name="stopDistance"/> from it.</summary>
+        public static Vector2 PursuitVelocity(Ship ship, Vector2 targetPosition, Vector2 targetVelocity, float stopDistance)
+        {
+            Vector2 toTarget = targetPosition - ship.Position;
+            float distance = toTarget.Length();
+            if (distance < 1f)
+            {
+                return targetVelocity;
+            }
+
+            // Closing speed from which the ship can still stop relative to the target at stopDistance,
+            // allowing for the time it takes to turn around.
+            float turnAroundTime = ship.ShipType.RotationSpeed > 0f ? MathF.PI / ship.ShipType.RotationSpeed : 0f;
+            float planned = AllowedApproachSpeed(ship, distance - stopDistance - ship.Speed * turnAroundTime, 0f);
+
+            // Near the stop distance the closing speed follows the distance error (backing off when too close), so the
+            // ship settles there instead of coasting through at a speed too small to correct.
+            float backOff = ship.ShipType.MaxSpeed * PursuitBackOffFraction;
+            float closing = Math.Min(planned, Math.Max(-backOff, (distance - stopDistance) * PursuitGain));
+
+            Vector2 desired = targetVelocity + toTarget / distance * closing;
+            if (desired.Length() > ship.ShipType.MaxSpeed)
+                desired = Vector2.Normalize(desired) * ship.ShipType.MaxSpeed;
+
+            return desired;
+        }
+
+        /// <summary>
+        /// The direction to point so that a shot from <paramref name="ship"/> meets a target moving at a constant velocity.
+        /// Shots inherit the shooter's velocity, so the target's motion is taken relative to it. Zero when the ship is unarmed.
+        /// </summary>
+        public static Vector2 LeadDirection(Ship ship, Vector2 targetPosition, Vector2 targetVelocity)
+        {
+            float shotSpeed = ship.ProjectileSpeed;
+            Vector2 relativePosition = targetPosition - ship.Position;
+            if (shotSpeed <= 0f || relativePosition.LengthSquared() < 1e-6f)
+                return Vector2.Zero;
+
+            Vector2 relativeVelocity = targetVelocity - ship.Velocity;
+            Vector2 aim = relativePosition;
+            for (int i = 0; i < 2; i++) // two refinements are plenty at these speeds
+            {
+                float flightTime = aim.Length() / shotSpeed;
+                aim = relativePosition + relativeVelocity * flightTime;
+            }
+            return aim.LengthSquared() < 1e-6f ? Vector2.Zero : Vector2.Normalize(aim);
+        }
+
+        /// <summary>Turns toward the lead direction for a target. Returns whether the ship is now aimed within <paramref name="alignment"/>.</summary>
+        public static bool AimAt(Ship ship, Vector2 targetPosition, Vector2 targetVelocity, float deltaTime, float alignment = AimTolerance)
+        {
+            Vector2 lead = LeadDirection(ship, targetPosition, targetVelocity);
+            return lead != Vector2.Zero && Seek(ship, lead, deltaTime, alignment, thrust: false);
+        }
+
+        /// <summary>Fires if the ship is already pointing at the lead direction and the target is within range. Returns whether it was aimed and in range.</summary>
+        public static bool FireIfAimed(Ship ship, Vector2 targetPosition, Vector2 targetVelocity)
+        {
+            float range = ship.WeaponRange;
+            if (range <= 0f || Vector2.Distance(ship.Position, targetPosition) > range * FireRangeFraction)
+                return false;
+
+            Vector2 lead = LeadDirection(ship, targetPosition, targetVelocity);
+            if (lead == Vector2.Zero || Vector2.Dot(Vector2.Normalize(ship.Forward), lead) < MathF.Cos(AimTolerance))
+                return false;
+
+            ship.FireWeapons();
+            return true;
+        }
+
+        /// <summary>Tighter than normal flight: a pursuer should end up level with its target, not coasting just short of it.</summary>
+        public const float PursuitVelocityTolerance = 0.02f;
+
+        /// <summary>Closing speed per unit of distance error (1/s) when a pursuer is near its stop distance.</summary>
+        public const float PursuitGain = 1.5f;
+
+        /// <summary>The fastest a pursuer backs off when it is closer than its stop distance, as a fraction of max speed.</summary>
+        public const float PursuitBackOffFraction = 0.25f;
+
+        /// <summary>How closely a ship must be pointing at the lead direction to fire (radians, about 4.6 degrees).</summary>
+        public const float AimTolerance = 0.08f;
+
+        /// <summary>A ship fires only at targets within this fraction of its weapon range, so shots do not expire on the way.</summary>
+        public const float FireRangeFraction = 0.9f;
     }
 }

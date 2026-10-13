@@ -157,3 +157,7 @@ Results: 177 pass, 0 skipped. Remaining: step 7 (optional: real alert and attack
 ### Step 7a done: `JumpTask` split into stages
 
 `JumpTask` is now an orchestrator over `PrepareJumpTask` (flown), `JumpDriveTask` and `ArrivalTask` (scripted), with no behavior change (identical timings, all earlier tests pass unchanged). Details: [nav-jump-split.md](nav-jump-split.md). Results: 194 pass, 0 skipped. Remaining from step 7: real alert and attack behavior for Guard.
+
+### Step 7b done: alert
+
+NPCs go on alert when shot: the shooter is flagged hostile, the previous task is stored, and its disposition decides the response (aggressive tasks hunt and attack; defensive tasks fight only if a hostile is in range, otherwise leave the system). The alert ends when no hostile is left, and the previous task resumes. NPCs inherit weapons and shields from their ship type, so they are now armed and can be destroyed. Details, decisions and open questions: [nav-alert.md](nav-alert.md). Results: 224 pass, 0 skipped.

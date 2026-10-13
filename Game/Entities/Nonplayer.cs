@@ -40,6 +40,15 @@ public class Nonplayer : Ship
     {
     }
 
+    /// <summary>Flags the attacker as hostile and puts the navigator on alert (see <see cref="AlertTask"/>).</summary>
+    protected override void OnAttacked(Ship attacker)
+    {
+        if (attacker == null || ReferenceEquals(attacker, this)) return;
+
+        MarkHostile(attacker);
+        Navigator.RaiseAlert();
+    }
+
     public new void Update(float deltaTime)
     { 
         base.Update(deltaTime);

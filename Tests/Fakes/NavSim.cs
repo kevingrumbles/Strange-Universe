@@ -78,5 +78,23 @@ public sealed class NavSim : IDisposable
         return largest;
     }
 
+    /// <summary>
+    /// Steps the whole system (player, NPCs, projectiles, collisions) instead of only the ship, so shots fly and hit.
+    /// <paramref name="onStep"/> runs after every step; <paramref name="until"/> stops the run early.
+    /// </summary>
+    public bool RunSystem(float maxSeconds, Func<bool> until = null, Action onStep = null)
+    {
+        var input = new Strange_Universe.Game.Components.InputState();
+        float end = Time + maxSeconds;
+        while (Time < end)
+        {
+            System.Update(Dt, input);
+            Time += Dt;
+            onStep?.Invoke();
+            if (until != null && until()) return true;
+        }
+        return false;
+    }
+
     public void Dispose() => Universe.Dispose();
 }

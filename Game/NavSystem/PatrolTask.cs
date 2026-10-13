@@ -12,6 +12,9 @@ namespace Strange_Universe.Game.NavSystem
     /// </summary>
     public class PatrolTask : NavTask
     {
+        /// <summary>A patrol hunts down whoever attacks its ship.</summary>
+        public override TaskDisposition Disposition => TaskDisposition.Aggressive;
+
         public List<Vector2> PatrolPoints { get; private set; }
         private int _currentPatrolIndex = 0;
         private float _closestApproach = float.MaxValue;

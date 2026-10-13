@@ -54,6 +54,9 @@ namespace Strange_Universe.Game.NavSystem
             _stage = CreateStage(startPhase ?? Phase.MoveToMandeville);
         }
 
+        /// <summary>Only the autopilot stage can be suspended; the drive and the arrival move the ship by script.</summary>
+        public override bool CanBeInterrupted => _stage is PrepareJumpTask;
+
         public string TargetSystemId => _targetSystemId;
 
         /// <summary>The phase the jump is in, taken from its current stage. After the jump ends it stays at the last one.</summary>
