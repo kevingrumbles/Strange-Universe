@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Strange_Universe.Game.NavSystem;
 
 namespace Strange_Universe.Game.Entities.ShipParts;
@@ -43,6 +44,9 @@ public class ShipNavigator
     }
 
     public bool HasActiveTask => ActiveTask is not null;
+
+    /// <summary>True if a task of type <typeparamref name="T"/> is active or waiting.</summary>
+    public bool Has<T>() where T : NavTask => ActiveTask is T || _queue.OfType<T>().Any();
 
     /// <summary>Number of tasks waiting behind the active one.</summary>
     public int QueuedCount => _queue.Count;

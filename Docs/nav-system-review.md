@@ -184,3 +184,12 @@ Running the suite at other tuning exposed three behaviors that were not independ
 1. **Guard orbit** accepted a velocity error of 5% of the ship's *top* speed, so a faster ship orbited more sloppily (about 13% too wide at max speed 1160). The tolerance is now relative to the orbit speed.
 2. **Pursuit, engage and dock-hold tolerances** were fractions of top speed. They are now `Steering.CorrectableSpeed(ship, seconds)`: the speed error the engine can remove in a short time (`PursuitToleranceSeconds` 0.032, `AlertTask.EngageToleranceSeconds` 0.08, `DockTask.HoldToleranceSeconds` 0.016), identical to the old values at the original tuning. `Steering.Arrive` and `MatchVelocity` take an absolute tolerance (default: 5% of top speed).
 3. **`Steering.Pursue` bug:** the turn-around allowance used the ship's own speed instead of its speed relative to the target. A ship cruising alongside a moving target is not closing on it, but the planner behaved as if it needed hundreds of units to brake and refused to correct any distance error smaller than that. It now uses the relative speed.
+
+### Persisting a new universe, and the spawn point
+
+A new universe is saved the moment it is created (`ISaveService.CreateUniverse`). That exposed a gap: the player's spawn point is computed by a `SpawnTask` that was queued in the `Universe` constructor, so it only ran for a universe created in this session. A universe saved before its first frame and loaded later had a player at (0, 0), inside the star, with no spawn queued.
+
+- `Player.NeedsSpawn` is saved with the universe. A new universe sets it, `Universe.Generate` queues a `SpawnTask` when it is set (and none is already queued: `ShipNavigator.Has<T>()`), and `SpawnTask.OnCompleted` clears it. So the spawn happens when the universe is entered, whether it was just created or loaded from the menu, and it is not repeated once done (the position is then saved like any other).
+- **Old saves** have no `NeedsSpawn`, which reads as false: their players already have a position and are not moved. The round-trip test of the old-format fixture now allows only that one new property to appear on write.
+- The `SpawnTask` is no longer queued in the `Universe` constructor.
+- Tests (`NewUniverseTests`): the pending spawn is in the file; a saved new universe spawns its player at the safe entry point when loaded (not at the origin); once spawned, the position persists and no second spawn happens; entering twice before the first frame queues one spawn; an old save keeps its player where it was.

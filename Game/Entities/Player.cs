@@ -13,6 +13,13 @@ public class Player : Ship
 {
     public string CurrentStarSystemID { get; set; }
 
+    /// <summary>
+    /// True until the player has been placed at a spawn point (the <see cref="NavSystem.SpawnTask"/> sets it false). Saved with
+    /// the universe, so a universe saved before it was ever played still spawns the player when it is loaded. Saves from
+    /// before this existed do not have it, which reads as false: those players already have a position.
+    /// </summary>
+    public bool NeedsSpawn { get; set; }
+
     public Player(string name, string shipType) : base(name, shipType)
     {
 

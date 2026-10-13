@@ -100,4 +100,120 @@ public class NewUniverseTests
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
+
+    // -- the spawn point ----------------------------------------------------
+
+    private static void StepPlayer(Universe universe, int frames = 5)
+    {
+        for (int i = 0; i < frames; i++)
+            universe.Player.Update(0.016f, new Strange_Universe.Game.Components.InputState());
+    }
+
+    private static Universe LoadAndEnter(string path)
+    {
+        var universe = new FileSaveService(path).LoadAll().Single();
+        universe.NebulaFactory = Nebula.CreateWithoutPixels;
+        universe.Generate(new RecordingAssetRequests());
+        return universe;
+    }
+
+    [Fact]
+    public void ANewUniverse_RecordsThatItsPlayerStillNeedsToSpawn_InTheSaveFile()
+    {
+        string path = TempPath();
+        try
+        {
+            var saves = new FileSaveService(path);
+            var created = saves.CreateUniverse(saves.LoadAll(), "Unspawned");
+            Assert.True(created.Player.NeedsSpawn);
+
+            Assert.Contains("NeedsSpawn", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
+            Assert.True(new FileSaveService(path).LoadAll().Single().Player.NeedsSpawn);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void ASavedNewUniverse_SpawnsThePlayerWhenItIsLoaded_NotInsideTheStar()
+    {
+        string path = TempPath();
+        try
+        {
+            new FileSaveService(path).CreateUniverse(new System.Collections.Generic.List<Universe>(), "Unspawned");
+
+            var loaded = LoadAndEnter(path);
+            Assert.Equal(Microsoft.Xna.Framework.Vector2.Zero, loaded.Player.Position); // before the first frame
+
+            StepPlayer(loaded);
+
+            float distance = loaded.Player.Position.Length();
+            Assert.Equal(loaded.ActiveStarSystem.MandevilleRadius * 0.9f, distance, 1); // the safe entry point
+            Assert.False(loaded.Player.NeedsSpawn);
+            loaded.Dispose();
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void OnceSpawned_TheSpawnPointIsPersisted_AndNotRepeated()
+    {
+        string path = TempPath();
+        try
+        {
+            var saves = new FileSaveService(path);
+            saves.CreateUniverse(new System.Collections.Generic.List<Universe>(), "Spawned");
+            var first = LoadAndEnter(path);
+            StepPlayer(first);
+            var spawnPoint = first.Player.Position;
+            saves.Save(first);
+            first.Dispose();
+
+            var second = LoadAndEnter(path);
+            Assert.False(second.Player.NeedsSpawn);
+            Assert.False(second.Player.Navigator.Has<Strange_Universe.Game.NavSystem.SpawnTask>());
+            StepPlayer(second);
+
+            Assert.Equal(spawnPoint, second.Player.Position); // exactly where the first session left it
+            second.Dispose();
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void EnteringTheSameUniverseTwiceBeforeItSpawned_QueuesOnlyOneSpawn()
+    {
+        var universe = new Universe("Twice", "twice-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
+        universe.Generate(new RecordingAssetRequests());
+        universe.Dispose();
+        universe.Generate(new RecordingAssetRequests()); // left and re-entered before the first frame ran
+
+        Assert.Equal(1, universe.Player.Navigator.QueuedCount + (universe.Player.Navigator.HasActiveTask ? 1 : 0));
+        universe.Dispose();
+    }
+
+    [Fact]
+    public void ASaveFromBeforeNeedsSpawnExisted_KeepsThePlayerWhereItWas()
+    {
+        // An old save has no NeedsSpawn (it reads as false): its player is already somewhere, and must not be moved.
+        string path = TempPath();
+        try
+        {
+            var universe = new Universe("Old", "old-seed");
+            universe.Player.NeedsSpawn = false;
+            universe.Player.Position = new Microsoft.Xna.Framework.Vector2(1234, -567);
+            new FileSaveService(path).Save(universe);
+            string withoutProperty = System.Text.RegularExpressions.Regex.Replace(
+                File.ReadAllText(path), @"""needsSpawn""\s*:\s*(true|false),?", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            File.WriteAllText(path, withoutProperty);
+            Assert.DoesNotContain("needsspawn", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
+
+            var loaded = LoadAndEnter(path);
+            StepPlayer(loaded);
+
+            Assert.False(loaded.Player.NeedsSpawn);
+            Assert.Equal(new Microsoft.Xna.Framework.Vector2(1234, -567), loaded.Player.Position);
+            loaded.Dispose();
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
 }

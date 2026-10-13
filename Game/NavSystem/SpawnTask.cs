@@ -11,6 +11,13 @@ namespace Strange_Universe.Game.NavSystem
         /// <summary>Placing the ship happens in a single update; an alert must not skip it.</summary>
         public override bool CanBeInterrupted => false;
 
+        /// <summary>The player's spawn is recorded as done, so it is not repeated when the universe is loaded again.</summary>
+        public override void OnCompleted()
+        {
+            if (Owner is Player player)
+                player.NeedsSpawn = false;
+        }
+
         public SpawnTask(Ship owner) : base(owner)
         {
         }
