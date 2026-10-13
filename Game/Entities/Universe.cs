@@ -157,7 +157,6 @@ public class Universe : IDisposable
         Player.CurrentHullStrength = Player.MaxHullStrength;
         Player.CurrentShieldStrength = Player.MaxShieldStrength;
         Player.Equipment.Add(Equipment.FromName("Light Laser"));
-        Player.NeedsSpawn = true; // the spawn itself happens when the universe is entered (see Generate)
     }
 
     public void Update(float deltaTime, InputState input)
@@ -192,8 +191,9 @@ public class Universe : IDisposable
         _assets.EnsureShipArt(Player.ShipType);
         EnterSystem(start);
 
-        // A player who has never been placed (a new universe, including one that was saved before it was first played) spawns now.
-        if (Player.NeedsSpawn && !Player.Navigator.Has<SpawnTask>())
+        // A player with no location has never been placed (a new universe, including one that was saved before it was first
+        // played): it spawns now.
+        if (Player.Location is null && !Player.Navigator.Has<SpawnTask>())
             Player.EnqueueNavTask(new SpawnTask(Player));
     }
 

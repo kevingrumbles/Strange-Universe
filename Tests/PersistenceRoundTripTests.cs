@@ -38,11 +38,6 @@ public class PersistenceRoundTripTests
         var expected = JsonNode.Parse(original);
         var actual = JsonNode.Parse(reserialized);
 
-        // The sample is a save from before NeedsSpawn existed. Loading it must not change anything about the player,
-        // so the only difference allowed is the new property written back at its default (false).
-        Assert.All(FindProperties(actual, "needsspawn"), value => Assert.False(value.GetValue<bool>()));
-        RemoveProperties(actual, "needsspawn");
-
         Assert.True(JsonNode.DeepEquals(expected, actual),
             $"Round-trip mismatch.\nExpected:\n{expected}\nActual:\n{actual}");
     }
@@ -90,37 +85,6 @@ public class PersistenceRoundTripTests
         finally
         {
             Directory.Delete(dir, recursive: true);
-        }
-    }
-
-    private static System.Collections.Generic.IEnumerable<JsonNode> FindProperties(JsonNode node, string nameLowerCase)
-    {
-        if (node is JsonObject obj)
-        {
-            foreach (var (key, value) in obj)
-            {
-                if (key.ToLowerInvariant() == nameLowerCase && value != null) yield return value;
-                foreach (var inner in FindProperties(value, nameLowerCase)) yield return inner;
-            }
-        }
-        else if (node is JsonArray array)
-        {
-            foreach (var item in array)
-                foreach (var inner in FindProperties(item, nameLowerCase)) yield return inner;
-        }
-    }
-
-    private static void RemoveProperties(JsonNode node, string nameLowerCase)
-    {
-        if (node is JsonObject obj)
-        {
-            foreach (var key in obj.Select(p => p.Key).Where(k => k.ToLowerInvariant() == nameLowerCase).ToList())
-                obj.Remove(key);
-            foreach (var (_, value) in obj.ToList()) RemoveProperties(value, nameLowerCase);
-        }
-        else if (node is JsonArray array)
-        {
-            foreach (var item in array) RemoveProperties(item, nameLowerCase);
         }
     }
 }

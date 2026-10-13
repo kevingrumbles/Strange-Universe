@@ -118,50 +118,56 @@ public class NewUniverseTests
     }
 
     [Fact]
-    public void ANewUniverse_RecordsThatItsPlayerStillNeedsToSpawn_InTheSaveFile()
+    public void ANewUniverse_CreatesItsPlayerWithNoLocation_AndSavesThat()
     {
         string path = TempPath();
         try
         {
             var saves = new FileSaveService(path);
-            var created = saves.CreateUniverse(saves.LoadAll(), "Unspawned");
-            Assert.True(created.Player.NeedsSpawn);
+            var created = saves.CreateUniverse(saves.LoadAll(), "Unplaced");
+            Assert.Null(created.Player.Location);
 
-            Assert.Contains("NeedsSpawn", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
-            Assert.True(new FileSaveService(path).LoadAll().Single().Player.NeedsSpawn);
+            // In the file the location is the player's "Position", saved as null.
+            var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path));
+            var player = json[0]["Player"].AsObject();
+            Assert.True(player.ContainsKey("Position"));
+            Assert.Null(player["Position"]);
+            Assert.DoesNotContain(player, p => p.Key.Equals("NeedsSpawn", StringComparison.OrdinalIgnoreCase)); // no extra flag
+
+            Assert.Null(new FileSaveService(path).LoadAll().Single().Player.Location);
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
 
     [Fact]
-    public void ASavedNewUniverse_SpawnsThePlayerWhenItIsLoaded_NotInsideTheStar()
+    public void APlayerWithNoLocation_SpawnsWhenTheUniverseIsEntered_NotInsideTheStar()
     {
         string path = TempPath();
         try
         {
-            new FileSaveService(path).CreateUniverse(new System.Collections.Generic.List<Universe>(), "Unspawned");
+            new FileSaveService(path).CreateUniverse(new System.Collections.Generic.List<Universe>(), "Unplaced");
 
             var loaded = LoadAndEnter(path);
-            Assert.Equal(Microsoft.Xna.Framework.Vector2.Zero, loaded.Player.Position); // before the first frame
+            Assert.Null(loaded.Player.Location);               // not placed yet
+            Assert.True(loaded.Player.Navigator.Has<Strange_Universe.Game.NavSystem.SpawnTask>());
 
             StepPlayer(loaded);
 
-            float distance = loaded.Player.Position.Length();
-            Assert.Equal(loaded.ActiveStarSystem.MandevilleRadius * 0.9f, distance, 1); // the safe entry point
-            Assert.False(loaded.Player.NeedsSpawn);
+            Assert.NotNull(loaded.Player.Location);
+            Assert.Equal(loaded.ActiveStarSystem.MandevilleRadius * 0.9f, loaded.Player.Location.Value.Length(), 1); // the safe entry point
             loaded.Dispose();
         }
         finally { if (File.Exists(path)) File.Delete(path); }
     }
 
     [Fact]
-    public void OnceSpawned_TheSpawnPointIsPersisted_AndNotRepeated()
+    public void OncePlaced_TheLocationIsSaved_AndTheSpawnIsNotRepeated()
     {
         string path = TempPath();
         try
         {
             var saves = new FileSaveService(path);
-            saves.CreateUniverse(new System.Collections.Generic.List<Universe>(), "Spawned");
+            saves.CreateUniverse(new System.Collections.Generic.List<Universe>(), "Placed");
             var first = LoadAndEnter(path);
             StepPlayer(first);
             var spawnPoint = first.Player.Position;
@@ -169,7 +175,7 @@ public class NewUniverseTests
             first.Dispose();
 
             var second = LoadAndEnter(path);
-            Assert.False(second.Player.NeedsSpawn);
+            Assert.Equal(spawnPoint, second.Player.Location);
             Assert.False(second.Player.Navigator.Has<Strange_Universe.Game.NavSystem.SpawnTask>());
             StepPlayer(second);
 
@@ -192,28 +198,46 @@ public class NewUniverseTests
     }
 
     [Fact]
-    public void ASaveFromBeforeNeedsSpawnExisted_KeepsThePlayerWhereItWas()
+    public void ASaveWithAPosition_KeepsThePlayerWhereItWas_AndDoesNotSpawn()
     {
-        // An old save has no NeedsSpawn (it reads as false): its player is already somewhere, and must not be moved.
+        // Every save from before the location could be null has a position: the player is already somewhere.
         string path = TempPath();
         try
         {
             var universe = new Universe("Old", "old-seed");
-            universe.Player.NeedsSpawn = false;
             universe.Player.Position = new Microsoft.Xna.Framework.Vector2(1234, -567);
             new FileSaveService(path).Save(universe);
-            string withoutProperty = System.Text.RegularExpressions.Regex.Replace(
-                File.ReadAllText(path), @"""needsSpawn""\s*:\s*(true|false),?", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-            File.WriteAllText(path, withoutProperty);
-            Assert.DoesNotContain("needsspawn", File.ReadAllText(path), StringComparison.OrdinalIgnoreCase);
 
             var loaded = LoadAndEnter(path);
+            Assert.Equal(new Microsoft.Xna.Framework.Vector2(1234, -567), loaded.Player.Location);
+            Assert.False(loaded.Player.Navigator.Has<Strange_Universe.Game.NavSystem.SpawnTask>());
             StepPlayer(loaded);
 
-            Assert.False(loaded.Player.NeedsSpawn);
             Assert.Equal(new Microsoft.Xna.Framework.Vector2(1234, -567), loaded.Player.Position);
             loaded.Dispose();
         }
         finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
+    public void APlayerAtTheOrigin_IsPlaced_NotUnplaced()
+    {
+        // (0, 0) is a perfectly good saved position; only null means "not placed".
+        var player = new Player("p", "Shuttle");
+        Assert.Null(player.Location);
+
+        player.Position = Microsoft.Xna.Framework.Vector2.Zero;
+
+        Assert.Equal(Microsoft.Xna.Framework.Vector2.Zero, player.Location);
+    }
+
+    [Fact]
+    public void SettingTheLocationToNull_MarksThePlayerUnplaced_AndAValueMarksItPlaced()
+    {
+        var player = new Player("p", "Shuttle") { Location = new Microsoft.Xna.Framework.Vector2(5, 6) };
+        Assert.Equal(new Microsoft.Xna.Framework.Vector2(5, 6), player.Position);
+
+        player.Location = null;
+        Assert.Null(player.Location);
     }
 }

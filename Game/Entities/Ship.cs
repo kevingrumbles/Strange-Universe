@@ -64,7 +64,7 @@ public abstract class Ship
     [JsonIgnore] public WeaponSystem   Weapons    { get; }
     [JsonIgnore] public ShipNavigator  Navigator  { get; }
 
-    public Vector2 Position
+    public virtual Vector2 Position
     {
         get => Physics.Transform.Position;
         set => Physics.Transform.Position = value;
