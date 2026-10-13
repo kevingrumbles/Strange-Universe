@@ -270,26 +270,21 @@ public class Equipment
     };
 
     /// <summary>
-    /// Resolves a preset by name. Only <see cref="EquipmentName"/> is persisted, so this
-    /// restores the full stat set on load.
-    /// Returns an inert <see cref="EquipmentType.Unkown"/> item if the name is unrecognized.
-    /// </summary>
-    public static Equipment FromName(string equipmentName)
-        => Presets.Find(e => string.Equals(e.EquipmentName, equipmentName, StringComparison.OrdinalIgnoreCase))
-           ?? new Equipment { EquipmentName = equipmentName, EquipmentType = EquipmentType.Unkown };
-
-    /// <summary>
-    /// A new, separate copy of the preset called <paramref name="equipmentName"/> (so cooldowns are not shared with other
-    /// ships), or null when there is no such preset. <see cref="FromName"/> returns the shared preset instead.
+    /// A new equipment item for the preset called <paramref name="equipmentName"/> (names are not case sensitive). Every call
+    /// returns a separate object, so nothing is shared between ships (weapons carry a cooldown). Only
+    /// <see cref="EquipmentName"/> is saved, so this is also how the full stat set is restored when a save is loaded.
+    /// A name that is not a known preset (an item that no longer exists, say) gives an inert
+    /// <see cref="EquipmentType.Unkown"/> placeholder that keeps its name, so it is written back out unchanged.
     /// </summary>
     public static Equipment Create(string equipmentName)
     {
-        var preset = FromName(equipmentName);
-        return preset.EquipmentType == EquipmentType.Unkown ? null : preset.Clone();
+        var preset = Presets.Find(e => string.Equals(e.EquipmentName, equipmentName, StringComparison.OrdinalIgnoreCase));
+        return preset?.Clone()
+               ?? new Equipment { EquipmentName = equipmentName, EquipmentType = EquipmentType.Unkown };
     }
 
     /// <summary>A copy with its own cooldown state.</summary>
-    public Equipment Clone()
+    private Equipment Clone()
     {
         var copy = (Equipment)MemberwiseClone();
         copy._cooldown = 0f;
@@ -423,10 +418,8 @@ public class EquipmentListConverter : JsonConverter<List<Equipment>>
             string name = reader.GetString()
                 ?? throw new JsonException("Expected a non-null equipment name string.");
 
-            // Each ship gets its own copy (weapons have a cooldown, which must not be shared). A name that is not a known
-            // preset (for example an item that no longer exists) becomes an inert placeholder that keeps its name, so it
-            // is written back out unchanged.
-            list.Add(Equipment.Create(name) ?? Equipment.FromName(name));
+            // Each ship gets its own copy; an unknown name becomes an inert placeholder that keeps its name (see Create).
+            list.Add(Equipment.Create(name));
         }
         return list;
     }

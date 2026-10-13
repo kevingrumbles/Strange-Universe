@@ -36,11 +36,11 @@ public class NpcLoadoutTests
         var b = new Nonplayer("b");
 
         Assert.NotSame(a.Equipment[0], b.Equipment[0]);
-        Assert.NotSame(a.Equipment[0], Equipment.FromName("Light Laser")); // nor the shared preset
+        Assert.NotSame(a.Equipment[0], Equipment.Presets.Single(e => e.EquipmentName == "Light Laser")); // nor the shared preset
     }
 
     [Fact]
-    public void Equipment_Create_GivesSeparateCopies_AndNullForUnknownNames()
+    public void Equipment_Create_GivesSeparateCopies()
     {
         var one = Equipment.Create("Basic Shield Generator");
         var two = Equipment.Create("Basic Shield Generator");
@@ -48,7 +48,6 @@ public class NpcLoadoutTests
         Assert.NotNull(one);
         Assert.NotSame(one, two);
         Assert.Equal(EquipmentType.Shield, one.EquipmentType);
-        Assert.Null(Equipment.Create("No Such Thing"));
     }
 
     [Fact]

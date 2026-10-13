@@ -21,7 +21,7 @@ public class EquipmentInstanceTests
 
         Assert.Equal("Light Laser", a.Equipment.Single().EquipmentName);
         Assert.NotSame(a.Equipment[0], b.Equipment[0]);
-        Assert.NotSame(a.Equipment[0], Equipment.FromName("Light Laser")); // nor the shared preset
+        Assert.NotSame(a.Equipment[0], Preset("Light Laser")); // nor the preset kept in the list
     }
 
     [Fact]
@@ -36,7 +36,7 @@ public class EquipmentInstanceTests
 
         Assert.False(a.Equipment[0].CanFire);
         Assert.True(b.Equipment[0].CanFire);
-        Assert.True(Equipment.FromName("Light Laser").CanFire);
+        Assert.True(Preset("Light Laser").CanFire);
     }
 
     [Fact]
@@ -55,7 +55,7 @@ public class EquipmentInstanceTests
             Assert.Equal("Light Laser", first.EquipmentName);
             Assert.Equal(15, first.Damage); // the full stats are restored from the name
             Assert.NotSame(first, second);
-            Assert.NotSame(first, Equipment.FromName("Light Laser"));
+            Assert.NotSame(first, Preset("Light Laser"));
 
             first.TryFire(loaded[0].Player);
             Assert.True(second.CanFire);
@@ -85,10 +85,29 @@ public class EquipmentInstanceTests
     }
 
     [Fact]
-    public void FromName_StillReturnsTheSharedPreset_AndCreateDoesNot()
+    public void Create_AlwaysReturnsANewObject_ForTheSameName()
     {
-        Assert.Same(Equipment.FromName("Heavy Laser"), Equipment.FromName("heavy laser"));
-        Assert.NotSame(Equipment.FromName("Heavy Laser"), Equipment.Create("Heavy Laser"));
-        Assert.Null(Equipment.Create("No Such Thing"));
+        var first = Equipment.Create("Heavy Laser");
+        var second = Equipment.Create("heavy laser"); // names are not case sensitive
+
+        Assert.NotSame(first, second);
+        Assert.NotSame(first, Preset("Heavy Laser"));
+        Assert.Equal(first.Damage, second.Damage);
+        Assert.Equal(first.EquipmentName, second.EquipmentName);
     }
+
+    [Fact]
+    public void Create_GivesAnInertPlaceholderForAnUnknownName_NeverNull()
+    {
+        var unknown = Equipment.Create("No Such Thing");
+
+        Assert.NotNull(unknown);
+        Assert.Equal("No Such Thing", unknown.EquipmentName);
+        Assert.Equal(EquipmentType.Unkown, unknown.EquipmentType);
+        Assert.False(unknown.PrimaryWeapon);
+        Assert.NotSame(unknown, Equipment.Create("No Such Thing"));
+    }
+
+    /// <summary>The preset instance kept in the list. Ships must never hold it.</summary>
+    private static Equipment Preset(string name) => Equipment.Presets.Single(e => e.EquipmentName == name);
 }

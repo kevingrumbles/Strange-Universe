@@ -29,7 +29,7 @@ An aggressive ship switches from `Pursue` to `Engage` at 90% of its range and ba
 ## Other changes this needed
 
 - **NPCs inherit their loadout and durability from their ship type.** `ShipStats.DefaultEquipment` (the Shuttle: "Light Laser"); an NPC starts with that equipment (separate copies, so cooldowns are not shared) and with hull, shield and fuel at the type's maximums. **Before this, NPCs had no weapons and no hull or shields at all, so they were unarmed and could not be damaged.** This is a gameplay change: NPCs can now be destroyed and can shoot. (The Shuttle's `MaxHull` and `MaxShield` are 1, so it dies from one hit.)
-- `Equipment.Create(name)` / `Equipment.Clone()`: separate equipment instances (`FromName` returns the shared preset).
+- `Equipment.Create(name)`: every ship gets its own equipment instances (weapons have a cooldown). It is the only way to get equipment by name; an unknown name gives an inert placeholder that keeps its name.
 - `IWorldContext.Ships` (the player and all NPCs); `Ship.WeaponRange` and `Ship.ProjectileSpeed`.
 - `Steering`: `MatchVelocity`, `Pursue` / `PursuitVelocity`, `LeadDirection`, `AimAt`, `FireIfAimed`.
 - `GuardTask` goes back to its approach phase if it ends up far from its orbit (for example after chasing), so it returns to its post after an alert.

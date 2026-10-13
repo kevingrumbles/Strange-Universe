@@ -16,21 +16,21 @@ public class DefinitionTests
     {
         foreach (var name in WeaponNames)
         {
-            var weapon = Equipment.FromName(name);
+            var weapon = Equipment.Create(name);
             Assert.Equal(name, weapon.EquipmentName);
             Assert.True(weapon.PrimaryWeapon, name);
             Assert.Contains(Equipment.Presets, e => e.EquipmentName == name);
         }
 
         // Other equipment is looked up the same way.
-        Assert.Equal(EquipmentType.Shield, Equipment.FromName("Basic Shield Generator").EquipmentType);
-        Assert.Equal(EquipmentType.Unkown, Equipment.FromName("No Such Thing").EquipmentType);
+        Assert.Equal(EquipmentType.Shield, Equipment.Create("Basic Shield Generator").EquipmentType);
+        Assert.Equal(EquipmentType.Unkown, Equipment.Create("No Such Thing").EquipmentType);
     }
 
     [Fact]
     public void LightLaser_HasItsStats()
     {
-        var light = Equipment.FromName("light laser"); // names are not case sensitive
+        var light = Equipment.Create("light laser"); // names are not case sensitive
         Assert.Equal(EquipmentType.FixedProjectile, light.EquipmentType);
         Assert.Equal(15, light.Damage);
         Assert.Equal(2000f, light.Speed);
@@ -44,7 +44,7 @@ public class DefinitionTests
     {
         foreach (var name in WeaponNames)
         {
-            var weapon = Equipment.FromName(name);
+            var weapon = Equipment.Create(name);
             Assert.True(weapon.Range > 0f, name);
             Assert.True(weapon.Damage > 0, name);
             Assert.Equal(ProjectileVisuals.For(name).BurstDuration, weapon.ImpactLingerSeconds); // the burst plays for as long as the projectile lingers
