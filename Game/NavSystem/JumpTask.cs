@@ -184,7 +184,7 @@ namespace Strange_Universe.Game.NavSystem
                     }
 
                     // Set ship position at system edge entry point
-                    Owner.Position = World.GetSystemEdgeEntryPosition(_originGalaxyPosition);
+                    Owner.Position = World.GetSystemEdgeEntryPosition(_originGalaxyPosition, RandomFor("arrival"));
 
                     // Calculate inward direction (toward system center)
                     Vector2 inwardDirection = MathHelpers.SafeNormalize(-Owner.Position, -Vector2.UnitX);

@@ -18,19 +18,23 @@ public sealed class NavSim : IDisposable
     public StarSystem System { get; }
     public Nonplayer Ship { get; }
 
+    /// <summary>Where the ship's spawn task put it.</summary>
+    public Vector2 SpawnPosition { get; }
+
     /// <summary>Total simulated seconds.</summary>
     public float Time { get; private set; }
 
-    public NavSim(string seed = "sim-seed")
+    public NavSim(string seed = "sim-seed", string shipId = "sim")
     {
         Universe = new Universe("NavSim", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
         Universe.Generate(new RecordingAssetRequests());
         System = Universe.ActiveStarSystem;
 
-        Ship = new Nonplayer("sim");
+        Ship = new Nonplayer(shipId);
         System.AddNpc(Ship);
         // Let the spawn task finish, then park the ship where the test wants it.
         for (int i = 0; i < 3; i++) Ship.Navigator.Update(Dt);
+        SpawnPosition = Ship.Position;
     }
 
     public NavSim Place(Vector2 position, Vector2? velocity = null)

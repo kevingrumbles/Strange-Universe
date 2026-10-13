@@ -140,3 +140,16 @@ The shared `TaskState` enum and the public `CurrentState` setter are gone.
 - **Tests** moved to the new API, plus: status is not publicly settable and `CurrentState` no longer exists, finished status is final, finished tasks are not updated, running tasks are, the lazy jump validation (unknown target, no target, NPC without a target), and every task starts in its first phase.
 
 Results: 169 pass, 0 skipped. Remaining: step 6 (seeded randomness; Dock and Guard already done, check what is left), step 7 (optional).
+
+### Step 6 done: seeded randomness
+
+What was left after Dock and Guard (see step 3) was in the events and in how NPCs are placed.
+
+- **Events had one shared, constant seed.** `SystemEvent.random` was `new Random(new Guid().GetHashCode())`, and `new Guid()` is always `Guid.Empty`, so every event started the same stream (a merchant always chose the same planet slot, and so on). `EventController` now gives each event a generator seeded from the controller's own stream (which is seeded from the system id), so a system's events always play out the same way. Behavior change: the event sequence of a system differs from before (it consumes one extra draw per event); it was not stable between builds anyway.
+- **Bug fixed:** the patrol-point loops evaluated `random.Next(3, 6)` in the loop condition, so the bound was re-rolled every iteration and the number of waypoints was erratic. The count is now decided once.
+- **The world takes a generator.** `IWorldContext.GetRandomSafeLocationOutsideAsteroidBelt`, `GetSystemEdgeEntryPosition` and `GetSafeEntryTransform` (and the spatial queries behind them) take an optional `Random`. Events pass theirs, so patrol routes are reproducible; with none, the system's own generator is used as before.
+- **NPC placement is reproducible.** `NavTask.RandomFor(purpose)` seeds a generator from the ship id, the system id and the purpose. `SpawnTask` (spawn position) and `JumpTask` (arrival at the system edge) use it for NPCs. For the **player** it returns null on purpose, so the player's spawn and arrival spots keep their variety (no visible gameplay change for the player).
+- **Not changed (not nav decisions):** weapon spread (`Equipment`, a static `Random`), particle and impact visuals, the unseeded fallback `Random` inside `SystemSpatialQueries` and `NameGenerator.GenerateCelestialName`'s `Random.Shared` fallback (both only used when a caller passes no generator).
+- **Tests** (`NavDeterminismTests`): the same system replays the same events and messages; every event hands its own generator to the world; the patrol-point count is decided once; NPC spawn and jump-in arrival positions are reproducible in a real system (same seed and ship id, same spot; a different ship id, a different spot); the player gets no seeded generator.
+
+Results: 177 pass, 0 skipped. Remaining: step 7 (optional: real alert and attack behavior for Guard; split `JumpTask` into steering phases and a scripted arrival).

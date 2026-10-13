@@ -1,3 +1,4 @@
+using System;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 
@@ -42,6 +43,19 @@ namespace Strange_Universe.Game.NavSystem
         public NavTask(Ship owner)
         {
             Owner = owner;
+        }
+
+        /// <summary>
+        /// A random generator for NPC decisions, seeded from the ship, the system and <paramref name="purpose"/>, so the same
+        /// situation always plays out the same way. Returns null for the player, whose arrival and spawn spots stay
+        /// varied: callers pass the result to the world, which then uses its own generator.
+        /// </summary>
+        protected Random RandomFor(string purpose)
+        {
+            if (Owner is null or Player)
+                return null;
+
+            return new Random(ProceduralHelpers.SeedHash($"{Owner.Id ?? Owner.Name}:{World?.SystemId}:{purpose}"));
         }
 
         /// <summary>Advances the task by one frame. The navigator only calls this while the task is running.</summary>

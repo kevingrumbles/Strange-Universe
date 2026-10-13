@@ -49,6 +49,9 @@ namespace Strange_Universe.Game.EventSystem
             }
 
         }
+        /// <summary>A generator for the next event, drawn from the controller's own seeded stream.</summary>
+        private Random NextEventRandom() => new Random(_random.Next());
+
         public void SpawnEvent()
         {
             if (_owner == null)
@@ -64,12 +67,12 @@ namespace Strange_Universe.Game.EventSystem
                 //    break;
                 case int n when (n < DefendedSystemSpawn.EventProbability):
                     _owner.PostMessage($"A Defended System has been discovered! {n}/{DefendedSystemSpawn.EventProbability}");
-                    spawnEvent = new DefendedSystemSpawn();
+                    spawnEvent = new DefendedSystemSpawn { random = NextEventRandom() };
                     break;
 
                 case int n when (n < ScoutedSystemSpawn.EventProbability):
                     _owner.PostMessage($"A Scouted System has been discovered! {n}/{ScoutedSystemSpawn.EventProbability}");
-                    spawnEvent = new ScoutedSystemSpawn();
+                    spawnEvent = new ScoutedSystemSpawn { random = NextEventRandom() };
                     break;
             }
             if (spawnEvent is not null)
@@ -86,7 +89,7 @@ namespace Strange_Universe.Game.EventSystem
             switch ((int)(_random.NextDouble() * 100))
             {
                 case int n when (n < MerchantMissionEvent.EventProbability):
-                    spawnEvent = new MerchantMissionEvent();
+                    spawnEvent = new MerchantMissionEvent { random = NextEventRandom() };
                     break;
             }
             if (spawnEvent is not null)
