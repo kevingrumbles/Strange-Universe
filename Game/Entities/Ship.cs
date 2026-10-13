@@ -4,6 +4,7 @@ using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
@@ -112,7 +113,7 @@ public abstract class Ship
     protected Ship()
     {
         Physics    = new ShipPhysics(() => ShipType);
-        Durability = new ShipDurability(() => ShipType);
+        Durability = new ShipDurability(() => ShipType, () => Equipment.OfType<Shield>().FirstOrDefault());
         Sensors    = new ShipSensors(this);
         Weapons    = new WeaponSystem(() => Equipment);
         Navigator  = new ShipNavigator(this);
@@ -166,6 +167,7 @@ public abstract class Ship
         Physics.Integrate(gravity, deltaTime);
 
         Weapons.UpdateCooldowns(deltaTime);
+        Durability.Update(deltaTime);
     }
 
     // -- Navigation ---------------------------------------------------------

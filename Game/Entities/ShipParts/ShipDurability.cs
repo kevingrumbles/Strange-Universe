@@ -8,10 +8,20 @@ public class ShipDurability
 {
     private readonly Func<ShipStats> _stats;
 
-    public ShipDurability(Func<ShipStats> stats)
+    private readonly Func<Shield> _shieldGenerator;
+    private float _rechargeDelayLeft;
+    private float _rechargeRemainder; // the fraction of a shield point not yet added
+
+    /// <param name="stats">The ship's current stats.</param>
+    /// <param name="shieldGenerator">The shield generator the ship carries (null when it has none); it sets how the shield recharges.</param>
+    public ShipDurability(Func<ShipStats> stats, Func<Shield> shieldGenerator = null)
     {
         _stats = stats ?? throw new ArgumentNullException(nameof(stats));
+        _shieldGenerator = shieldGenerator;
     }
+
+    /// <summary>Seconds left before a downed shield starts to recharge; 0 when it is not waiting.</summary>
+    public float RechargeDelayRemaining => _rechargeDelayLeft;
 
     public int? Hull   { get; set; }
     public int? Shield { get; set; }
@@ -44,12 +54,47 @@ public class ShipDurability
             int absorbed = Math.Min(Shield.Value, remaining);
             Shield    -= absorbed;
             remaining -= absorbed;
+
+            // The shield just went down: it stays off for the generator's recharge delay.
+            if (Shield == 0)
+            {
+                _rechargeDelayLeft = _shieldGenerator?.Invoke()?.RechargeDelay ?? 0f;
+                _rechargeRemainder = 0f;
+            }
         }
 
         if (remaining > 0 && Hull.HasValue)
             Hull = Math.Max(0, Hull.Value - remaining);
 
         LastDamageSource = source;
+    }
+
+    /// <summary>
+    /// Recharges the shield. Once the delay that began when the shield went down has passed, the shield regains the
+    /// generator's recharge rate per second, up to the maximum. A ship with no shield generator does not recharge.
+    /// </summary>
+    public void Update(float deltaTime)
+    {
+        if (IsDestroyed || Shield is null || deltaTime <= 0f)
+            return;
+
+        if (_rechargeDelayLeft > 0f)
+        {
+            float waited = Math.Min(_rechargeDelayLeft, deltaTime);
+            _rechargeDelayLeft -= waited;
+            deltaTime -= waited; // time left over after the delay counts towards recharging
+        }
+
+        var generator = _shieldGenerator?.Invoke();
+        if (deltaTime <= 0f || generator == null || generator.RechargeRate <= 0f || Shield >= MaxShield)
+            return;
+
+        _rechargeRemainder += generator.RechargeRate * deltaTime;
+        int whole = (int)_rechargeRemainder;
+        _rechargeRemainder -= whole;
+        Shield = Math.Min(MaxShield, Shield.Value + whole);
+        if (Shield >= MaxShield)
+            _rechargeRemainder = 0f;
     }
 
     private static float Percent(int? current, int max)

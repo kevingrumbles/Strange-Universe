@@ -178,6 +178,86 @@ public class ShipComponentTests
         Assert.Equal(0f, d.FuelPercentage);
     }
 
+    // -- Shield recharge -----------------------------------------------------
+
+    private static Shield Generator(float rate = 10f, float delay = 2f) => new()
+    {
+        EquipmentName = "Test Generator", RechargeRate = rate, RechargeDelay = delay,
+    };
+
+    private static void Run(ShipDurability d, float seconds)
+    {
+        for (int i = 0; i < (int)(seconds * 60f + 0.5f); i++)
+            d.Update(1f / 60f);
+    }
+
+    [Fact]
+    public void ShieldRecharge_WaitsForTheDelay_ThenRegainsAtTheRechargeRate()
+    {
+        var d = new ShipDurability(() => Stats, () => Generator(rate: 10f, delay: 2f)) { Hull = 100, Shield = 5 };
+        d.ApplyDamage(5); // the shield goes down
+        Assert.Equal(0, d.Shield);
+
+        Run(d, 1.9f);
+        Assert.Equal(0, d.Shield); // still inside the delay
+
+        Run(d, 1.1f); // 3.0 s in: 1.0 s of recharging
+        Assert.InRange(d.Shield!.Value, 9, 11);
+    }
+
+    [Fact]
+    public void ShieldRecharge_StopsAtTheMaximum()
+    {
+        var d = new ShipDurability(() => Stats, () => Generator(rate: 100f, delay: 0f)) { Hull = 100, Shield = 40 };
+
+        Run(d, 5f);
+
+        Assert.Equal(50, d.Shield);
+    }
+
+    [Fact]
+    public void ShieldRecharge_DelayRestartsEachTimeTheShieldGoesDown()
+    {
+        var d = new ShipDurability(() => Stats, () => Generator(rate: 10f, delay: 2f)) { Hull = 100, Shield = 5 };
+        d.ApplyDamage(5);
+        Run(d, 3f);
+        Assert.True(d.Shield > 0);
+
+        d.ApplyDamage(1000); // down again
+        Assert.Equal(0, d.Shield);
+        Assert.Equal(2f, d.RechargeDelayRemaining);
+        Run(d, 1.5f);
+        Assert.Equal(0, d.Shield);
+    }
+
+    [Fact]
+    public void ShieldRecharge_DoesNotHappenWithoutAGenerator_OrOnADestroyedShip()
+    {
+        var bare = new ShipDurability(() => Stats) { Hull = 100, Shield = 0 };
+        Run(bare, 10f);
+        Assert.Equal(0, bare.Shield);
+
+        var dead = new ShipDurability(() => Stats, () => Generator(delay: 0f)) { Hull = 0, Shield = 0 };
+        Run(dead, 10f);
+        Assert.Equal(0, dead.Shield);
+    }
+
+    [Fact]
+    public void ShieldRecharge_AShipWithAGenerator_RechargesInTheGame()
+    {
+        var npc = new Nonplayer("npc");
+        npc.Equipment.Add(Equipment.Create("Military Shield Generator")); // 80/s after a 2 s delay
+        npc.CurrentShieldStrength = 1;
+        npc.CurrentHullStrength = npc.MaxHullStrength;
+        npc.ApplyDamage(1);
+        Assert.Equal(0, npc.CurrentShieldStrength);
+
+        for (int i = 0; i < 60 * 3; i++)
+            npc.Update(1f / 60f);
+
+        Assert.Equal(npc.MaxShieldStrength, npc.CurrentShieldStrength); // 15 points: full within a second of the delay
+    }
+
     // -- WeaponSystem --------------------------------------------------------
 
     private static UtilityModule Utility(float? fireRate, float? range, float? accuracy) => new()
