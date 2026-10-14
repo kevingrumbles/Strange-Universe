@@ -404,6 +404,17 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(x, y, size, size), color);
         }
 
+        // Draws a filled round dot of the given radius (in pixels) centred on screenPos, one pixel at a time so it stays round at tiny sizes.
+        void Disc(Vector2 screenPos, float radius, Color color)
+        {
+            int reach = (int)MathF.Ceiling(radius);
+            float limit = radius * radius + 1.2f; // the +1.2 rounds the edge pixels the way a pixel disc looks right
+            for (int dy = -reach; dy <= reach; dy++)
+                for (int dx = -reach; dx <= reach; dx++)
+                    if (dx * dx + dy * dy <= limit)
+                        Dot(new Vector2((int)screenPos.X + dx, (int)screenPos.Y + dy), 1, color);
+        }
+
         // -- HUD Panel Background ---------------------------------------------
         _spriteBatch.Draw(_pixel,
             new Rectangle(mapLeft, mapTop, MapSize, hudPanelHeight),
@@ -421,12 +432,10 @@ public class SpriteRenderer
         // -- Planets -------------------------------------------------------
         foreach (var planet in universe.ActiveStarSystem.Planets)
         {
-            // A ring around a soft disc, so planets read as bodies and cannot be mistaken for the small solid dots of ships
+            // A small round disc with a dark center pixel, so planets read as round bodies and cannot be mistaken for the solid square dots of ships
             Vector2 planetMap = WorldToMap(planet.Position);
-            Color planetColor = ProceduralHelpers.PlanetMinimapColor(planet.Type);
-            Dot(planetMap, 7, planetColor);                    // ring (outer edge)
-            Dot(planetMap, 5, new Color(0, 5, 18));            // hollow it out with the map background
-            Dot(planetMap, 3, planetColor * 0.7f);             // the planet itself
+            Disc(planetMap, 2f, ProceduralHelpers.PlanetMinimapColor(planet.Type));
+            Dot(planetMap, 1, new Color(0, 5, 18));
         }
 
         // Stars
