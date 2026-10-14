@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,22 @@ namespace Strange_Universe.Game.Systems;
 /// </summary>
 public class SpriteRenderer
 {
+    /// <summary>Minimap colors for NPCs: hostile to the player, aggressive, defensive.</summary>
+    internal static readonly Color HostileShipColor    = new(255, 60, 60);
+    internal static readonly Color AggressiveShipColor = new(255, 220, 60);
+    internal static readonly Color DefensiveShipColor  = new(80, 140, 255);
+
+    /// <summary>Red for a ship that is hostile to the player, otherwise yellow if its current task is aggressive and blue if it is defensive.</summary>
+    internal static Color NpcMinimapColor(Ship npc, Ship player)
+    {
+        if (npc.IsHostileTo(player))
+            return HostileShipColor;
+
+        var task = npc.Navigator.ActiveTask;
+        var disposition = task is AlertTask alert ? alert.Response : task?.Disposition ?? TaskDisposition.Defensive;
+        return disposition == TaskDisposition.Aggressive ? AggressiveShipColor : DefensiveShipColor;
+    }
+
     private readonly GameServices _services;
     private readonly RenderService _renderService;
     private readonly Camera _camera;
@@ -426,7 +443,7 @@ public class SpriteRenderer
         foreach (var npc in universe.ActiveStarSystem.Npcs)
         {
             Vector2 npcMap = WorldToMap(npc.Position);
-            Dot(npcMap, 3, new Color(255, 180, 80));  // orange body for NPCs
+            Dot(npcMap, 3, NpcMinimapColor(npc, universe.Player));
         }
 
         // -- Target Highlight -----------------------------------------------------
