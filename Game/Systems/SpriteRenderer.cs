@@ -442,9 +442,9 @@ public class SpriteRenderer
         foreach (var star in universe.ActiveStarSystem.Stars)
         {
             Vector2 starMap = WorldToMap(star.Position);
-            Dot(starMap, 10, ProceduralHelpers.StarColors[star.ColorIndex] * 0.55f);   // soft outer glow
-            Dot(starMap,  6, ProceduralHelpers.StarColors[star.ColorIndex]);            // coloured body
-            Dot(starMap,  3, Color.White * 0.90f);          // bright core
+            Disc(starMap, 4.5f, ProceduralHelpers.StarColors[star.ColorIndex] * 0.55f);   // soft outer glow
+            Disc(starMap, 2.5f, ProceduralHelpers.StarColors[star.ColorIndex]);            // coloured body
+            Disc(starMap, 1.2f, Color.White * 0.90f);          // bright core
         }
 
         // -- Player --------------------------------------------------------
