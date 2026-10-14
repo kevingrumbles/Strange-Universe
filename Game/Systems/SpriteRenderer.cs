@@ -420,7 +420,14 @@ public class SpriteRenderer
 
         // -- Planets -------------------------------------------------------
         foreach (var planet in universe.ActiveStarSystem.Planets)
-            Dot(WorldToMap(planet.Position), 4, ProceduralHelpers.PlanetMinimapColor(planet.Type));
+        {
+            // A ring around a soft disc, so planets read as bodies and cannot be mistaken for the small solid dots of ships
+            Vector2 planetMap = WorldToMap(planet.Position);
+            Color planetColor = ProceduralHelpers.PlanetMinimapColor(planet.Type);
+            Dot(planetMap, 9, planetColor);                    // ring (outer edge)
+            Dot(planetMap, 7, new Color(0, 5, 18));            // hollow it out with the map background
+            Dot(planetMap, 5, planetColor * 0.7f);             // the planet itself
+        }
 
         // Stars
         foreach (var star in universe.ActiveStarSystem.Stars)
