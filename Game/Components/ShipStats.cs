@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Components;
@@ -18,8 +18,7 @@ public class ShipStats
         SplashName           = "Art/Shuttle_splash.png",
         SpriteScale          = 1.5f,
         DefaultEquipment     = new[] { "Light Laser", "Basic Shield Generator", "Light Hull Plating" },
-        MaxHull              = 30,
-        MaxShield            = 15,
+        MaxHull              = 5,
         MaxFuel              = 5,
     };
 
@@ -50,7 +49,6 @@ public class ShipStats
     [JsonIgnore] public float SpriteRotationOffset { get; set; } = -1.5708f;
     [JsonIgnore] public float SpriteScale { get; set; } = 1.0f;
     [JsonIgnore] public int MaxHull { get; set; }
-    [JsonIgnore] public int MaxShield { get; set; }
     [JsonIgnore] public int MaxFuel { get; set; }
     [JsonIgnore] public float Mass { get; set; } = 1.0f;
 

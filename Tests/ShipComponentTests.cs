@@ -17,7 +17,6 @@ public class ShipComponentTests
         MaxSpeed     = 500f,
         SoftCapStart = 0.75f,
         MaxHull      = 100,
-        MaxShield    = 50,
         MaxFuel      = 10,
         Mass         = 1f,
     };
@@ -114,7 +113,8 @@ public class ShipComponentTests
     [Fact]
     public void Durability_ShieldsAbsorbFirst()
     {
-        var d = new ShipDurability(() => Stats) { Hull = 100, Shield = 50 };
+        var d = Fitted(Generator(strength: 50f));
+        d.Shield = 50;
 
         d.ApplyDamage(30);
 
@@ -125,7 +125,8 @@ public class ShipComponentTests
     [Fact]
     public void Durability_AnActiveShieldAbsorbsTheWholeHit_NothingSpillsToTheHull()
     {
-        var d = new ShipDurability(() => Stats) { Hull = 100, Shield = 50 };
+        var d = Fitted(Generator(strength: 50f));
+        d.Shield = 50;
 
         d.ApplyDamage(80);
 
@@ -166,7 +167,9 @@ public class ShipComponentTests
         d.ApplyDamage(5, attacker);
         Assert.Null(d.LastDamageSource);
 
-        var e = new ShipDurability(() => Stats) { Hull = 10, Shield = 10 };
+        var e = Fitted(Generator(strength: 50f));
+        e.Hull = 10;
+        e.Shield = 10;
         e.ApplyDamage(0, attacker);
         Assert.Equal(10, e.Shield);
         Assert.Null(e.LastDamageSource);
@@ -175,7 +178,9 @@ public class ShipComponentTests
     [Fact]
     public void Durability_Percentages()
     {
-        var d = new ShipDurability(() => Stats) { Hull = 50, Shield = 25, Fuel = null };
+        var d = Fitted(Generator(strength: 50f));
+        d.Hull = 50;
+        d.Shield = 25;
         Assert.Equal(50f, d.HullPercentage);
         Assert.Equal(50f, d.ShieldPercentage);
         Assert.Equal(0f, d.FuelPercentage);
@@ -189,15 +194,15 @@ public class ShipComponentTests
         var gear = new List<Equipment>();
         var d = new ShipDurability(() => Stats, () => gear); // base 100 hull, 50 shield
         Assert.Equal(100, d.MaxHull);
-        Assert.Equal(50, d.MaxShield);
+        Assert.Equal(0, d.MaxShield); // a ship type gives no shield: only equipment does
 
         gear.Add(new Shield { ShieldStrength = 500f });
         gear.Add(new Shield { ShieldStrength = 200f });
         gear.Add(new HullPlating { HullStrength = 300f });
-        Assert.Equal(750, d.MaxShield);
+        Assert.Equal(700, d.MaxShield);
         Assert.Equal(400, d.MaxHull);
 
-        d.Shield = 375;
+        d.Shield = 350;
         Assert.Equal(50f, d.ShieldPercentage);
     }
 
@@ -210,7 +215,7 @@ public class ShipComponentTests
 
         foreach (var ship in new Ship[] { player, npc })
         {
-            Assert.Equal(shuttle.MaxShield + 25, ship.MaxShieldStrength); // Basic Shield Generator
+            Assert.Equal(25, ship.MaxShieldStrength); // Basic Shield Generator
             Assert.Equal(shuttle.MaxHull + 25, ship.MaxHullStrength);     // Light Hull Plating
             Assert.Equal(ship.MaxShieldStrength, ship.CurrentShieldStrength);
             Assert.Equal(ship.MaxHullStrength, ship.CurrentHullStrength);

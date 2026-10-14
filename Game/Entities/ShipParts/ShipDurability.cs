@@ -12,7 +12,6 @@ public class ShipDurability
 
     private readonly Func<IEnumerable<Equipment>> _equipment;
     private bool _hasShield;
-    private float _pool;       // shield the ship type itself provides; it has no generator, so it never recharges
     private int? _requested;   // a total set from outside, handed out to the generators the next time the shield is used
 
     /// <param name="stats">The ship's current stats.</param>
@@ -30,8 +29,7 @@ public class ShipDurability
     private List<Shield> Generators => Carried.OfType<Shield>().ToList();
 
     /// <summary>
-    /// The ship's total shield: the ship type's own plus what each generator has left. Setting it fills the generators
-    /// in order, then the ship type's own shield. (The strength lives in the generators; this total is what is saved.)
+    /// The ship's total shield: what each generator has left. Setting it fills the generators in order (any excess is dropped). (The strength lives in the generators; this total is what is saved.)
     /// </summary>
     public int? Shield
     {
@@ -40,7 +38,7 @@ public class ShipDurability
             if (!_hasShield)
                 return null;
             HandOutRequested();
-            return (int)Math.Floor(_pool + Generators.Sum(g => g.Strength) + 0.001f);
+            return (int)Math.Floor(Generators.Sum(g => g.Strength) + 0.001f);
         }
         set
         {
@@ -52,8 +50,8 @@ public class ShipDurability
     /// <summary>The ship type's hull plus the strength of every hull plating it carries.</summary>
     public int MaxHull   => _stats().MaxHull + (int)Carried.OfType<HullPlating>().Sum(h => h.HullStrength);
 
-    /// <summary>The ship type's shield plus the strength of every shield generator it carries.</summary>
-    public int MaxShield => _stats().MaxShield + (int)Carried.OfType<Shield>().Sum(g => g.ShieldStrength);
+    /// <summary>The strength of every shield generator the ship carries; ships get a shield only from equipment.</summary>
+    public int MaxShield => (int)Carried.OfType<Shield>().Sum(g => g.ShieldStrength);
     public int MaxFuel   => _stats().MaxFuel;
 
     public float HullPercentage   => Percent(Hull, MaxHull);
@@ -86,11 +84,6 @@ public class ShipDurability
             if (active != null)
             {
                 active.Absorb(damage);
-                absorbed = true;
-            }
-            else if (_pool > 0f)
-            {
-                _pool = Math.Max(0f, _pool - damage);
                 absorbed = true;
             }
 
@@ -127,7 +120,6 @@ public class ShipDurability
             generator.SetStrength(left);
             left -= generator.Strength;
         }
-        _pool = left;
     }
 
     private static float Percent(int? current, int max)

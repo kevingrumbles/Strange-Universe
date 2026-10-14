@@ -502,6 +502,13 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(barX, barY + BarHeight - 1, barWidth, 1), border);
             _spriteBatch.Draw(_pixel, new Rectangle(barX, barY, 1, BarHeight), border);
             _spriteBatch.Draw(_pixel, new Rectangle(barX + barWidth - 1, barY, 1, BarHeight), border);
+
+            // The current percentage, centered on the bar (with a shadow so it reads over the fill)
+            string percentText = $"{(int)MathF.Round(fillPercent * 100f)}%";
+            Vector2 textSize = _font.MeasureString(percentText) * FontScale;
+            Vector2 textPos = new Vector2(barX + (barWidth - textSize.X) * 0.5f, barY + (BarHeight - textSize.Y) * 0.5f);
+            _spriteBatch.DrawString(_font, percentText, textPos + Vector2.One, Color.Black, 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+            _spriteBatch.DrawString(_font, percentText, textPos, Color.White, 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
         }
 
         // -- Player Status Bars -----------------------------------------------
