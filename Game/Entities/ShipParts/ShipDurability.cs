@@ -11,26 +11,43 @@ public class ShipDurability
     private readonly Func<ShipStats> _stats;
 
     private readonly Func<IEnumerable<Equipment>> _equipment;
-    private float _rechargeDelayLeft;
-    private float _rechargeRemainder; // the fraction of a shield point not yet added
+    private bool _hasShield;
+    private float _pool;       // shield the ship type itself provides; it has no generator, so it never recharges
+    private int? _requested;   // a total set from outside, handed out to the generators the next time the shield is used
 
     /// <param name="stats">The ship's current stats.</param>
-    /// <param name="equipment">The ship's equipment (null for none). Shields and hull plating add to the ship type's base values, and the first shield generator sets how the shield recharges.</param>
+    /// <param name="equipment">The ship's equipment (null for none). Shields and hull plating add to the ship type's base values; each shield generator holds and recharges its own strength.</param>
     public ShipDurability(Func<ShipStats> stats, Func<IEnumerable<Equipment>> equipment = null)
     {
         _stats = stats ?? throw new ArgumentNullException(nameof(stats));
         _equipment = equipment;
     }
 
-    /// <summary>Seconds left before a downed shield starts to recharge; 0 when it is not waiting.</summary>
-    public float RechargeDelayRemaining => _rechargeDelayLeft;
-
     public int? Hull   { get; set; }
-    public int? Shield { get; set; }
     public int? Fuel   { get; set; }
 
     private IEnumerable<Equipment> Carried => _equipment?.Invoke() ?? Enumerable.Empty<Equipment>();
-    private Shield ShieldGenerator => Carried.OfType<Shield>().FirstOrDefault();
+    private List<Shield> Generators => Carried.OfType<Shield>().ToList();
+
+    /// <summary>
+    /// The ship's total shield: the ship type's own plus what each generator has left. Setting it fills the generators
+    /// in order, then the ship type's own shield. (The strength lives in the generators; this total is what is saved.)
+    /// </summary>
+    public int? Shield
+    {
+        get
+        {
+            if (!_hasShield)
+                return null;
+            HandOutRequested();
+            return (int)Math.Floor(_pool + Generators.Sum(g => g.Strength) + 0.001f);
+        }
+        set
+        {
+            _hasShield = value.HasValue;
+            _requested = value;
+        }
+    }
 
     /// <summary>The ship type's hull plus the strength of every hull plating it carries.</summary>
     public int MaxHull   => _stats().MaxHull + (int)Carried.OfType<HullPlating>().Sum(h => h.HullStrength);
@@ -49,60 +66,59 @@ public class ShipDurability
     /// <summary>The most recent ship to damage this one. Used for kill attribution.</summary>
     public Ship LastDamageSource { get; private set; }
 
-    /// <summary>Applies raw damage, depleting shields first and then hull (never below zero).</summary>
+    /// <summary>Applies raw damage: each shield generator in turn takes what it can, then the ship type's own shield, then the hull (never below zero).</summary>
     public void ApplyDamage(int damage, Ship source = null)
     {
         if (damage <= 0 || IsDestroyed)
             return;
 
-        int remaining = damage;
+        float remaining = damage;
 
-        if (Shield is > 0)
+        if (_hasShield)
         {
-            int absorbed = Math.Min(Shield.Value, remaining);
-            Shield    -= absorbed;
+            HandOutRequested();
+            foreach (var generator in Generators)
+            {
+                if (remaining <= 0f)
+                    break;
+                remaining = generator.Absorb(remaining);
+            }
+
+            float absorbed = Math.Min(_pool, remaining);
+            _pool     -= absorbed;
             remaining -= absorbed;
         }
 
-        // A hit that takes the shield down, or lands while it is already down, restarts the generator's recharge delay.
-        if (Shield == 0)
-        {
-            _rechargeDelayLeft = ShieldGenerator?.RechargeDelay ?? 0f;
-            _rechargeRemainder = 0f;
-        }
+        if (remaining > 0f && Hull.HasValue)
+            Hull = Math.Max(0, Hull.Value - (int)Math.Ceiling(remaining));
 
-        if (remaining > 0 && Hull.HasValue)
-            Hull = Math.Max(0, Hull.Value - remaining);
-
-        LastDamageSource = source;
+        LastDamageSource = source ?? LastDamageSource;
     }
 
-    /// <summary>
-    /// Recharges the shield. Once the delay that began when the shield went down has passed, the shield regains the
-    /// generator's recharge rate per second, up to the maximum. A ship with no shield generator does not recharge.
-    /// </summary>
+    /// <summary>Lets every shield generator recharge. Each follows its own rate and delay.</summary>
     public void Update(float deltaTime)
     {
-        if (IsDestroyed || Shield is null || deltaTime <= 0f)
+        if (IsDestroyed || !_hasShield || deltaTime <= 0f)
             return;
 
-        if (_rechargeDelayLeft > 0f)
+        HandOutRequested();
+        foreach (var generator in Generators)
+            generator.Update(deltaTime);
+    }
+
+    private void HandOutRequested()
+    {
+        if (_requested is not { } total)
+            return;
+        _requested = null;
+
+        float left = total;
+        foreach (var generator in Generators)
         {
-            float waited = Math.Min(_rechargeDelayLeft, deltaTime);
-            _rechargeDelayLeft -= waited;
-            deltaTime -= waited; // time left over after the delay counts towards recharging
+            generator.SetStrength(left);
+            left -= generator.Strength;
         }
-
-        var generator = ShieldGenerator;
-        if (deltaTime <= 0f || generator == null || generator.RechargeRate <= 0f || Shield >= MaxShield)
-            return;
-
-        _rechargeRemainder += generator.RechargeRate * deltaTime;
-        int whole = (int)_rechargeRemainder;
-        _rechargeRemainder -= whole;
-        Shield = Math.Min(MaxShield, Shield.Value + whole);
-        if (Shield >= MaxShield)
-            _rechargeRemainder = 0f;
+        _pool = left;
     }
 
     private static float Percent(int? current, int max)

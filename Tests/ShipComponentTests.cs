@@ -214,12 +214,18 @@ public class ShipComponentTests
         }
     }
 
-    // -- Shield recharge -----------------------------------------------------
+    // -- Shield recharge: each generator holds and recharges its own strength ---
 
-    private static Shield Generator(float rate = 10f, float delay = 2f) => new()
+    private static Shield Generator(float strength = 20f, float rate = 10f, float delay = 2f) => new()
     {
-        EquipmentName = "Test Generator", RechargeRate = rate, RechargeDelay = delay,
+        EquipmentName = "Test Generator", ShieldStrength = strength, RechargeRate = rate, RechargeDelay = delay,
     };
+
+    private static ShipDurability Fitted(params Shield[] generators)
+    {
+        var gear = new List<Equipment>(generators);
+        return new ShipDurability(() => Stats, () => gear) { Hull = 100 };
+    }
 
     private static void Run(ShipDurability d, float seconds)
     {
@@ -228,11 +234,14 @@ public class ShipComponentTests
     }
 
     [Fact]
-    public void ShieldRecharge_WaitsForTheDelay_ThenRegainsAtTheRechargeRate()
+    public void AGenerator_WaitsForItsDelay_ThenRegainsAtItsRechargeRate()
     {
-        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 10f, delay: 2f) }) { Hull = 100, Shield = 5 };
+        var g = Generator(strength: 20f, rate: 10f, delay: 2f);
+        var d = Fitted(g);
+        d.Shield = 5;
         d.ApplyDamage(5); // the shield goes down
         Assert.Equal(0, d.Shield);
+        Assert.Equal(2f, g.RechargeDelayRemaining);
 
         Run(d, 1.9f);
         Assert.Equal(0, d.Shield); // still inside the delay
@@ -242,45 +251,111 @@ public class ShipComponentTests
     }
 
     [Fact]
-    public void ShieldRecharge_StopsAtTheMaximum()
+    public void AGenerator_StopsRechargingAtItsMaximum()
     {
-        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 100f, delay: 0f) }) { Hull = 100, Shield = 40 };
+        var g = Generator(strength: 20f, rate: 100f, delay: 0f);
+        var d = Fitted(g);
+        d.Shield = 5;
 
         Run(d, 5f);
 
-        Assert.Equal(50, d.Shield);
+        Assert.Equal(20f, g.Strength);
+        Assert.Equal(20, d.Shield);
     }
 
     [Fact]
-    public void ShieldRecharge_DelayRestartsEachTimeTheShieldGoesDown()
+    public void AGenerator_DelayRestartsEachTimeItGoesDown()
     {
-        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 10f, delay: 2f) }) { Hull = 100, Shield = 5 };
+        var g = Generator(delay: 2f);
+        var d = Fitted(g);
+        d.Shield = 5;
         d.ApplyDamage(5);
         Run(d, 3f);
         Assert.True(d.Shield > 0);
 
         d.ApplyDamage(1000); // down again
         Assert.Equal(0, d.Shield);
-        Assert.Equal(2f, d.RechargeDelayRemaining);
+        Assert.Equal(2f, g.RechargeDelayRemaining);
         Run(d, 1.5f);
         Assert.Equal(0, d.Shield);
     }
 
     [Fact]
-    public void ShieldRecharge_AHitWhileTheShieldIsDown_RestartsTheDelay()
+    public void AHitWhileTheGeneratorIsDown_RestartsItsDelay()
     {
-        var d = new ShipDurability(() => Stats, () => new[] { Generator(rate: 10f, delay: 2f) }) { Hull = 100, Shield = 5 };
+        var g = Generator(rate: 10f, delay: 2f);
+        var d = Fitted(g);
+        d.Shield = 5;
         d.ApplyDamage(5);
         Run(d, 1.5f);
         Assert.Equal(0, d.Shield); // still waiting, 0.5 s to go
 
         d.ApplyDamage(3); // hits the hull
-        Assert.Equal(2f, d.RechargeDelayRemaining);
+        Assert.Equal(2f, g.RechargeDelayRemaining);
 
         Run(d, 1.5f);
         Assert.Equal(0, d.Shield); // would have recharged by now without the restart
         Run(d, 1f);
         Assert.True(d.Shield > 0);
+    }
+
+    [Fact]
+    public void SeveralGenerators_TakeDamageInTurn_AndEachRechargesByItsOwnRateAndDelay()
+    {
+        var quick = Generator(strength: 10f, rate: 10f, delay: 1f);
+        var slow  = Generator(strength: 10f, rate: 2f,  delay: 4f);
+        var d = Fitted(quick, slow);
+        d.Shield = 20;
+        Assert.Equal(20, d.MaxShield - 50); // the two generators add 20 to the ship type's 50
+
+        d.ApplyDamage(15); // the first takes 10, the second 5
+        Assert.Equal(0f, quick.Strength);
+        Assert.Equal(5f, slow.Strength);
+        Assert.Equal(5, d.Shield);
+
+        d.ApplyDamage(5);  // the second goes down too
+        Assert.True(quick.IsDown && slow.IsDown);
+
+        Run(d, 2f); // the quick one's delay (1 s) has passed, the slow one's (4 s) has not
+        Assert.InRange(quick.Strength, 9.9f, 10f);
+        Assert.Equal(0f, slow.Strength);
+
+        Run(d, 4f); // 6 s in: the slow one has recharged for 2 s at 2 per second
+        Assert.InRange(slow.Strength, 3.9f, 4.1f);
+        Assert.Equal(10f, quick.Strength);
+    }
+
+    [Fact]
+    public void ADownedGenerator_OnlyRestartsItsDelay_WhenTheDamageReachesIt()
+    {
+        var first  = Generator(strength: 10f, delay: 3f);
+        var second = Generator(strength: 10f, delay: 3f);
+        var d = Fitted(first, second);
+        d.Shield = 10;      // the first is full, the second is empty
+        d.ApplyDamage(10);  // the first takes it all and goes down; the damage never reaches the second
+        Assert.Equal(3f, first.RechargeDelayRemaining);
+        Assert.Equal(0f, second.RechargeDelayRemaining);
+
+        Run(d, 1f);         // the second, with no delay, recharges; the first is still waiting
+        Assert.Equal(2f, first.RechargeDelayRemaining, 1);
+        d.ApplyDamage(1);   // the downed first is passed over and hit again, so its delay restarts; the second takes the damage
+        Assert.Equal(3f, first.RechargeDelayRemaining);
+        Assert.Equal(0f, second.RechargeDelayRemaining);
+        Assert.True(second.Strength < 10f);
+    }
+
+    [Fact]
+    public void TheShieldTotal_IsWhatIsSaved_AndIsHandedBackToTheGeneratorsOnLoad()
+    {
+        var first  = Generator(strength: 10f);
+        var second = Generator(strength: 10f);
+        var d = Fitted(first, second);
+
+        d.Shield = 14;
+
+        Assert.Equal(14, d.Shield);
+        Assert.Equal(10f, first.Strength);
+        Assert.Equal(4f, second.Strength);
     }
 
     [Fact]
@@ -290,7 +365,9 @@ public class ShipComponentTests
         Run(bare, 10f);
         Assert.Equal(0, bare.Shield);
 
-        var dead = new ShipDurability(() => Stats, () => new[] { Generator(delay: 0f) }) { Hull = 0, Shield = 0 };
+        var dead = Fitted(Generator(delay: 0f));
+        dead.Hull = 0;
+        dead.Shield = 0;
         Run(dead, 10f);
         Assert.Equal(0, dead.Shield);
     }

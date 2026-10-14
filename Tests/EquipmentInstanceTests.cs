@@ -78,6 +78,27 @@ public class EquipmentInstanceTests
     }
 
     [Fact]
+    public void ADamagedShield_IsRestoredByALoad_IntoTheGenerator()
+    {
+        string path = TempPath();
+        try
+        {
+            var saves = new FileSaveService(path);
+            var universe = new Universe("Hit", "hit-seed");
+            universe.Player.ApplyDamage(10); // eats into the Basic Shield Generator
+            int shield = universe.Player.CurrentShieldStrength!.Value;
+            Assert.True(shield < universe.Player.MaxShieldStrength);
+            saves.Save(universe);
+
+            var loaded = new FileSaveService(path).LoadAll().Single().Player;
+
+            Assert.Equal(shield, loaded.CurrentShieldStrength);
+            Assert.Equal(shield, (int)loaded.Equipment.OfType<Shield>().Single().Strength);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
     public void AnItemThatIsNoLongerKnown_SurvivesALoadAndSave_ByName()
     {
         string path = TempPath();
