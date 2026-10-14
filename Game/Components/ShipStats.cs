@@ -29,11 +29,29 @@ public class ShipStats
         MaxFuel              = 5,
     };
 
+    public static ShipStats Runner => new()
+    {
+        ShipTypeName = "Runner",
+        ThrustForce = 560f,
+        RotationSpeed = 4.5f,
+        MaxSpeed = 780f,
+        LinearDamping = 1f,
+        Radius = 16f,
+        SoftCapStart = 0.75f,
+        SpriteName = "Art/Runner_sprite.png",
+        SplashName = "Art/Shuttle_splash.png",
+        SpriteScale = 1.5f,
+        DefaultLoadout = new Equipment[] { EquipmentCatalog.HeavyLaser, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull },
+        MaxHull = 5,
+        MaxFuel = 7,
+    };
+
     /// <summary>
     /// A new instance of the built-in type with this name (not case sensitive), falling back to the Shuttle for an unknown name.
     /// Only the name is saved, so this is used by <see cref="ShipStatsConverter"/> to restore the full type when a save is loaded.
     /// </summary>
-    internal static ShipStats FromName(string shipTypeName) => Shuttle; // the Shuttle is the only built-in type so far; add the others here
+    internal static ShipStats FromName(string shipTypeName)
+        => string.Equals(shipTypeName, "Runner", StringComparison.OrdinalIgnoreCase) ? Runner : Shuttle;
 
     public string ShipTypeName { get; set; }
 

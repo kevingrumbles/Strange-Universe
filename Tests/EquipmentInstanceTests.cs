@@ -99,6 +99,29 @@ public class EquipmentInstanceTests
     }
 
     [Fact]
+    public void ARunner_IsSavedByTypeName_AndLoadsWithTheSavedEquipmentInsteadOfTheDefaultLoadout()
+    {
+        string path = TempPath();
+        try
+        {
+            var universe = new Universe("Fast", "fast-seed");
+            universe.Player.AssignShipType(ShipStats.Runner); // two Heavy Lasers, a shield and a hull
+            Assert.Equal(4, universe.Player.Equipment.Count);
+            universe.Player.Equipment.RemoveAt(0);            // the loadout was changed after it was assigned
+            new FileSaveService(path).Save(universe);
+
+            var loaded = new FileSaveService(path).LoadAll().Single().Player;
+
+            Assert.Equal("Runner", loaded.ShipType.ShipTypeName);
+            Assert.Equal(ShipStats.Runner.MaxSpeed, loaded.ShipType.MaxSpeed);   // the full type, not the Shuttle
+            Assert.Equal(new[] { "Heavy Laser", "Basic Shield Generator", "Reinforced Hull" },
+                         loaded.Equipment.Select(e => e.EquipmentName));          // the saved equipment, not the default four
+            Assert.Empty(loaded.ShipType.DefaultLoadout);
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    [Fact]
     public void AnItemThatIsNoLongerKnown_SurvivesALoadAndSave_ByName()
     {
         string path = TempPath();
