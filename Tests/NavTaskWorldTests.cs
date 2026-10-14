@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components;
 using System;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
@@ -52,7 +53,7 @@ public class NavTaskWorldTests
     [Fact]
     public void JumpTask_SystemTranslation_EntersTargetAndPlacesShipAtEdge()
     {
-        var player = new Player("p", "Shuttle") { Rotation = 0f }; // outbound heading from the jump
+        var player = new Player("p", ShipStats.Shuttle) { Rotation = 0f }; // outbound heading from the jump
         var world = new FakeWorld { EdgeEntry = new Vector2(5000, 0) };
         world.KnownSystems.Add("target");
         var task = new JumpTask(player, null, "target", JumpTask.Phase.SystemTranslation) { World = world };
@@ -68,7 +69,7 @@ public class NavTaskWorldTests
 
     private static (JumpTask task, Player player, FakeWorld world) Arriving(Vector2 position)
     {
-        var player = new Player("p", "Shuttle") { Position = position };
+        var player = new Player("p", ShipStats.Shuttle) { Position = position };
         var world = new FakeWorld { SystemRadius = 10000f };
         world.KnownSystems.Add("target");
         var task = new JumpTask(player, null, "target", JumpTask.Phase.ArriveInSystem) { World = world };
@@ -89,7 +90,7 @@ public class NavTaskWorldTests
     [Fact]
     public void Arrival_Tapers_ThenCompletesAtNormalSpeedHalfwayToCenter()
     {
-        float max = new Player("p", "Shuttle").ShipType.MaxSpeed;
+        float max = new Player("p", ShipStats.Shuttle).ShipType.MaxSpeed;
         float last = float.MaxValue;
         foreach (float x in new[] { 10000f, 9000f, 8000f, 7000f, 6000f, 5100f })
         {

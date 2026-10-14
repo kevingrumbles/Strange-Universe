@@ -1,7 +1,6 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
-using Strange_Universe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -40,7 +39,7 @@ public class Player : Ship
         }
     }
 
-    public Player(string name, string shipType) : base(name, shipType)
+    public Player(string name, ShipStats shipType) : base(name, shipType)
     {
 
     }

@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components;
 using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
@@ -70,7 +71,7 @@ public class JumpStageTests
     [Fact]
     public void Arrival_EntersTheTargetAndPlacesTheShipAtTheEdge_ThenTapers()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", ShipStats.Shuttle);
         var world = new FakeWorld { SystemRadius = 10000f, EdgeEntry = new Vector2(10000, 0) };
         world.KnownSystems.Add("target");
         var arrival = new ArrivalTask(player, null, "target") { World = world };
@@ -139,7 +140,7 @@ public class JumpStageTests
     [Fact]
     public void JumpTask_Player_GoesOnToArrive_AndOnlyThenCompletes()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", ShipStats.Shuttle);
         var world = new FakeWorld { SystemRadius = 10000f, MandevilleRadius = 7500f, EdgeEntry = new Vector2(10000, 0), SystemId = "from" };
         world.KnownSystems.Add("target");
         // Beyond the edge, fast, facing outward: the drive stage is already done on its first update.
@@ -166,7 +167,7 @@ public class JumpStageTests
     [Fact]
     public void JumpTask_GivesItsStagesTheWorldItWasAssigned()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", ShipStats.Shuttle);
         var world = new FakeWorld { EdgeEntry = new Vector2(7777, 0) };
         world.KnownSystems.Add("target");
         var jump = new JumpTask(player, null, "target", JumpTask.Phase.SystemTranslation) { World = world };
@@ -179,7 +180,7 @@ public class JumpStageTests
     [Fact]
     public void JumpTask_StillFailsForAnUnknownPlayerTarget()
     {
-        var jump = new JumpTask(new Player("p", "Shuttle"), null, "nowhere") { World = new FakeWorld() };
+        var jump = new JumpTask(new Player("p", ShipStats.Shuttle), null, "nowhere") { World = new FakeWorld() };
         jump.Update(0.016f);
         Assert.Equal(NavTaskStatus.Invalid, jump.Status);
     }

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Content;
+using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Game.Entities;
 using System;
@@ -20,10 +21,10 @@ public class Nonplayer : Ship
     [JsonIgnore] public bool Remove { get; set; }
 
 
-    public Nonplayer(string npcId, string shipType = "Shuttle", string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType)
+    /// <param name="shipType">The ship type, which gives the ship its default loadout. A new Shuttle when not given.</param>
+    public Nonplayer(string npcId, ShipStats shipType = null, string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType ?? ShipStats.Shuttle)
     {
         Id = npcId;
-        EquipFromShipType();
         if (jumpSpawn)
         {
             EnqueueNavTask(new JumpTask(this, startPhase: JumpTask.Phase.SystemTranslation));

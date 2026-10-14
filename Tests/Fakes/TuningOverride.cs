@@ -15,7 +15,7 @@ public static class TuningOverride
     [ModuleInitializer]
     internal static void Apply()
     {
-        var shuttle = ShipStats.FromName("Shuttle");
+        var shuttle = ShipStats.Shuttle;
         if (Read("SU_TEST_MAXSPEED") is float maxSpeed) shuttle.MaxSpeed = maxSpeed;
         if (Read("SU_TEST_THRUST") is float thrust) shuttle.ThrustForce = thrust;
         if (Read("SU_TEST_ROTATION") is float rotation) shuttle.RotationSpeed = rotation;

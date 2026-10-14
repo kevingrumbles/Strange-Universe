@@ -508,12 +508,52 @@ public class ShipComponentTests
     // -- Ship facade --------------------------------------------------------
 
     [Fact]
-    public void Ship_ShipTypeSetter_ResolvesPresetByName()
+    public void Ship_ShipTypeIsSavedByName_AndRestoredAsTheFullType()
     {
-        var ship = new Nonplayer();
-        ship.ShipType = new ShipStats { ShipTypeName = "shuttle" };
+        var ship = new Nonplayer("n");
+        string json = System.Text.Json.JsonSerializer.Serialize(ship.ShipType, new System.Text.Json.JsonSerializerOptions { Converters = { new ShipStatsConverter() } });
+        Assert.Equal("{\"ShipTypeName\":\"Shuttle\"}", json);
 
-        Assert.Equal(ShipStats.FromName("Shuttle").MaxSpeed, ship.ShipType.MaxSpeed);
-        Assert.Equal("Shuttle", ship.ShipType.ShipTypeName);
+        var restored = System.Text.Json.JsonSerializer.Deserialize<ShipStats>(json, new System.Text.Json.JsonSerializerOptions { Converters = { new ShipStatsConverter() } });
+        Assert.Equal(ShipStats.Shuttle.MaxSpeed, restored.MaxSpeed);
+        Assert.Equal("Shuttle", restored.ShipTypeName);
+    }
+
+    // -- Ship types and default loadouts ----------------------------------------
+
+    [Fact]
+    public void AssigningAShipType_GivesTheShipItsDefaultLoadout_FullOfHullShieldAndFuel_AndItCanBeChangedAfter()
+    {
+        var type = ShipStats.Shuttle;
+        var ship = new Nonplayer("n", type);
+
+        Assert.Same(type, ship.ShipType);
+        Assert.Equal(type.DefaultLoadout, ship.Equipment);
+        Assert.Equal(ship.MaxHullStrength, ship.CurrentHullStrength);
+        Assert.Equal(ship.MaxShieldStrength, ship.CurrentShieldStrength);
+        Assert.Equal(ship.MaxFuelLevel, ship.CurrentFuelLevel);
+
+        ship.Equipment.Clear(); // changing the loadout does not touch the type's default
+        Assert.NotEmpty(type.DefaultLoadout);
+
+        ship.AssignShipType(ShipStats.Shuttle); // assigning a type again starts over from its default
+        Assert.Equal(3, ship.Equipment.Count);
+    }
+
+    [Fact]
+    public void EveryShipType_HasItsOwnLoadoutObjects()
+    {
+        var a = ShipStats.Shuttle;
+        var b = ShipStats.Shuttle;
+
+        Assert.NotSame(a, b);
+        for (int i = 0; i < a.DefaultLoadout.Count; i++)
+            Assert.NotSame(a.DefaultLoadout[i], b.DefaultLoadout[i]);
+    }
+
+    [Fact]
+    public void AssignShipType_RejectsNull()
+    {
+        Assert.Throws<System.ArgumentNullException>(() => new Nonplayer("n").AssignShipType(null));
     }
 }

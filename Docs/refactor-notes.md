@@ -543,3 +543,11 @@ The data-driven weapons from Phase 7.2 (`Definitions/weapons.json`, `DefinitionR
 - `WeaponSystem` works on `Weapon` and `UtilityModule` (`IsPrimary` replaces `PrimaryWeapon`).
 - **Nothing changed in behavior or in the save format** (saves still hold equipment names). Before the change a snapshot of every preset's values was taken; after it, the same snapshot from the new classes was identical for all 20 items, in the same order.
 - Tests: `DefinitionTests` checks each catalog item is the class for its type, missiles are weapons but not primary, and a weapon needs a weapon kind; `EquipmentInstanceTests` covers copies and cooldowns; the weapon-system tests in `ShipComponentTests` use `Weapon` and `UtilityModule`.
+
+## Ship types and default loadouts
+
+- `ShipStats` is a ship *type*: flight numbers, hull/fuel, art, and `DefaultLoadout` (a list of `Equipment` **objects**, not names).
+- Reading a built-in type (`ShipStats.Shuttle`) builds a new instance with new loadout objects, so a type object belongs to one ship. There is no shared preset list any more.
+- Ships are given a type object: `new Player(name, ShipStats.Shuttle)`, `new Nonplayer(id, ShipStats.Shuttle)`, or `ship.AssignShipType(type)`. Assigning takes the default loadout as the ship's equipment (it can be changed from there) and fills hull, shield and fuel.
+- The only place a ship type is made from a string is `ShipStatsConverter` (a save holds just the type's name; the equipment list in a save holds the equipment names, restored by `EquipmentListConverter`).
+- Not changed, noted for later: `ShipStats` still mixes physics, art and durability numbers in one class, and `FromName` falls back to the Shuttle for an unknown name.

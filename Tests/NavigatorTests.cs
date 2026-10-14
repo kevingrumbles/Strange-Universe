@@ -271,7 +271,7 @@ public class NavigatorTests
     public void PlayerJump_ToAnUnknownTarget_FailsOnItsFirstUpdate()
     {
         var world = new FakeWorld();
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", ShipStats.Shuttle);
         var task = new JumpTask(player, null, "no-such-system") { World = world };
 
         Assert.Equal(NavTaskStatus.Running, task.Status); // nothing is checked until it runs
@@ -283,7 +283,7 @@ public class NavigatorTests
     [Fact]
     public void PlayerJump_WithoutATarget_FailsOnItsFirstUpdate()
     {
-        var task = new JumpTask(new Player("p", "Shuttle"), null, null) { World = new FakeWorld() };
+        var task = new JumpTask(new Player("p", ShipStats.Shuttle), null, null) { World = new FakeWorld() };
         task.Update(0.016f);
         Assert.Equal(NavTaskStatus.Invalid, task.Status);
     }

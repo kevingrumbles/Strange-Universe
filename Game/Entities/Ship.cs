@@ -17,32 +17,29 @@ namespace Strange_Universe.Game.Entities;
 /// </summary>
 public abstract class Ship
 {
-    private ShipStats _shipType;
+    /// <summary>
+    /// This ship's type. Only its name is saved (see <see cref="ShipStatsConverter"/>). Set it with <see cref="AssignShipType"/>,
+    /// which also gives the ship the type's default loadout.
+    /// </summary>
+    [JsonConverter(typeof(ShipStatsConverter))]
+    public ShipStats ShipType { get; set; }
 
     /// <summary>
-    /// Serializer-facing setter: only <see cref="ShipStats.ShipTypeName"/> is persisted,
-    /// so assignment resolves the full preset via <see cref="ApplyShipTypeByName"/>.
+    /// Makes this ship a ship of <paramref name="shipType"/>: it takes the type's default loadout as its equipment (replacing
+    /// what it had) and starts full of hull, shield and fuel. The loadout can be changed from there. The ship type object
+    /// should not be given to another ship (read <see cref="ShipStats.Shuttle"/> again for each ship).
     /// </summary>
-    public ShipStats ShipType
+    public void AssignShipType(ShipStats shipType)
     {
-        get => _shipType;
-        set
-        {
-            if (value is null)
-                _shipType = null;
-            else
-                ApplyShipTypeByName(value.ShipTypeName);
-        }
-    }
+        ShipType = shipType ?? throw new ArgumentNullException(nameof(shipType));
+        Physics.Body.Mass = shipType.Mass;
 
-    /// <summary>
-    /// Resolves a <see cref="ShipStats"/> preset by name (falling back to the default preset)
-    /// and applies it. This is the single place where the hidden lookup behind the
-    /// <see cref="ShipType"/> setter happens.
-    /// </summary>
-    public void ApplyShipTypeByName(string shipTypeName)
-    {
-        _shipType = ShipStats.FromName(shipTypeName);
+        Equipment = new List<Equipment>(shipType.DefaultLoadout);
+
+        // Filled last: the maximums include what the equipment adds.
+        CurrentHullStrength = MaxHullStrength;
+        CurrentShieldStrength = MaxShieldStrength;
+        CurrentFuelLevel = MaxFuelLevel;
     }
 
     public string Name { get; set; }
@@ -55,7 +52,6 @@ public abstract class Ship
     [JsonIgnore] public Ship Target { get => Sensors.Target; set => Sensors.Target = value; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Position);
     [JsonIgnore] public float Radius => ShipType.Radius;
-    /// <summary>The system this ship is in. Null until attached (see <see cref="Entities.StarSystem.AddNpc"/> / <see cref="Universe"/>).</summary>
     [JsonIgnore] public StarSystem StarSystem { get; set; }
 
     // -- Components ---------------------------------------------------------
@@ -94,16 +90,14 @@ public abstract class Ship
     [JsonIgnore] public float CurrentHullPercentage => Durability.HullPercentage;
     [JsonIgnore] public float CurrentShieldPercentage => Durability.ShieldPercentage;
     [JsonIgnore] public float CurrentFuelPercentage => Durability.FuelPercentage;
-    /// <summary>Peak acceleration from the main engine, in units per second squared.</summary>
     [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.ThrustForce / Physics.Body.Mass : 0f;
     [JsonIgnore] public float MandevilleRadius => StarSystem == null ? 0f : StarSystem.MandevilleRadius;
     [JsonIgnore] public float DistanceFromSystemCenter => DistanceTo(Vector2.Zero);
 
-    protected Ship(string name, string shipType) : this()
+    protected Ship(string name, ShipStats shipType) : this()
     {
         Name = name;
-        ApplyShipTypeByName(shipType);
-        Physics.Body.Mass = ShipType.Mass;
+        AssignShipType(shipType);
     }
 
     /// <summary>
@@ -182,25 +176,6 @@ public abstract class Ship
         if (StarSystem == null)
             return;
         Weapons.Fire(this, StarSystem.Projectiles);
-    }
-
-    /// <summary>
-    /// Gives the ship the equipment its type starts with, and fills hull, shield and fuel to the type's maximums.
-    /// Used for ships that are not set up by hand (NPCs).
-    /// </summary>
-    protected void EquipFromShipType()
-    {
-        Equipment.Clear();
-        foreach (var name in ShipType.DefaultEquipment ?? System.Array.Empty<string>())
-        {
-            var item = Components.Equipment.Create(name);
-            if (item is not UnknownEquipment) Equipment.Add(item); // a name that is not a known item is skipped
-        }
-
-        // Filled last: the maximums include what the equipment adds.
-        CurrentHullStrength = MaxHullStrength;
-        CurrentShieldStrength = MaxShieldStrength;
-        CurrentFuelLevel = MaxFuelLevel;
     }
 
     // -- Hostility ----------------------------------------------------------

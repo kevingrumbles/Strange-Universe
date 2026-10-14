@@ -144,7 +144,7 @@ public class UniverseLifecycleTests
     [Fact]
     public void DetachedPlayer_Update_DoesNotThrow()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", ShipStats.Shuttle);
         var ex = Record.Exception(() => player.Update(1f / 60f, new InputState { Jump = true, Fire = true }));
         Assert.Null(ex);
     }

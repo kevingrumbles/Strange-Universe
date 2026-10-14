@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components;
 using System;
 using System.IO;
 using System.Linq;
@@ -223,7 +224,7 @@ public class NewUniverseTests
     public void APlayerAtTheOrigin_IsPlaced_NotUnplaced()
     {
         // (0, 0) is a perfectly good saved position; only null means "not placed".
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", ShipStats.Shuttle);
         Assert.Null(player.Location);
 
         player.Position = Microsoft.Xna.Framework.Vector2.Zero;
@@ -234,7 +235,7 @@ public class NewUniverseTests
     [Fact]
     public void SettingTheLocationToNull_MarksThePlayerUnplaced_AndAValueMarksItPlaced()
     {
-        var player = new Player("p", "Shuttle") { Location = new Microsoft.Xna.Framework.Vector2(5, 6) };
+        var player = new Player("p", ShipStats.Shuttle) { Location = new Microsoft.Xna.Framework.Vector2(5, 6) };
         Assert.Equal(new Microsoft.Xna.Framework.Vector2(5, 6), player.Position);
 
         player.Location = null;
