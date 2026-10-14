@@ -66,31 +66,40 @@ public class ShipDurability
     /// <summary>The most recent ship to damage this one. Used for kill attribution.</summary>
     public Ship LastDamageSource { get; private set; }
 
-    /// <summary>Applies raw damage: each shield generator in turn takes what it can, then the ship type's own shield, then the hull (never below zero).</summary>
+    /// <summary>
+    /// Applies a hit. The first shield that is still up (the generators in order, then the ship type's own shield) absorbs
+    /// all of it, and no damage spills over to the next shield or the hull. When every shield is down the hull takes it.
+    /// Any hit restarts the recharge delay of every shield generator, whichever one took it.
+    /// </summary>
     public void ApplyDamage(int damage, Ship source = null)
     {
         if (damage <= 0 || IsDestroyed)
             return;
 
-        float remaining = damage;
-
+        bool absorbed = false;
         if (_hasShield)
         {
             HandOutRequested();
-            foreach (var generator in Generators)
+            var generators = Generators;
+
+            var active = generators.FirstOrDefault(g => !g.IsDown);
+            if (active != null)
             {
-                if (remaining <= 0f)
-                    break;
-                remaining = generator.Absorb(remaining);
+                active.Absorb(damage);
+                absorbed = true;
+            }
+            else if (_pool > 0f)
+            {
+                _pool = Math.Max(0f, _pool - damage);
+                absorbed = true;
             }
 
-            float absorbed = Math.Min(_pool, remaining);
-            _pool     -= absorbed;
-            remaining -= absorbed;
+            foreach (var generator in generators)
+                generator.RestartRechargeDelay();
         }
 
-        if (remaining > 0f && Hull.HasValue)
-            Hull = Math.Max(0, Hull.Value - (int)Math.Ceiling(remaining));
+        if (!absorbed && Hull.HasValue)
+            Hull = Math.Max(0, Hull.Value - damage);
 
         LastDamageSource = source ?? LastDamageSource;
     }

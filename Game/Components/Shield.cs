@@ -38,22 +38,16 @@ public sealed class Shield : Equipment
     internal void SetStrength(float strength) => _strength = Math.Clamp(strength, 0f, ShieldStrength);
 
     /// <summary>
-    /// Takes as much of <paramref name="damage"/> as the shield has left and returns the rest. A hit that leaves the
-    /// shield at 0, including one that arrives while it is already down, restarts its recharge delay.
+    /// Takes a hit. An active shield absorbs the whole hit: it loses the damage, down to 0, and none of it spills over.
     /// </summary>
-    public float Absorb(float damage)
+    public void Absorb(float damage)
     {
-        if (damage <= 0f)
-            return 0f;
-
-        float taken = Math.Min(Strength, damage);
-        _strength = Strength - taken;
-
-        if (_strength <= 0f)
-            _rechargeDelayLeft = RechargeDelay;
-
-        return damage - taken;
+        if (damage > 0f)
+            _strength = Math.Max(0f, Strength - damage);
     }
+
+    /// <summary>Starts the recharge delay over. Every hit the ship takes does this to every generator.</summary>
+    public void RestartRechargeDelay() => _rechargeDelayLeft = RechargeDelay;
 
     /// <summary>Advances the recharge: waits out the delay, then regains <see cref="RechargeRate"/> per second up to the maximum.</summary>
     public void Update(float deltaTime)

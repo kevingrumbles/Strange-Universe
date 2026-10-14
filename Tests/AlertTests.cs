@@ -79,6 +79,7 @@ public class AlertTests
         sim.Ship.ApplyDamage(Shot(null));       // no owner
         Assert.False(sim.Ship.Navigator.IsAlerting);
 
+        sim.Ship.CurrentShieldStrength = 0; // an active shield would absorb even a huge hit
         sim.Ship.ApplyDamage(Shot(attacker, damage: 1000)); // a killing shot: nothing left to alert
         Assert.True(sim.Ship.IsDestroyed);
         Assert.False(sim.Ship.Navigator.IsAlerting);

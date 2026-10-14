@@ -123,13 +123,16 @@ public class ShipComponentTests
     }
 
     [Fact]
-    public void Durability_OverflowReachesHull()
+    public void Durability_AnActiveShieldAbsorbsTheWholeHit_NothingSpillsToTheHull()
     {
         var d = new ShipDurability(() => Stats) { Hull = 100, Shield = 50 };
 
         d.ApplyDamage(80);
 
         Assert.Equal(0, d.Shield);
+        Assert.Equal(100, d.Hull);
+
+        d.ApplyDamage(30); // with the shield down the hull takes it
         Assert.Equal(70, d.Hull);
     }
 
@@ -300,20 +303,70 @@ public class ShipComponentTests
     }
 
     [Fact]
-    public void SeveralGenerators_TakeDamageInTurn_AndEachRechargesByItsOwnRateAndDelay()
+    public void AHit_OnlyDamagesTheFirstActiveGenerator_ButRestartsEveryGeneratorsDelay()
+    {
+        var first  = Generator(strength: 10f, rate: 5f, delay: 3f);
+        var second = Generator(strength: 10f, rate: 5f, delay: 6f);
+        var d = Fitted(first, second);
+        d.Shield = 15; // the first is full, the second is at 5
+
+        d.ApplyDamage(4);
+
+        Assert.Equal(6f, first.Strength);
+        Assert.Equal(5f, second.Strength); // untouched
+        Assert.Equal(3f, first.RechargeDelayRemaining);
+        Assert.Equal(6f, second.RechargeDelayRemaining); // but its recharge was put off too
+
+        Run(d, 2f);
+        Assert.Equal(5f, second.Strength); // still waiting
+        Assert.Equal(6f, first.Strength);
+    }
+
+    [Fact]
+    public void AGeneratorThatTakesAHit_LosesItAll_AndTheNextOneIsNotTouched()
+    {
+        var first  = Generator(strength: 10f);
+        var second = Generator(strength: 10f);
+        var d = Fitted(first, second);
+        d.Shield = 20;
+
+        d.ApplyDamage(15); // more than the first holds: the rest is lost
+
+        Assert.Equal(0f, first.Strength);
+        Assert.Equal(10f, second.Strength);
+        Assert.Equal(100, d.Hull);
+
+        d.ApplyDamage(3); // the first is down, so the next one takes this hit
+        Assert.Equal(7f, second.Strength);
+        Assert.Equal(100, d.Hull);
+    }
+
+    [Fact]
+    public void WhenEveryGeneratorIsDown_TheHullTakesTheHit()
+    {
+        var first  = Generator(strength: 10f);
+        var second = Generator(strength: 10f);
+        var d = Fitted(first, second);
+        d.Shield = 20;
+        d.ApplyDamage(10);
+        d.ApplyDamage(10);
+        Assert.True(first.IsDown && second.IsDown);
+        Assert.Equal(100, d.Hull);
+
+        d.ApplyDamage(12);
+
+        Assert.Equal(88, d.Hull);
+    }
+
+    [Fact]
+    public void SeveralGenerators_EachRechargeByTheirOwnRateAndDelay()
     {
         var quick = Generator(strength: 10f, rate: 10f, delay: 1f);
         var slow  = Generator(strength: 10f, rate: 2f,  delay: 4f);
         var d = Fitted(quick, slow);
         d.Shield = 20;
-        Assert.Equal(20, d.MaxShield - 50); // the two generators add 20 to the ship type's 50
-
-        d.ApplyDamage(15); // the first takes 10, the second 5
-        Assert.Equal(0f, quick.Strength);
-        Assert.Equal(5f, slow.Strength);
-        Assert.Equal(5, d.Shield);
-
-        d.ApplyDamage(5);  // the second goes down too
+        d.ApplyDamage(10);
+        d.ApplyDamage(10);
         Assert.True(quick.IsDown && slow.IsDown);
 
         Run(d, 2f); // the quick one's delay (1 s) has passed, the slow one's (4 s) has not
@@ -323,25 +376,6 @@ public class ShipComponentTests
         Run(d, 4f); // 6 s in: the slow one has recharged for 2 s at 2 per second
         Assert.InRange(slow.Strength, 3.9f, 4.1f);
         Assert.Equal(10f, quick.Strength);
-    }
-
-    [Fact]
-    public void ADownedGenerator_OnlyRestartsItsDelay_WhenTheDamageReachesIt()
-    {
-        var first  = Generator(strength: 10f, delay: 3f);
-        var second = Generator(strength: 10f, delay: 3f);
-        var d = Fitted(first, second);
-        d.Shield = 10;      // the first is full, the second is empty
-        d.ApplyDamage(10);  // the first takes it all and goes down; the damage never reaches the second
-        Assert.Equal(3f, first.RechargeDelayRemaining);
-        Assert.Equal(0f, second.RechargeDelayRemaining);
-
-        Run(d, 1f);         // the second, with no delay, recharges; the first is still waiting
-        Assert.Equal(2f, first.RechargeDelayRemaining, 1);
-        d.ApplyDamage(1);   // the downed first is passed over and hit again, so its delay restarts; the second takes the damage
-        Assert.Equal(3f, first.RechargeDelayRemaining);
-        Assert.Equal(0f, second.RechargeDelayRemaining);
-        Assert.True(second.Strength < 10f);
     }
 
     [Fact]
