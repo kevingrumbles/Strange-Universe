@@ -1,74 +1,43 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Components;
 
 /// <summary>
-/// A type of ship: its flight and durability numbers, how it looks, and the equipment it starts with.
-/// Every read of a built-in type (<see cref="Shuttle"/>) builds a new instance with its own default loadout, so a ship
-/// type object belongs to the one ship it is given to and is never shared. Give it to a ship with
-/// <see cref="Entities.Ship.AssignShipType"/> (or a ship's constructor); the ship starts with the default loadout and can then change it.
+/// A type of ship. Each type is its own subclass (<see cref="Shuttle"/>, <see cref="Runner"/>, ...) so types can
+/// grow their own differences. What every type has is split into small parts: <see cref="Flight"/> (how it moves),
+/// <see cref="Durability"/> (hull and fuel), <see cref="Appearance"/> (its art) and the <see cref="DefaultLoadout"/> it starts with.
+/// <para>
+/// Make a type with <c>new Shuttle()</c>: each one has its own loadout objects, so a type object belongs to the one ship it is given to.
+/// Give it to a ship with <see cref="Entities.Ship.AssignShipType"/> (or a ship's constructor); the ship starts with the default loadout and can then change it.
+/// Only <see cref="ShipTypeName"/> is saved (see <see cref="ShipStatsConverter"/>).
+/// </para>
 /// </summary>
-public class ShipStats
+public abstract class ShipStats
 {
-    public static ShipStats Shuttle => new()
-    {
-        ShipTypeName         = "Shuttle",
-        ThrustForce          = 360f,
-        RotationSpeed        = 3.5f,
-        MaxSpeed             = 580f,
-        LinearDamping        = 1f,
-        Radius               = 14f,
-        SoftCapStart         = 0.75f,
-        SpriteName           = "Art/Shuttle_sprite.png",
-        SplashName           = "Art/Shuttle_splash.png",
-        SpriteScale          = 1.5f,
-        DefaultLoadout       = new Equipment[] { EquipmentCatalog.LightLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.LightHullPlating },
-        MaxHull              = 5,
-        MaxFuel              = 5,
-    };
+    /// <summary>Test hook: runs on the flight stats of every new type, so a test run can try different tuning without editing the game's numbers.</summary>
+    internal static Action<FlightStats> FlightTuning { get; set; }
 
-    public static ShipStats Runner => new()
-    {
-        ShipTypeName = "Runner",
-        ThrustForce = 560f,
-        RotationSpeed = 4.5f,
-        MaxSpeed = 780f,
-        LinearDamping = 1f,
-        Radius = 16f,
-        SoftCapStart = 0.75f,
-        SpriteName = "Art/Runner_sprite.png",
-        SplashName = "Art/Shuttle_splash.png",
-        SpriteScale = 1.5f,
-        DefaultLoadout = new Equipment[] { EquipmentCatalog.HeavyLaser, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull },
-        MaxHull = 5,
-        MaxFuel = 7,
-    };
+    /// <summary>The type's name, which is what is saved and what its art is registered under.</summary>
+    public abstract string ShipTypeName { get; }
+
+    public FlightStats Flight { get; } = new();
+    public DurabilityStats Durability { get; } = new();
+    public ShipAppearance Appearance { get; } = new();
+
+    /// <summary>The equipment a ship of this type starts with. These are the objects the ship is given, so they are never shared between ships.</summary>
+    public IReadOnlyList<Equipment> DefaultLoadout { get; protected set; } = Array.Empty<Equipment>();
+
+    /// <summary>Subclasses call this last in their constructor, after setting their values.</summary>
+    protected void FinishSetup() => FlightTuning?.Invoke(Flight);
 
     /// <summary>
     /// A new instance of the built-in type with this name (not case sensitive), falling back to the Shuttle for an unknown name.
-    /// Only the name is saved, so this is used by <see cref="ShipStatsConverter"/> to restore the full type when a save is loaded.
+    /// Only the name is saved, so this is used by <see cref="ShipStatsConverter"/> to restore the type when a save is loaded.
     /// </summary>
     internal static ShipStats FromName(string shipTypeName)
-        => string.Equals(shipTypeName, "Runner", StringComparison.OrdinalIgnoreCase) ? Runner : Shuttle;
+        => string.Equals(shipTypeName, "Runner", StringComparison.OrdinalIgnoreCase) ? new Runner() : new Shuttle();
 
-    public string ShipTypeName { get; set; }
-
-    [JsonIgnore] public string SpriteName { get; set; } = "Unknown";
-    [JsonIgnore] public string SplashName { get; set; }
-    [JsonIgnore] public float ThrustForce    { get; set; }
-    [JsonIgnore] public float RotationSpeed  { get; set; }
-    [JsonIgnore] public float MaxSpeed       { get; set; }
-    [JsonIgnore] public float LinearDamping  { get; set; }
-    [JsonIgnore] public float Radius         { get; set; }
-    [JsonIgnore] public float SoftCapStart   { get; set; }
-    [JsonIgnore] public float SpriteRotationOffset { get; set; } = -1.5708f;
-    [JsonIgnore] public float SpriteScale { get; set; } = 1.0f;
-    [JsonIgnore] public int MaxHull { get; set; }
-    [JsonIgnore] public int MaxFuel { get; set; }
-    [JsonIgnore] public float Mass { get; set; } = 1.0f;
-
-    /// <summary>The equipment a ship of this type starts with. These are the objects the ship is given, so they are never shared between ships.</summary>
-    [JsonIgnore] public IReadOnlyList<Equipment> DefaultLoadout { get; set; } = Array.Empty<Equipment>();
+    /// <summary>Drops the default loadout, for a ship whose equipment comes from a save instead.</summary>
+    internal void ClearDefaultLoadout() => DefaultLoadout = Array.Empty<Equipment>();
 }

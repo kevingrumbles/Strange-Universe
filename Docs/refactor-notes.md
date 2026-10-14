@@ -546,8 +546,10 @@ The data-driven weapons from Phase 7.2 (`Definitions/weapons.json`, `DefinitionR
 
 ## Ship types and default loadouts
 
-- `ShipStats` is a ship *type*: flight numbers, hull/fuel, art, and `DefaultLoadout` (a list of `Equipment` **objects**, not names).
-- Reading a built-in type (`ShipStats.Shuttle`) builds a new instance with new loadout objects, so a type object belongs to one ship. There is no shared preset list any more.
-- Ships are given a type object: `new Player(name, ShipStats.Shuttle)`, `new Nonplayer(id, ShipStats.Shuttle)`, or `ship.AssignShipType(type)`. Assigning takes the default loadout as the ship's equipment (it can be changed from there) and fills hull, shield and fuel.
-- The only place a ship type is made from a string is `ShipStatsConverter` (a save holds just the type's name; the equipment list in a save holds the equipment names, restored by `EquipmentListConverter`).
-- Not changed, noted for later: `ShipStats` still mixes physics, art and durability numbers in one class, and `FromName` falls back to the Shuttle for an unknown name.
+- `ShipStats` is an **abstract** ship type; each type is a subclass (`Shuttle`, `Runner`, ...) so types can grow their own differences. It is made of small parts: `Flight` (`FlightStats`: thrust, rotation, max speed, damping, soft cap, mass, radius), `Durability` (`DurabilityStats`: hull and fuel; shield comes only from equipment), `Appearance` (`ShipAppearance`: sprite, splash, scale, rotation offset), and `DefaultLoadout` (a list of `Equipment` **objects**, not names).
+- `ShipPhysics` takes a `FlightStats`, `ShipDurability` a `DurabilityStats`, and the renderer/asset code the `ShipAppearance`, so each uses only the part it needs.
+- Make a type with `new Shuttle()`: each instance has its own loadout objects, so a type object belongs to one ship. There is no shared preset list.
+- Ships are given a type object: `new Player(name, new Shuttle())`, `new Nonplayer(id, new Runner())`, or `ship.AssignShipType(type)`. Assigning takes the default loadout as the ship's equipment (it can be changed from there) and fills hull, shield and fuel.
+- The only place a ship type is made from a string is `ShipStatsConverter` (via `ShipStats.FromName`). A save holds just the type's name, and a ship loaded from a save has the equipment the save holds, so the converter drops the type's default loadout. Add each new type to `FromName`.
+- Test hook: `ShipStats.FlightTuning` runs on the flight numbers of every new type; `TuningOverride` uses it for the `SU_TEST_*` environment variables.
+- Not changed, noted for later: `FromName` falls back to the Shuttle for an unknown name.

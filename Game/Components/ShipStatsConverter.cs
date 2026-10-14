@@ -31,7 +31,7 @@ public class ShipStatsConverter : JsonConverter<ShipStats>
 
         // A ship loaded from a save has the equipment the save holds, not its type's default loadout, so the default is dropped.
         var type = ShipStats.FromName(name);
-        type.DefaultLoadout = Array.Empty<Equipment>();
+        type.ClearDefaultLoadout();
         return type;
     }
 

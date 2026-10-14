@@ -22,7 +22,7 @@ public class Nonplayer : Ship
 
 
     /// <param name="shipType">The ship type, which gives the ship its default loadout. A new Shuttle when not given.</param>
-    public Nonplayer(string npcId, ShipStats shipType = null, string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType ?? ShipStats.Shuttle)
+    public Nonplayer(string npcId, ShipStats shipType = null, string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType ?? new Shuttle())
     {
         Id = npcId;
         if (jumpSpawn)

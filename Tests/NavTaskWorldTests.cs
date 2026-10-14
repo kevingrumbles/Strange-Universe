@@ -53,7 +53,7 @@ public class NavTaskWorldTests
     [Fact]
     public void JumpTask_SystemTranslation_EntersTargetAndPlacesShipAtEdge()
     {
-        var player = new Player("p", ShipStats.Shuttle) { Rotation = 0f }; // outbound heading from the jump
+        var player = new Player("p", new Shuttle()) { Rotation = 0f }; // outbound heading from the jump
         var world = new FakeWorld { EdgeEntry = new Vector2(5000, 0) };
         world.KnownSystems.Add("target");
         var task = new JumpTask(player, null, "target", JumpTask.Phase.SystemTranslation) { World = world };
@@ -69,7 +69,7 @@ public class NavTaskWorldTests
 
     private static (JumpTask task, Player player, FakeWorld world) Arriving(Vector2 position)
     {
-        var player = new Player("p", ShipStats.Shuttle) { Position = position };
+        var player = new Player("p", new Shuttle()) { Position = position };
         var world = new FakeWorld { SystemRadius = 10000f };
         world.KnownSystems.Add("target");
         var task = new JumpTask(player, null, "target", JumpTask.Phase.ArriveInSystem) { World = world };
@@ -82,7 +82,7 @@ public class NavTaskWorldTests
         var (task, player, _) = Arriving(new Vector2(10000, 0));
         task.Update(0.016f);
 
-        Assert.Equal(player.ShipType.MaxSpeed * JumpTask.ArrivalSpeedMultiplier, player.Speed, 1);
+        Assert.Equal(player.ShipType.Flight.MaxSpeed * JumpTask.ArrivalSpeedMultiplier, player.Speed, 1);
         Assert.True(player.Velocity.X < 0);
         Assert.Equal(JumpTask.Phase.ArriveInSystem, task.CurrentPhase);
     }
@@ -90,7 +90,7 @@ public class NavTaskWorldTests
     [Fact]
     public void Arrival_Tapers_ThenCompletesAtNormalSpeedHalfwayToCenter()
     {
-        float max = new Player("p", ShipStats.Shuttle).ShipType.MaxSpeed;
+        float max = new Player("p", new Shuttle()).ShipType.Flight.MaxSpeed;
         float last = float.MaxValue;
         foreach (float x in new[] { 10000f, 9000f, 8000f, 7000f, 6000f, 5100f })
         {

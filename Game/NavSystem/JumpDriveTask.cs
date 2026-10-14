@@ -23,7 +23,7 @@ namespace Strange_Universe.Game.NavSystem
             float distanceFromCenter = Owner.Position.Length();
             float systemRadius = World?.SystemRadius ?? 50000f;
 
-            if (distanceFromCenter > systemRadius && Owner.Velocity.LengthSquared() > Owner.ShipType.MaxSpeed * 8)
+            if (distanceFromCenter > systemRadius && Owner.Velocity.LengthSquared() > Owner.ShipType.Flight.MaxSpeed * 8)
             {
                 Complete();
                 return;
@@ -32,7 +32,7 @@ namespace Strange_Universe.Game.NavSystem
             // Exponential acceleration: starts at the engine's thrust and grows the farther along the jump the ship is.
             float mandevilleRadius = World?.MandevilleRadius ?? 5000f;
             float progress = Math.Max(0f, (distanceFromCenter - mandevilleRadius) / (systemRadius - mandevilleRadius));
-            float acceleration = Owner.ShipType.ThrustForce * (float)Math.Pow(AccelerationGrowthRate, progress * 10f);
+            float acceleration = Owner.ShipType.Flight.ThrustForce * (float)Math.Pow(AccelerationGrowthRate, progress * 10f);
 
             // Accelerate along the facing the ship aligned to. (Following the current velocity instead would send a
             // ship with leftover drift off sideways or even backwards.) Velocity is changed directly to bypass the

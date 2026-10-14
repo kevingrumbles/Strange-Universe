@@ -8,15 +8,15 @@ namespace Strange_Universe.Game.Entities.ShipParts;
 /// <summary>Hull, shield and fuel state plus damage application.</summary>
 public class ShipDurability
 {
-    private readonly Func<ShipStats> _stats;
+    private readonly Func<DurabilityStats> _stats;
 
     private readonly Func<IEnumerable<Equipment>> _equipment;
     private bool _hasShield;
     private int? _requested;   // a total set from outside, handed out to the generators the next time the shield is used
 
-    /// <param name="stats">The ship's current stats.</param>
+    /// <param name="stats">The ship type's durability numbers.</param>
     /// <param name="equipment">The ship's equipment (null for none). Shields and hull plating add to the ship type's base values; each shield generator holds and recharges its own strength.</param>
-    public ShipDurability(Func<ShipStats> stats, Func<IEnumerable<Equipment>> equipment = null)
+    public ShipDurability(Func<DurabilityStats> stats, Func<IEnumerable<Equipment>> equipment = null)
     {
         _stats = stats ?? throw new ArgumentNullException(nameof(stats));
         _equipment = equipment;

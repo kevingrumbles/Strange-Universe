@@ -22,7 +22,7 @@ namespace Strange_Universe.Game.EventSystem
                 return;
             }
 
-            Nonplayer merchant = new Nonplayer(npcId: $"Npc_merchant_{system.NpcCount + 1}", shipType: ShipStats.Shuttle, jumpSpawn: true, npcName: $"Merchant Shuttle");
+            Nonplayer merchant = new Nonplayer(npcId: $"Npc_merchant_{system.NpcCount + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: $"Merchant Shuttle");
             merchant.EnqueueNavTask(new DockTask(merchant, system.Planets[random.Next(0, system.Planets.Count)].Position));
             merchant.EnqueueNavTask(new JumpTask(merchant));
             system.AddNpc(merchant);

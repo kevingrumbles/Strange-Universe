@@ -27,12 +27,12 @@ public abstract class Ship
     /// <summary>
     /// Makes this ship a ship of <paramref name="shipType"/>: it takes the type's default loadout as its equipment (replacing
     /// what it had) and starts full of hull, shield and fuel. The loadout can be changed from there. The ship type object
-    /// should not be given to another ship (read <see cref="ShipStats.Shuttle"/> again for each ship).
+    /// should not be given to another ship (make a new one, such as <c>new Shuttle()</c>, for each ship).
     /// </summary>
     public void AssignShipType(ShipStats shipType)
     {
         ShipType = shipType ?? throw new ArgumentNullException(nameof(shipType));
-        Physics.Body.Mass = shipType.Mass;
+        Physics.Body.Mass = shipType.Flight.Mass;
 
         Equipment = new List<Equipment>(shipType.DefaultLoadout);
 
@@ -51,7 +51,7 @@ public abstract class Ship
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public Ship Target { get => Sensors.Target; set => Sensors.Target = value; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Position);
-    [JsonIgnore] public float Radius => ShipType.Radius;
+    [JsonIgnore] public float Radius => ShipType.Flight.Radius;
     [JsonIgnore] public StarSystem StarSystem { get; set; }
 
     // -- Components ---------------------------------------------------------
@@ -83,14 +83,14 @@ public abstract class Ship
     }
     [JsonIgnore] public Vector2 Forward => Physics.Transform.Forward;
     [JsonIgnore] public float Speed => Velocity.Length();
-    [JsonIgnore] public float MaxSpeed => ShipType.MaxSpeed;
+    [JsonIgnore] public float MaxSpeed => ShipType.Flight.MaxSpeed;
     [JsonIgnore] public int MaxHullStrength => Durability.MaxHull;
     [JsonIgnore] public int MaxShieldStrength => Durability.MaxShield;
     [JsonIgnore] public int MaxFuelLevel => Durability.MaxFuel;
     [JsonIgnore] public float CurrentHullPercentage => Durability.HullPercentage;
     [JsonIgnore] public float CurrentShieldPercentage => Durability.ShieldPercentage;
     [JsonIgnore] public float CurrentFuelPercentage => Durability.FuelPercentage;
-    [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.ThrustForce / Physics.Body.Mass : 0f;
+    [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.Flight.ThrustForce / Physics.Body.Mass : 0f;
     [JsonIgnore] public float MandevilleRadius => StarSystem == null ? 0f : StarSystem.MandevilleRadius;
     [JsonIgnore] public float DistanceFromSystemCenter => DistanceTo(Vector2.Zero);
 
@@ -106,8 +106,8 @@ public abstract class Ship
     /// </summary>
     protected Ship()
     {
-        Physics    = new ShipPhysics(() => ShipType);
-        Durability = new ShipDurability(() => ShipType, () => Equipment);
+        Physics    = new ShipPhysics(() => ShipType.Flight);
+        Durability = new ShipDurability(() => ShipType.Durability, () => Equipment);
         Sensors    = new ShipSensors(this);
         Weapons    = new WeaponSystem(() => Equipment);
         Navigator  = new ShipNavigator(this);
@@ -116,13 +116,13 @@ public abstract class Ship
     /// <summary>
     /// Recomputes runtime-only physics state after construction or deserialization.
     /// Art is loaded on the render side (<c>AssetService.EnsureShipArt</c>) using
-    /// <see cref="ShipStats.SpriteName"/>, <see cref="ShipStats.SplashName"/> and <see cref="SplashArtKey"/>.
+    /// <see cref="ShipAppearance.SpriteName"/>, <see cref="ShipAppearance.SplashName"/> and <see cref="SplashArtKey"/>.
     /// </summary>
     public virtual void Generate()
     {
         // Mass depends on ShipType, which is not available to the JSON constructor,
         // so it is (re)computed once everything is populated.
-        Physics.Body.Mass = ShipType.Mass;
+        Physics.Body.Mass = ShipType.Flight.Mass;
     }
 
     /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>

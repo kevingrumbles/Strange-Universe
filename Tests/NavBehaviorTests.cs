@@ -16,7 +16,7 @@ namespace Strange_Universe.Tests;
 /// </summary>
 public class NavBehaviorTests
 {
-    private static float MaxSpeedOf(Ship s) => s.ShipType.MaxSpeed;
+    private static float MaxSpeedOf(Ship s) => s.ShipType.Flight.MaxSpeed;
 
     // -- Dock ---------------------------------------------------------------
 
@@ -230,7 +230,7 @@ public class NavBehaviorTests
             var task = new GuardTask(ship, Vector2.Zero, radius);
             float v = task.OrbitSpeedFor(ship);
 
-            Assert.True(v <= ship.ShipType.MaxSpeed * GuardTask.OrbitSpeedFraction + 0.01f);
+            Assert.True(v <= ship.ShipType.Flight.MaxSpeed * GuardTask.OrbitSpeedFraction + 0.01f);
             Assert.True(v * v / radius <= ship.MaxAcceleration * GuardTask.CentripetalBudget + 0.01f,
                 $"radius {radius}: needs {v * v / radius:F0} of {ship.MaxAcceleration:F0}");
         }
@@ -263,7 +263,7 @@ public class NavBehaviorTests
         Assert.False(float.IsNaN(doneAt), "dock never completed");
         // It slows in time: never gets much closer than the hold distance, and is nearly stopped on arrival.
         Assert.True(closest > DockTask.SafeDistance * 0.9f, $"came within {closest:F0} of the target");
-        Assert.True(speedAtHold <= sim.Ship.ShipType.MaxSpeed * DockTask.HoldArrivalSpeedFraction + 1f, $"arrived at speed {speedAtHold:F0}");
+        Assert.True(speedAtHold <= sim.Ship.ShipType.Flight.MaxSpeed * DockTask.HoldArrivalSpeedFraction + 1f, $"arrived at speed {speedAtHold:F0}");
         Assert.True(maxDrift < DockTask.HoldArrivalDistance, $"drifted {maxDrift:F0} from the hold point while holding");
         // The hold lasts as long as asked.
         Assert.InRange(doneAt - holdStart, 24.9f, 25.2f);

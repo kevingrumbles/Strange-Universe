@@ -13,7 +13,7 @@ public class SteeringTests
     public void AllowedApproachSpeed_IsArrivalSpeed_AtTheTarget_AndGrowsWithDistance()
     {
         var ship = new Nonplayer("s");
-        float arrival = ship.ShipType.MaxSpeed * 0.2f; // an arrival speed well below top speed, whatever the tuning
+        float arrival = ship.ShipType.Flight.MaxSpeed * 0.2f; // an arrival speed well below top speed, whatever the tuning
         float atTarget = Steering.AllowedApproachSpeed(ship, 0f, arrival);
         float near = Steering.AllowedApproachSpeed(ship, 500f, arrival);
         float far = Steering.AllowedApproachSpeed(ship, 5000f, arrival);
@@ -21,7 +21,7 @@ public class SteeringTests
         Assert.Equal(arrival, atTarget, 3);
         Assert.True(near > atTarget);
         Assert.True(far >= near);
-        Assert.Equal(ship.ShipType.MaxSpeed, Steering.AllowedApproachSpeed(ship, 1_000_000f, arrival), 3); // capped
+        Assert.Equal(ship.ShipType.Flight.MaxSpeed, Steering.AllowedApproachSpeed(ship, 1_000_000f, arrival), 3); // capped
         Assert.Equal(arrival, Steering.AllowedApproachSpeed(ship, -50f, arrival), 3); // negative distance behaves like zero
     }
 

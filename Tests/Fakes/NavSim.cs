@@ -22,7 +22,7 @@ public sealed class NavSim : IDisposable
     public Vector2 SpawnPosition { get; }
 
     /// <summary>The ship's top speed, from its ship stats. Tests must derive speeds and time limits from this, not hard-code them.</summary>
-    public float MaxSpeed => Ship.ShipType.MaxSpeed;
+    public float MaxSpeed => Ship.ShipType.Flight.MaxSpeed;
 
     /// <summary>
     /// A generous time limit for the ship to cover <paramref name="distance"/> at its top speed (50% slack plus a fixed allowance

@@ -78,7 +78,7 @@ public class CombatSteeringTests
         bool matched = false;
         sim.Run(sim.TravelTime(sim.MaxSpeed) / 3f + 30f, () => matched, () => matched = Steering.MatchVelocity(sim.Ship, desired, NavSim.Dt));
 
-        Assert.True(Vector2.Distance(sim.Ship.Velocity, desired) < sim.Ship.ShipType.MaxSpeed * Steering.VelocityTolerance + 1f);
+        Assert.True(Vector2.Distance(sim.Ship.Velocity, desired) < sim.Ship.ShipType.Flight.MaxSpeed * Steering.VelocityTolerance + 1f);
     }
 
     [Fact]

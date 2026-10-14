@@ -71,7 +71,7 @@ namespace Strange_Universe.Game.NavSystem
                 return;
 
             Vector2 direction = Steering.AvoidObstacles(Owner, World, toTarget);
-            float cornerSpeed = Owner.ShipType.MaxSpeed * CornerSpeedFraction;
+            float cornerSpeed = Owner.ShipType.Flight.MaxSpeed * CornerSpeedFraction;
 
             // Slow for the waypoint: the ship must reach corner speed by the time it is
             // ArrivalThreshold away, not at the waypoint itself.

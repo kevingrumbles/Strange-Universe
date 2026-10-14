@@ -50,7 +50,7 @@ namespace Strange_Universe.Game.NavSystem
                     // Fly straight out from the system center (face right when exactly at the center).
                     // Matching an outbound velocity also cancels any sideways drift the ship started with.
                     Vector2 outbound = MathHelpers.SafeNormalize(Owner.Position, Vector2.UnitX);
-                    Vector2 steer = outbound * Owner.ShipType.MaxSpeed - Owner.Velocity;
+                    Vector2 steer = outbound * Owner.ShipType.Flight.MaxSpeed - Owner.Velocity;
                     Steering.Seek(Owner, steer, deltaTime);
                     break;
 

@@ -233,8 +233,8 @@ public class SpriteRenderer
     public void DrawPlayer(Player player)
     {
         DrawEntity(player.ShipType.ShipTypeName, player.Position,
-                   player.Rotation + player.ShipType.SpriteRotationOffset,
-                   player.Radius * 2.2f * player.ShipType.SpriteScale);
+                   player.Rotation + player.ShipType.Appearance.SpriteRotationOffset,
+                   player.Radius * 2.2f * player.ShipType.Appearance.SpriteScale);
 
         DrawShipImpacts(player);
     }
@@ -242,8 +242,8 @@ public class SpriteRenderer
     public void DrawNPC(Nonplayer npc)
     {
         DrawEntity(npc.ShipType.ShipTypeName, npc.Position,
-                   npc.Rotation + npc.ShipType.SpriteRotationOffset,
-                   npc.Radius * 2.2f * npc.ShipType.SpriteScale);
+                   npc.Rotation + npc.ShipType.Appearance.SpriteRotationOffset,
+                   npc.Radius * 2.2f * npc.ShipType.Appearance.SpriteScale);
 
         DrawShipImpacts(npc);
     }

@@ -152,7 +152,7 @@ public class Universe : IDisposable
         Id = id;
         Name = name;
         Seed = seed ?? id.ToString();
-        Player = new Player(name, ShipStats.Shuttle); // starts with the Shuttle's default loadout, full of hull, shield and fuel
+        Player = new Player(name, new Shuttle()); // starts with the Shuttle's default loadout, full of hull, shield and fuel
     }
 
     public void Update(float deltaTime, InputState input)

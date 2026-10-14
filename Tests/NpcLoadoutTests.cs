@@ -14,7 +14,7 @@ public class NpcLoadoutTests
         var npc = new Nonplayer("n1");
 
         Assert.Equal(npc.ShipType.DefaultLoadout, npc.Equipment); // the ship holds the loadout's own objects
-        Assert.Equal(ShipStats.Shuttle.DefaultLoadout.Select(e => e.EquipmentName), npc.Equipment.Select(e => e.EquipmentName));
+        Assert.Equal(new Shuttle().DefaultLoadout.Select(e => e.EquipmentName), npc.Equipment.Select(e => e.EquipmentName));
         Assert.Contains(npc.Equipment, e => e is Weapon { IsPrimary: true } && e.EquipmentName == "Light Laser");
         Assert.True(npc.WeaponRange > 0f);
         Assert.True(npc.ProjectileSpeed > 0f);
@@ -27,7 +27,7 @@ public class NpcLoadoutTests
 
         Assert.Equal(npc.MaxHullStrength, npc.CurrentHullStrength);
         Assert.Equal(npc.MaxShieldStrength, npc.CurrentShieldStrength);
-        Assert.Equal(npc.ShipType.MaxFuel, npc.CurrentFuelLevel);
+        Assert.Equal(npc.ShipType.Durability.MaxFuel, npc.CurrentFuelLevel);
     }
 
     [Fact]

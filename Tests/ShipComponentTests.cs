@@ -9,24 +9,23 @@ namespace Strange_Universe.Tests;
 
 public class ShipComponentTests
 {
-    private static ShipStats Stats => new()
+    private static FlightStats Flight => new()
     {
-        ShipTypeName = "Test",
-        ThrustForce  = 100f,
+        ThrustForce   = 100f,
         RotationSpeed = 2f,
-        MaxSpeed     = 500f,
-        SoftCapStart = 0.75f,
-        MaxHull      = 100,
-        MaxFuel      = 10,
-        Mass         = 1f,
+        MaxSpeed      = 500f,
+        SoftCapStart  = 0.75f,
+        Mass          = 1f,
     };
+
+    private static DurabilityStats Durable => new() { MaxHull = 100, MaxFuel = 10 };
 
     // -- ShipPhysics ---------------------------------------------------------
 
     [Fact]
     public void Physics_BelowSoftCap_AppliesFullThrust()
     {
-        var p = new ShipPhysics(() => Stats);
+        var p = new ShipPhysics(() => Flight);
         p.Transform.Rotation = 0f;                      // facing +X
         p.Body.Velocity = new Vector2(100f, 0f);         // below 0.75 * 500
 
@@ -38,7 +37,7 @@ public class ShipComponentTests
     [Fact]
     public void Physics_AtMaxSpeed_NoForwardThrust()
     {
-        var p = new ShipPhysics(() => Stats);
+        var p = new ShipPhysics(() => Flight);
         p.Transform.Rotation = 0f;
         p.Body.Velocity = new Vector2(500f, 0f);
 
@@ -51,7 +50,7 @@ public class ShipComponentTests
     [Fact]
     public void Physics_AtMaxSpeed_LateralThrustUnaffected()
     {
-        var p = new ShipPhysics(() => Stats);
+        var p = new ShipPhysics(() => Flight);
         p.Transform.Rotation = MathHelper.PiOver2;       // facing +Y, perpendicular to velocity
         p.Body.Velocity = new Vector2(500f, 0f);
 
@@ -64,7 +63,7 @@ public class ShipComponentTests
     [Fact]
     public void Physics_AtMaxSpeed_DeceleratingThrustUnaffected()
     {
-        var p = new ShipPhysics(() => Stats);
+        var p = new ShipPhysics(() => Flight);
         p.Transform.Rotation = MathHelper.Pi;            // facing -X (retrograde)
         p.Body.Velocity = new Vector2(500f, 0f);
 
@@ -76,7 +75,7 @@ public class ShipComponentTests
     [Fact]
     public void Physics_InSoftZone_ThrustIsReduced()
     {
-        var p = new ShipPhysics(() => Stats);
+        var p = new ShipPhysics(() => Flight);
         p.Transform.Rotation = 0f;
         p.Body.Velocity = new Vector2(437.5f, 0f);       // halfway between 375 and 500
 
@@ -88,7 +87,7 @@ public class ShipComponentTests
     [Fact]
     public void Physics_Integrate_ResetsNonFiniteState()
     {
-        var p = new ShipPhysics(() => Stats);
+        var p = new ShipPhysics(() => Flight);
         p.Body.Velocity = new Vector2(float.NaN, 0f);
         p.Transform.Rotation = float.PositiveInfinity;
 
@@ -102,7 +101,7 @@ public class ShipComponentTests
     [Fact]
     public void Physics_RotateTowards_SnapsWhenWithinStep()
     {
-        var p = new ShipPhysics(() => Stats);
+        var p = new ShipPhysics(() => Flight);
         Assert.True(p.RotateTowards(0.5f, 1f));          // max step = 2 rad
         Assert.Equal(0.5f, p.Transform.Rotation);
         Assert.False(p.RotateTowards(float.NaN, 1f));
@@ -140,7 +139,7 @@ public class ShipComponentTests
     [Fact]
     public void Durability_HullNeverBelowZero()
     {
-        var d = new ShipDurability(() => Stats) { Hull = 10, Shield = 0 };
+        var d = new ShipDurability(() => Durable) { Hull = 10, Shield = 0 };
 
         d.ApplyDamage(1000);
 
@@ -151,7 +150,7 @@ public class ShipComponentTests
     [Fact]
     public void Durability_SetsLastDamageSource()
     {
-        var d = new ShipDurability(() => Stats) { Hull = 100, Shield = 0 };
+        var d = new ShipDurability(() => Durable) { Hull = 100, Shield = 0 };
         var attacker = new Nonplayer("attacker");
 
         d.ApplyDamage(5, attacker);
@@ -163,7 +162,7 @@ public class ShipComponentTests
     public void Durability_IgnoresDamageWhenDestroyedOrNonPositive()
     {
         var attacker = new Nonplayer("a");
-        var d = new ShipDurability(() => Stats) { Hull = 0, Shield = 0 };
+        var d = new ShipDurability(() => Durable) { Hull = 0, Shield = 0 };
         d.ApplyDamage(5, attacker);
         Assert.Null(d.LastDamageSource);
 
@@ -192,7 +191,7 @@ public class ShipComponentTests
     public void MaxShieldAndHull_AreTheShipTypesValuesPlusTheEquipments()
     {
         var gear = new List<Equipment>();
-        var d = new ShipDurability(() => Stats, () => gear); // base 100 hull, 50 shield
+        var d = new ShipDurability(() => Durable, () => gear); // base 100 hull, 50 shield
         Assert.Equal(100, d.MaxHull);
         Assert.Equal(0, d.MaxShield); // a ship type gives no shield: only equipment does
 
@@ -209,14 +208,14 @@ public class ShipComponentTests
     [Fact]
     public void AShip_StartsFullAtTheTypesValuesPlusItsEquipment()
     {
-        var shuttle = ShipStats.Shuttle;
+        var shuttle = new Shuttle();
         var player = new Universe("A", "a-seed").Player;
         var npc = new Nonplayer("npc");
 
         foreach (var ship in new Ship[] { player, npc })
         {
             Assert.Equal(25, ship.MaxShieldStrength); // Basic Shield Generator
-            Assert.Equal(shuttle.MaxHull + 25, ship.MaxHullStrength);     // Light Hull Plating
+            Assert.Equal(shuttle.Durability.MaxHull + 25, ship.MaxHullStrength);     // Light Hull Plating
             Assert.Equal(ship.MaxShieldStrength, ship.CurrentShieldStrength);
             Assert.Equal(ship.MaxHullStrength, ship.CurrentHullStrength);
         }
@@ -232,7 +231,7 @@ public class ShipComponentTests
     private static ShipDurability Fitted(params Shield[] generators)
     {
         var gear = new List<Equipment>(generators);
-        return new ShipDurability(() => Stats, () => gear) { Hull = 100 };
+        return new ShipDurability(() => Durable, () => gear) { Hull = 100 };
     }
 
     private static void Run(ShipDurability d, float seconds)
@@ -400,7 +399,7 @@ public class ShipComponentTests
     [Fact]
     public void ShieldRecharge_DoesNotHappenWithoutAGenerator_OrOnADestroyedShip()
     {
-        var bare = new ShipDurability(() => Stats) { Hull = 100, Shield = 0 };
+        var bare = new ShipDurability(() => Durable) { Hull = 100, Shield = 0 };
         Run(bare, 10f);
         Assert.Equal(0, bare.Shield);
 
@@ -515,7 +514,7 @@ public class ShipComponentTests
         Assert.Equal("{\"ShipTypeName\":\"Shuttle\"}", json);
 
         var restored = System.Text.Json.JsonSerializer.Deserialize<ShipStats>(json, new System.Text.Json.JsonSerializerOptions { Converters = { new ShipStatsConverter() } });
-        Assert.Equal(ShipStats.Shuttle.MaxSpeed, restored.MaxSpeed);
+        Assert.Equal(new Shuttle().Flight.MaxSpeed, restored.Flight.MaxSpeed);
         Assert.Equal("Shuttle", restored.ShipTypeName);
     }
 
@@ -524,7 +523,7 @@ public class ShipComponentTests
     [Fact]
     public void AssigningAShipType_GivesTheShipItsDefaultLoadout_FullOfHullShieldAndFuel_AndItCanBeChangedAfter()
     {
-        var type = ShipStats.Shuttle;
+        var type = new Shuttle();
         var ship = new Nonplayer("n", type);
 
         Assert.Same(type, ship.ShipType);
@@ -536,19 +535,55 @@ public class ShipComponentTests
         ship.Equipment.Clear(); // changing the loadout does not touch the type's default
         Assert.NotEmpty(type.DefaultLoadout);
 
-        ship.AssignShipType(ShipStats.Shuttle); // assigning a type again starts over from its default
+        ship.AssignShipType(new Shuttle()); // assigning a type again starts over from its default
         Assert.Equal(3, ship.Equipment.Count);
     }
 
     [Fact]
     public void EveryShipType_HasItsOwnLoadoutObjects()
     {
-        var a = ShipStats.Shuttle;
-        var b = ShipStats.Shuttle;
+        var a = new Shuttle();
+        var b = new Shuttle();
 
         Assert.NotSame(a, b);
         for (int i = 0; i < a.DefaultLoadout.Count; i++)
             Assert.NotSame(a.DefaultLoadout[i], b.DefaultLoadout[i]);
+    }
+
+    [Fact]
+    public void EveryShipType_IsASubclassOfShipStats_MadeOfTheSameSmallParts()
+    {
+        foreach (ShipStats type in new ShipStats[] { new Shuttle(), new Runner() })
+        {
+            Assert.True(type.Flight.MaxSpeed > 0f && type.Flight.ThrustForce > 0f && type.Flight.Radius > 0f);
+            Assert.True(type.Durability.MaxHull > 0 && type.Durability.MaxFuel > 0);
+            Assert.False(string.IsNullOrEmpty(type.Appearance.SpriteName));
+            Assert.NotEmpty(type.DefaultLoadout);
+        }
+
+        Assert.Equal("Shuttle", new Shuttle().ShipTypeName);
+        Assert.Equal("Runner", new Runner().ShipTypeName);
+        Assert.NotEqual(new Runner().Flight.Radius, new Shuttle().Flight.Radius); // they differ (radius is not changed by the tuning override)
+        Assert.NotSame(new Shuttle().Flight, new Shuttle().Flight);                // and nothing is shared between instances
+    }
+
+    [Fact]
+    public void ShipTypesAreFoundByName_NotCaseSensitive_AndAnUnknownNameIsAShuttle()
+    {
+        Assert.IsType<Runner>(ShipStats.FromName("runner"));
+        Assert.IsType<Shuttle>(ShipStats.FromName("SHUTTLE"));
+        Assert.IsType<Shuttle>(ShipStats.FromName("No Such Ship"));
+        Assert.IsType<Shuttle>(ShipStats.FromName(null));
+    }
+
+    [Fact]
+    public void AssignShipType_UsesTheTypesOwnFlightAndDurabilityNumbers()
+    {
+        var runner = new Nonplayer("r", new Runner());
+
+        Assert.Equal(new Runner().Flight.MaxSpeed, runner.MaxSpeed);
+        Assert.Equal(new Runner().Flight.Radius, runner.Radius);
+        Assert.Equal(new Runner().Durability.MaxFuel, runner.MaxFuelLevel);
     }
 
     [Fact]
