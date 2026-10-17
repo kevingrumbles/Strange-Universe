@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Systems;
 using Xunit;
@@ -14,6 +14,12 @@ public class ArchitectureTests
 {
     private static readonly string[] SimulationFolders =
         { "Game/Entities", "Game/Components", "Game/EventSystem", "Game/NavSystem", "Game/Simulation" };
+
+    /// <summary>
+    /// The one place simulation code may name MonoGame's <c>Color</c>: how a weapon's projectiles look is plain colour data owned by the
+    /// weapon (<c>ProjectileVisual</c>, filled in by the catalog). Nothing here draws, loads textures or uses a SpriteBatch.
+    /// </summary>
+    private static readonly string[] ColorDataFiles = { "ProjectileVisual.cs", "EquipmentCatalog.cs" };
 
     private static readonly Regex GraphicsTypes =
         new(@"\b(Texture2D|GraphicsDevice|SpriteBatch|SpriteFont|Color)\b", RegexOptions.Compiled);
@@ -38,6 +44,7 @@ public class ArchitectureTests
         string root = RepoRoot();
         var violations = SimulationFolders
             .SelectMany(f => Directory.GetFiles(Path.Combine(root, f), "*.cs", SearchOption.AllDirectories))
+            .Where(file => !ColorDataFiles.Contains(Path.GetFileName(file)))
             .Where(file => GraphicsTypes.IsMatch(StripComments(File.ReadAllText(file))))
             .Select(file => Path.GetRelativePath(root, file))
             .ToList();
@@ -70,16 +77,6 @@ public class ArchitectureTests
             .ToList();
 
         Assert.Empty(violations);
-    }
-
-    [Fact]
-    public void WeaponLinger_EqualsVisualBurstDuration()
-    {
-        foreach (var weapon in EquipmentCatalog.All.OfType<Weapon>().Where(w => w.IsPrimary))
-        {
-            if (weapon.EquipmentName is "Light Missile") continue; // no dedicated visual
-            Assert.Equal(ProjectileVisuals.For(weapon.EquipmentName).BurstDuration, weapon.ImpactLingerSeconds);
-        }
     }
 
     [Fact]

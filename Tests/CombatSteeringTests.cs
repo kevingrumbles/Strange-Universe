@@ -18,7 +18,7 @@ public class CombatSteeringTests
     [Fact]
     public void LeadDirection_AtAStationaryTarget_PointsStraightAtIt()
     {
-        var ship = new Nonplayer("s") { Position = Vector2.Zero };
+        var ship = TestGear.Arm(new Nonplayer("s") { Position = Vector2.Zero }, TestGear.Gun());
         var lead = Steering.LeadDirection(ship, new Vector2(1000, 0), Vector2.Zero);
         Assert.Equal(1f, lead.X, 3);
         Assert.Equal(0f, lead.Y, 3);
@@ -27,7 +27,8 @@ public class CombatSteeringTests
     [Fact]
     public void LeadDirection_AtACrossingTarget_PointsAheadOfIt()
     {
-        var ship = new Nonplayer("s") { Position = Vector2.Zero };
+        // The shot has to be faster than the target (300) for a lead to exist, so the test supplies its own gun.
+        var ship = TestGear.Arm(new Nonplayer("s") { Position = Vector2.Zero }, TestGear.Gun(projectileSpeed: 1500f));
         var lead = Steering.LeadDirection(ship, new Vector2(1000, 0), new Vector2(0, 300)); // moving +Y
 
         Assert.True(lead.Y > 0.05f, "should aim toward where the target is going");

@@ -1,4 +1,4 @@
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Components.ShipComponents;
 
 /// <summary>How a type of ship looks: which art it uses and how that art is drawn.</summary>
 public sealed class ShipAppearance

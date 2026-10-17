@@ -553,3 +553,11 @@ The data-driven weapons from Phase 7.2 (`Definitions/weapons.json`, `DefinitionR
 - The only place a ship type is made from a string is `ShipStatsConverter` (via `ShipStats.FromName`). A save holds just the type's name, and a ship loaded from a save has the equipment the save holds, so the converter drops the type's default loadout. Add each new type to `FromName`.
 - Test hook: `ShipStats.FlightTuning` runs on the flight numbers of every new type; `TuningOverride` uses it for the `SU_TEST_*` environment variables.
 - Not changed, noted for later: `FromName` falls back to the Shuttle for an unknown name.
+
+## Projectile visuals live on the weapon
+
+- `ProjectileVisual` is part of `WeaponComponent` (`weapon.Visual`), set in `EquipmentCatalog` next to the weapon's other numbers. The name lookup `ProjectileVisuals.For(weaponName)` is gone.
+- Its colors are MonoGame `Color`s, used directly by the renderers with no conversion. The architecture test that keeps `Color` out of simulation code allows exactly two files (`ProjectileVisual.cs` and `EquipmentCatalog.cs`, which fills it in). Its default values are the amber energy bolt; a weapon only sets what differs.
+- Each fired `Projectile` carries its weapon's visual (`projectile.Visual`), replacing `WeaponName` and `WeaponType` on the projectile. The projectile renderer and the ship impact effects read it from the projectile.
+- `ImpactLingerSeconds` is now `Visual.BurstDuration`, so how long a spent projectile lingers and how long its burst plays are one number. The test that kept the two equal is gone.
+- Removed: `ProjectileVisualStyle` (nothing used it), the preset properties on `ProjectileVisual`, and `ProjectileVisuals`. Before the change every weapon's values (all 8, colors and burst values included) were compared with the new objects: identical.

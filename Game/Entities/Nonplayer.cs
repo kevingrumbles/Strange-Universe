@@ -6,6 +6,7 @@ using Strange_Universe.Game.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Game.Entities;
 

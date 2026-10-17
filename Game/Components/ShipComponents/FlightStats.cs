@@ -1,4 +1,4 @@
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Components.ShipComponents;
 
 /// <summary>How a type of ship moves and how big it is: the numbers the physics, steering and collisions use.</summary>
 public sealed class FlightStats

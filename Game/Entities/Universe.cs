@@ -1,6 +1,6 @@
 using Strange_Universe.Game.Components;
 using Microsoft.Xna.Framework;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.NavSystem;
 using System;
 using System.Collections.Generic;
@@ -152,7 +152,7 @@ public class Universe : IDisposable
         Id = id;
         Name = name;
         Seed = seed ?? id.ToString();
-        Player = new Player(name, new Shuttle()); // starts with the Shuttle's default loadout, full of hull, shield and fuel
+        Player = new Player(name, new Runner());
     }
 
     public void Update(float deltaTime, InputState input)

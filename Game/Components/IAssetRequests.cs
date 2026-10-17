@@ -1,4 +1,5 @@
 using System;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Game.Components;

@@ -1,4 +1,6 @@
-namespace Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
+
+namespace Strange_Universe.Game.Components.ShipComponents;
 
 /// <summary>The Runner: faster and better armed than the Shuttle, with two Heavy Lasers.</summary>
 public sealed class Runner : ShipStats
@@ -21,7 +23,7 @@ public sealed class Runner : ShipStats
         Appearance.SplashName  = "Art/Shuttle_splash.png";
         Appearance.SpriteScale = 1.5f;
 
-        DefaultLoadout = new Equipment[] { EquipmentCatalog.HeavyLaser, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull };
+        DefaultLoadout = new EquipmentComponent[] {EquipmentCatalog.PlasmaGun, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull };
         FinishSetup();
     }
 }

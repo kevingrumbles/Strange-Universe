@@ -1,4 +1,6 @@
-namespace Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
+
+namespace Strange_Universe.Game.Components.ShipComponents;
 
 /// <summary>The Shuttle: a slow, light ship that starts with a Light Laser, a Basic Shield Generator and Light Hull Plating.</summary>
 public sealed class Shuttle : ShipStats
@@ -21,7 +23,7 @@ public sealed class Shuttle : ShipStats
         Appearance.SplashName  = "Art/Shuttle_splash.png";
         Appearance.SpriteScale = 1.5f;
 
-        DefaultLoadout = new Equipment[] { EquipmentCatalog.LightLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.LightHullPlating };
+        DefaultLoadout = new EquipmentComponent[] { EquipmentCatalog.LightLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.LightHullPlating };
         FinishSetup();
     }
 }

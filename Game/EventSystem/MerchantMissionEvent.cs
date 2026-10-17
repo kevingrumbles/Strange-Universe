@@ -1,10 +1,7 @@
-using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
-using System;
-using System.Collections.Generic;
-
-using Strange_Universe.Game.Components;
 namespace Strange_Universe.Game.EventSystem
 {
     public class MerchantMissionEvent : SystemEvent

@@ -1,7 +1,10 @@
 ﻿using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
-
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Components;
+using System.Collections.Generic;
+using Microsoft.Xna.Framework;
+
 namespace Strange_Universe.Game.EventSystem
 {
     public class NpcTestEvent : SystemEvent
@@ -18,13 +21,15 @@ namespace Strange_Universe.Game.EventSystem
 
         public override void ExcuteEvent(IWorldContext system)
         {
+            List<Vector2> patrolPoints = new List<Vector2>();
             foreach (Planet planet in system.Planets)
             {
-                Nonplayer npc = new Nonplayer(npcId: $"Npc_test_{system.NpcCount + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: $"Testing Shuttle");
-
-                npc.EnqueueNavTask(new DockTask(npc, planet.Position, 9999));
-                system.AddNpc(npc);
+                patrolPoints.Add(planet.Position);
             }
+            Nonplayer npc = new Nonplayer(npcId: $"Npc_test_{system.NpcCount + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: $"Testing Shuttle");
+            npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));
+            system.AddNpc(npc);
+
         }
     }
 }

@@ -39,7 +39,8 @@ public sealed class NavSim : IDisposable
         Universe.Generate(new RecordingAssetRequests());
         System = Universe.ActiveStarSystem;
 
-        Ship = new Nonplayer(shipId);
+        // A gun of the test's own, so the ship's behavior does not depend on the ship type's default loadout or the catalog's numbers.
+        Ship = TestGear.Arm(new Nonplayer(shipId), TestGear.Gun());
         System.AddNpc(Ship);
         // Let the spawn task finish, then park the ship where the test wants it.
         for (int i = 0; i < 3; i++) Ship.Navigator.Update(Dt);

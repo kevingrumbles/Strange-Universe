@@ -1,7 +1,7 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
-using System;
+using Strange_Universe.Game.Components.ShipComponents;
 using System.Collections.Generic;
 
 using Strange_Universe.Game.Components;

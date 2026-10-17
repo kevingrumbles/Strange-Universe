@@ -1,8 +1,11 @@
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Entities.ShipParts;
+using Strange_Universe.Tests.Fakes;
 using Xunit;
 
 namespace Strange_Universe.Tests;
@@ -190,14 +193,14 @@ public class ShipComponentTests
     [Fact]
     public void MaxShieldAndHull_AreTheShipTypesValuesPlusTheEquipments()
     {
-        var gear = new List<Equipment>();
+        var gear = new List<EquipmentComponent>();
         var d = new ShipDurability(() => Durable, () => gear); // base 100 hull, 50 shield
         Assert.Equal(100, d.MaxHull);
         Assert.Equal(0, d.MaxShield); // a ship type gives no shield: only equipment does
 
-        gear.Add(new Shield { ShieldStrength = 500f });
-        gear.Add(new Shield { ShieldStrength = 200f });
-        gear.Add(new HullPlating { HullStrength = 300f });
+        gear.Add(new ShieldComponent { ShieldStrength = 500f });
+        gear.Add(new ShieldComponent { ShieldStrength = 200f });
+        gear.Add(new PlatingComponent { HullStrength = 300f });
         Assert.Equal(700, d.MaxShield);
         Assert.Equal(400, d.MaxHull);
 
@@ -208,29 +211,33 @@ public class ShipComponentTests
     [Fact]
     public void AShip_StartsFullAtTheTypesValuesPlusItsEquipment()
     {
-        var shuttle = new Shuttle();
         var player = new Universe("A", "a-seed").Player;
         var npc = new Nonplayer("npc");
+        var equipped = TestGear.Arm(new Nonplayer("equipped"), TestGear.Shield(30f), TestGear.Shield(5f), TestGear.Plating(40f));
 
-        foreach (var ship in new Ship[] { player, npc })
+        foreach (var ship in new Ship[] { player, npc, equipped })
         {
-            Assert.Equal(25, ship.MaxShieldStrength); // Basic Shield Generator
-            Assert.Equal(shuttle.Durability.MaxHull + 25, ship.MaxHullStrength);     // Light Hull Plating
+            // Whatever it carries: the type's own hull plus the plating, and only the shield generators for a shield.
+            Assert.Equal((int)ship.Equipment.OfType<ShieldComponent>().Sum(s => s.ShieldStrength), ship.MaxShieldStrength);
+            Assert.Equal(ship.ShipType.Durability.MaxHull + (int)ship.Equipment.OfType<PlatingComponent>().Sum(p => p.HullStrength), ship.MaxHullStrength);
             Assert.Equal(ship.MaxShieldStrength, ship.CurrentShieldStrength);
             Assert.Equal(ship.MaxHullStrength, ship.CurrentHullStrength);
         }
+
+        Assert.Equal(35, equipped.MaxShieldStrength);
+        Assert.Equal(equipped.ShipType.Durability.MaxHull + 40, equipped.MaxHullStrength);
     }
 
     // -- Shield recharge: each generator holds and recharges its own strength ---
 
-    private static Shield Generator(float strength = 20f, float rate = 10f, float delay = 2f) => new()
+    private static ShieldComponent Generator(float strength = 20f, float rate = 10f, float delay = 2f) => new()
     {
         EquipmentName = "Test Generator", ShieldStrength = strength, RechargeRate = rate, RechargeDelay = delay,
     };
 
-    private static ShipDurability Fitted(params Shield[] generators)
+    private static ShipDurability Fitted(params ShieldComponent[] generators)
     {
-        var gear = new List<Equipment>(generators);
+        var gear = new List<EquipmentComponent>(generators);
         return new ShipDurability(() => Durable, () => gear) { Hull = 100 };
     }
 
@@ -413,11 +420,8 @@ public class ShipComponentTests
     [Fact]
     public void ShieldRecharge_AShipWithAGenerator_RechargesInTheGame()
     {
-        var npc = new Nonplayer("npc");
-        npc.Equipment.Clear();
-        npc.Equipment.Add(Equipment.Create("Military Shield Generator")); // 16/s after a 2 s delay
+        var npc = TestGear.Arm(new Nonplayer("npc"), TestGear.Shield(strength: 100f, rechargeRate: 16f, rechargeDelay: 2f));
         npc.CurrentShieldStrength = 1;
-        npc.CurrentHullStrength = npc.MaxHullStrength;
         npc.ApplyDamage(1);
         Assert.Equal(0, npc.CurrentShieldStrength);
 
@@ -429,7 +433,7 @@ public class ShipComponentTests
 
     // -- WeaponSystem --------------------------------------------------------
 
-    private static UtilityModule Utility(float? fireRate, float? range, float? accuracy) => new()
+    private static UtilityComponent Utility(float? fireRate, float? range, float? accuracy) => new()
     {
         EquipmentName = "util",
         AttackSpeedBonus = fireRate ?? 0f,
@@ -437,7 +441,7 @@ public class ShipComponentTests
         AccuracyBonus = accuracy ?? 0f,
     };
 
-    private static Weapon Gun(float fireRate) => new(EquipmentType.FixedProjectile)
+    private static WeaponComponent Gun(float fireRate) => new(EquipmentType.FixedProjectile)
     {
         EquipmentName = "gun",
         FireRate = fireRate,
@@ -449,7 +453,7 @@ public class ShipComponentTests
     [Fact]
     public void Weapons_BonusAggregation_SumsUtilityOnly()
     {
-        var gear = new List<Equipment>
+        var gear = new List<EquipmentComponent>
         {
             Utility(0.5f, 100f, 0.1f),
             Utility(0.25f, null, 0.2f),
@@ -468,7 +472,7 @@ public class ShipComponentTests
     public void Weapons_Cooldown_BlocksUntilElapsed()
     {
         var gun = Gun(2f);                              // 0.5 s cooldown
-        var gear = new List<Equipment> { gun };
+        var gear = new List<EquipmentComponent> { gun };
         var w = new WeaponSystem(() => gear);
         var owner = new Nonplayer("owner");
         var output = new List<Projectile>();
@@ -494,7 +498,7 @@ public class ShipComponentTests
     public void Weapons_UtilityFireRateBonus_ShortensCooldown()
     {
         var gun = Gun(1f);
-        var gear = new List<Equipment> { gun, Utility(1f, null, null) }; // effective 2/s
+        var gear = new List<EquipmentComponent> { gun, Utility(1f, null, null) }; // effective 2/s
         var w = new WeaponSystem(() => gear);
         var output = new List<Projectile>();
 
@@ -536,7 +540,7 @@ public class ShipComponentTests
         Assert.NotEmpty(type.DefaultLoadout);
 
         ship.AssignShipType(new Shuttle()); // assigning a type again starts over from its default
-        Assert.Equal(3, ship.Equipment.Count);
+        Assert.Equal(new Shuttle().DefaultLoadout.Count, ship.Equipment.Count);
     }
 
     [Fact]

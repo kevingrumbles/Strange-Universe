@@ -1,6 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Tests.Fakes;
 

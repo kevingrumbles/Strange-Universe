@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Components.EquipmentComponents;
 
 /// <summary>
 /// Serializes <see cref="Entities.Ship.Equipment"/> as a JSON array of name strings.
 /// On read each name is turned into the full item with <see cref="Equipment.Create"/>.
 /// </summary>
-public class EquipmentListConverter : JsonConverter<List<Equipment>>
+public class EquipmentListConverter : JsonConverter<List<EquipmentComponent>>
 {
-    public override List<Equipment> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override List<EquipmentComponent> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var list = new List<Equipment>();
+        var list = new List<EquipmentComponent>();
         if (reader.TokenType != JsonTokenType.StartArray)
             throw new JsonException("Expected start of array for Equipment.");
 
@@ -23,12 +23,12 @@ public class EquipmentListConverter : JsonConverter<List<Equipment>>
                 ?? throw new JsonException("Expected a non-null equipment name string.");
 
             // Each ship gets its own copy; an unknown name becomes an inert placeholder that keeps its name.
-            list.Add(Equipment.Create(name));
+            list.Add(EquipmentComponent.Create(name));
         }
         return list;
     }
 
-    public override void Write(Utf8JsonWriter writer, List<Equipment> value, JsonSerializerOptions options)
+    public override void Write(Utf8JsonWriter writer, List<EquipmentComponent> value, JsonSerializerOptions options)
     {
         writer.WriteStartArray();
         foreach (var item in value)

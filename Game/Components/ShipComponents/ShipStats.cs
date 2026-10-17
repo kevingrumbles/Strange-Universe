@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Strange_Universe.Game.Components.EquipmentComponents;
 
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Components.ShipComponents;
 
 /// <summary>
 /// A type of ship. Each type is its own subclass (<see cref="Shuttle"/>, <see cref="Runner"/>, ...) so types can
@@ -26,7 +27,7 @@ public abstract class ShipStats
     public ShipAppearance Appearance { get; } = new();
 
     /// <summary>The equipment a ship of this type starts with. These are the objects the ship is given, so they are never shared between ships.</summary>
-    public IReadOnlyList<Equipment> DefaultLoadout { get; protected set; } = Array.Empty<Equipment>();
+    public IReadOnlyList<EquipmentComponent> DefaultLoadout { get; protected set; } = Array.Empty<EquipmentComponent>();
 
     /// <summary>Subclasses call this last in their constructor, after setting their values.</summary>
     protected void FinishSetup() => FlightTuning?.Invoke(Flight);
@@ -39,5 +40,5 @@ public abstract class ShipStats
         => string.Equals(shipTypeName, "Runner", StringComparison.OrdinalIgnoreCase) ? new Runner() : new Shuttle();
 
     /// <summary>Drops the default loadout, for a ship whose equipment comes from a save instead.</summary>
-    internal void ClearDefaultLoadout() => DefaultLoadout = Array.Empty<Equipment>();
+    internal void ClearDefaultLoadout() => DefaultLoadout = Array.Empty<EquipmentComponent>();
 }

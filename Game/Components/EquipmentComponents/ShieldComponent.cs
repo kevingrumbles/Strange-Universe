@@ -1,17 +1,17 @@
 using System;
 
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Components.EquipmentComponents;
 
 /// <summary>
 /// A shield generator. It holds its own strength and does its own recharging, so a ship can carry several
 /// generators, each with its own strength, recharge rate and delay.
 /// </summary>
-public sealed class Shield : Equipment
+public sealed class ShieldComponent : EquipmentComponent
 {
     private float? _strength; // null until it is first used: a new generator is at full strength
     private float _rechargeDelayLeft;
 
-    public Shield() : base(EquipmentType.Shield) { }
+    public ShieldComponent() : base(EquipmentType.Shield) { }
 
     /// <summary>Energy used to run the shield.</summary>
     public float EnergyCost { get; set; }

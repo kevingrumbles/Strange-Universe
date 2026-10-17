@@ -6,6 +6,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -34,7 +36,7 @@ public abstract class Ship
         ShipType = shipType ?? throw new ArgumentNullException(nameof(shipType));
         Physics.Body.Mass = shipType.Flight.Mass;
 
-        Equipment = new List<Equipment>(shipType.DefaultLoadout);
+        Equipment = new List<EquipmentComponent>(shipType.DefaultLoadout);
 
         // Filled last: the maximums include what the equipment adds.
         CurrentHullStrength = MaxHullStrength;
@@ -47,7 +49,7 @@ public abstract class Ship
     public int? CurrentShieldStrength { get => Durability.Shield; set => Durability.Shield = value; }
     public int? CurrentFuelLevel      { get => Durability.Fuel;   set => Durability.Fuel = value; }
     [JsonConverter(typeof(EquipmentListConverter))]
-    public List<Equipment> Equipment { get; set; } = new();
+    public List<EquipmentComponent> Equipment { get; set; } = new();
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public Ship Target { get => Sensors.Target; set => Sensors.Target = value; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Position);

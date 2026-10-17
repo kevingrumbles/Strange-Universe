@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
 
 namespace Strange_Universe.Game.Entities.ShipParts;
 
@@ -10,22 +10,22 @@ public readonly record struct WeaponBonuses(float AttackSpeed, float AttackRange
 /// <summary>Weapon firing, cooldowns and utility-equipment bonus aggregation.</summary>
 public class WeaponSystem
 {
-    private readonly Func<List<Equipment>> _equipment;
+    private readonly Func<List<EquipmentComponent>> _equipment;
 
-    public WeaponSystem(Func<List<Equipment>> equipment)
+    public WeaponSystem(Func<List<EquipmentComponent>> equipment)
     {
         _equipment = equipment ?? throw new ArgumentNullException(nameof(equipment));
     }
 
     /// <summary>Sums one bonus over all utility modules.</summary>
-    public static float SumUtilityBonus(IReadOnlyList<Equipment> equipment, Func<UtilityModule, float> bonus)
+    public static float SumUtilityBonus(IReadOnlyList<EquipmentComponent> equipment, Func<UtilityComponent, float> bonus)
     {
         float total = 0f;
         if (equipment == null) return total;
 
         for (int i = 0; i < equipment.Count; i++)
         {
-            if (equipment[i] is UtilityModule utility)
+            if (equipment[i] is UtilityComponent utility)
                 total += bonus(utility);
         }
         return total;
@@ -41,14 +41,14 @@ public class WeaponSystem
     }
 
     /// <summary>The primary weapon with the longest range, or null when the ship is unarmed.</summary>
-    private Weapon LongestRangeWeapon()
+    private WeaponComponent LongestRangeWeapon()
     {
         var equipment = _equipment();
-        Weapon best = null;
+        WeaponComponent best = null;
         if (equipment == null) return null;
         for (int i = 0; i < equipment.Count; i++)
         {
-            if (equipment[i] is Weapon { IsPrimary: true } candidate && candidate.Range > (best?.Range ?? 0f))
+            if (equipment[i] is WeaponComponent { IsPrimary: true } candidate && candidate.Range > (best?.Range ?? 0f))
                 best = candidate;
         }
         return best;
@@ -68,7 +68,7 @@ public class WeaponSystem
 
         for (int i = 0; i < equipment.Count; i++)
         {
-            if (equipment[i] is Weapon { IsPrimary: true } weapon)
+            if (equipment[i] is WeaponComponent { IsPrimary: true } weapon)
                 weapon.UpdateCooldown(deltaTime);
         }
     }
@@ -82,7 +82,7 @@ public class WeaponSystem
         WeaponBonuses bonuses = CalculateBonuses();
         for (int i = 0; i < equipment.Count; i++)
         {
-            if (equipment[i] is not Weapon { IsPrimary: true } weapon) continue;
+            if (equipment[i] is not WeaponComponent { IsPrimary: true } weapon) continue;
 
             Projectile projectile = weapon.TryFire(owner, bonuses.AttackSpeed, bonuses.AttackRange, bonuses.Accuracy);
             if (projectile != null)

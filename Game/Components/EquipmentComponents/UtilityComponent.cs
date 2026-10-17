@@ -1,12 +1,12 @@
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Components.EquipmentComponents;
 
 /// <summary>
 /// General-purpose gear. Besides any effect of its own, it can improve the ship's weapons: the bonuses of all utility
 /// modules on a ship are added together and applied to every weapon it fires (see <c>WeaponSystem</c>).
 /// </summary>
-public sealed class UtilityModule : Equipment
+public sealed class UtilityComponent : EquipmentComponent
 {
-    public UtilityModule() : base(EquipmentType.Utility) { }
+    public UtilityComponent() : base(EquipmentType.Utility) { }
 
     /// <summary>Energy used to run the module.</summary>
     public float EnergyCost { get; set; }

@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Game.Entities.ShipParts;
 
@@ -10,13 +11,13 @@ public class ShipDurability
 {
     private readonly Func<DurabilityStats> _stats;
 
-    private readonly Func<IEnumerable<Equipment>> _equipment;
+    private readonly Func<IEnumerable<EquipmentComponent>> _equipment;
     private bool _hasShield;
     private int? _requested;   // a total set from outside, handed out to the generators the next time the shield is used
 
     /// <param name="stats">The ship type's durability numbers.</param>
     /// <param name="equipment">The ship's equipment (null for none). Shields and hull plating add to the ship type's base values; each shield generator holds and recharges its own strength.</param>
-    public ShipDurability(Func<DurabilityStats> stats, Func<IEnumerable<Equipment>> equipment = null)
+    public ShipDurability(Func<DurabilityStats> stats, Func<IEnumerable<EquipmentComponent>> equipment = null)
     {
         _stats = stats ?? throw new ArgumentNullException(nameof(stats));
         _equipment = equipment;
@@ -25,8 +26,8 @@ public class ShipDurability
     public int? Hull   { get; set; }
     public int? Fuel   { get; set; }
 
-    private IEnumerable<Equipment> Carried => _equipment?.Invoke() ?? Enumerable.Empty<Equipment>();
-    private List<Shield> Generators => Carried.OfType<Shield>().ToList();
+    private IEnumerable<EquipmentComponent> Carried => _equipment?.Invoke() ?? Enumerable.Empty<EquipmentComponent>();
+    private List<ShieldComponent> Generators => Carried.OfType<ShieldComponent>().ToList();
 
     /// <summary>
     /// The ship's total shield: what each generator has left. Setting it fills the generators in order (any excess is dropped). (The strength lives in the generators; this total is what is saved.)
@@ -48,10 +49,10 @@ public class ShipDurability
     }
 
     /// <summary>The ship type's hull plus the strength of every hull plating it carries.</summary>
-    public int MaxHull   => _stats().MaxHull + (int)Carried.OfType<HullPlating>().Sum(h => h.HullStrength);
+    public int MaxHull   => _stats().MaxHull + (int)Carried.OfType<PlatingComponent>().Sum(h => h.HullStrength);
 
     /// <summary>The strength of every shield generator the ship carries; ships get a shield only from equipment.</summary>
-    public int MaxShield => (int)Carried.OfType<Shield>().Sum(g => g.ShieldStrength);
+    public int MaxShield => (int)Carried.OfType<ShieldComponent>().Sum(g => g.ShieldStrength);
     public int MaxFuel   => _stats().MaxFuel;
 
     public float HullPercentage   => Percent(Hull, MaxHull);

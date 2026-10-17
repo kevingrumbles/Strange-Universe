@@ -2,7 +2,7 @@ using System;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Strange_Universe.Game.Components;
+namespace Strange_Universe.Game.Components.ShipComponents;
 
 /// <summary>
 /// Saves a ship's type as <c>{ "ShipTypeName": "..." }</c>, just its name. On read the name is turned back into

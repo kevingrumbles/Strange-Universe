@@ -6,6 +6,7 @@ using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Tests;
 

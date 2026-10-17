@@ -1,11 +1,11 @@
 using Microsoft.Xna.Framework;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
 
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>
 /// A fired projectile that moves independently and despawns after its lifetime expires.
-/// Gameplay state only; how it looks is decided by the renderer from <see cref="WeaponName"/>.
+/// Gameplay state only; how it looks is its <see cref="Visual"/>, which the renderer draws.
 /// </summary>
 public class Projectile
 {
@@ -18,11 +18,8 @@ public class Projectile
     /// <summary>Damage applied to whatever this projectile strikes.</summary>
     public int Damage { get; init; }
 
-    /// <summary>Equipment type of the weapon that fired this projectile.</summary>
-    public EquipmentType WeaponType { get; init; }
-
-    /// <summary>Name of the weapon that fired this projectile.</summary>
-    public string WeaponName { get; init; }
+    /// <summary>How this projectile looks, set by the weapon that fired it.</summary>
+    public ProjectileVisual Visual { get; init; } = new();
 
     /// <summary>
     /// Set once the projectile has struck something. A spent projectile stops
