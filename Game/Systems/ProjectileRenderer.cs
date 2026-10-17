@@ -113,7 +113,7 @@ public sealed class ProjectileRenderer : IDisposable
                 continue;
             }
 
-            int count = ProjectileVisuals.For(proj.WeaponName).ParticleCount;
+            int count = proj.Visual.ParticleCount;
             if (count <= 0) continue;
 
             // Emit ~count particles per second
@@ -140,7 +140,7 @@ public sealed class ProjectileRenderer : IDisposable
                 p.MaxLife  = 0.12f + (float)_rng.NextDouble() * 0.1f;
                 p.Life     = p.MaxLife;
                 p.Radius   = 1.5f + (float)_rng.NextDouble() * 1.5f;
-                p.Color    = ProjectileVisuals.For(proj.WeaponName).GlowColor;
+                p.Color    = proj.Visual.GlowColor;
             }
         }
     }
@@ -183,7 +183,7 @@ public sealed class ProjectileRenderer : IDisposable
     /// </summary>
     private void EmitBurst(Projectile proj)
     {
-        var vis = ProjectileVisuals.For(proj.WeaponName);
+        var vis = proj.Visual;
         if (vis.BurstDuration <= 0f || vis.BurstParticleCount <= 0)
             return;
 
@@ -216,7 +216,7 @@ public sealed class ProjectileRenderer : IDisposable
     /// </summary>
     private void DrawBurst(Projectile proj)
     {
-        var vis = ProjectileVisuals.For(proj.WeaponName);
+        var vis = proj.Visual;
         if (vis.BurstDuration <= 0f || vis.BurstRadius <= 0f)
             return;
 
@@ -268,7 +268,7 @@ public sealed class ProjectileRenderer : IDisposable
 
     private void DrawGlowLayers(Projectile proj)
     {
-        var     vis       = ProjectileVisuals.For(proj.WeaponName);
+        var     vis       = proj.Visual;
         float   rotation  = proj.Rotation;
         Vector2 pos       = proj.Position;
 
@@ -326,7 +326,7 @@ public sealed class ProjectileRenderer : IDisposable
 
     private void DrawCoreLayers(Projectile proj)
     {
-        var     vis      = ProjectileVisuals.For(proj.WeaponName);
+        var     vis      = proj.Visual;
         float   rotation = proj.Rotation;
         Vector2 pos      = proj.Position;
 

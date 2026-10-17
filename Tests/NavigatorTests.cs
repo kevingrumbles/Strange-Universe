@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Tests.Fakes;
@@ -271,7 +272,7 @@ public class NavigatorTests
     public void PlayerJump_ToAnUnknownTarget_FailsOnItsFirstUpdate()
     {
         var world = new FakeWorld();
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", new Shuttle());
         var task = new JumpTask(player, null, "no-such-system") { World = world };
 
         Assert.Equal(NavTaskStatus.Running, task.Status); // nothing is checked until it runs
@@ -283,7 +284,7 @@ public class NavigatorTests
     [Fact]
     public void PlayerJump_WithoutATarget_FailsOnItsFirstUpdate()
     {
-        var task = new JumpTask(new Player("p", "Shuttle"), null, null) { World = new FakeWorld() };
+        var task = new JumpTask(new Player("p", new Shuttle()), null, null) { World = new FakeWorld() };
         task.Update(0.016f);
         Assert.Equal(NavTaskStatus.Invalid, task.Status);
     }

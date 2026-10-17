@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
@@ -144,7 +145,7 @@ public class UniverseLifecycleTests
     [Fact]
     public void DetachedPlayer_Update_DoesNotThrow()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", new Shuttle());
         var ex = Record.Exception(() => player.Update(1f / 60f, new InputState { Jump = true, Fire = true }));
         Assert.Null(ex);
     }

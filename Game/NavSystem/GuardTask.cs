@@ -62,7 +62,7 @@ namespace Strange_Universe.Game.NavSystem
         public float OrbitSpeedFor(Ship ship)
         {
             float centripetalLimited = MathF.Sqrt(ship.MaxAcceleration * CentripetalBudget * _orbitRadius);
-            return Math.Min(ship.ShipType.MaxSpeed * OrbitSpeedFraction, centripetalLimited);
+            return Math.Min(ship.ShipType.Flight.MaxSpeed * OrbitSpeedFraction, centripetalLimited);
         }
 
         public override void Update(float deltaTime)

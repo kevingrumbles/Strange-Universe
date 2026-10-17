@@ -25,6 +25,7 @@ public class AlertTests
         attacker.Navigator.Clear(); // its opening spawn task would move it to the entry point
         attacker.CurrentHullStrength = 1000; // survives return fire
         attacker.CurrentShieldStrength = 0;
+        attacker.Equipment.Clear(); // no generator, so the shield stays down instead of recharging
         return (sim, attacker);
     }
 
@@ -35,6 +36,27 @@ public class AlertTests
         var patrol = sim.Start(new PatrolTask(sim.Ship, new List<Vector2> { new(4000, 0), new(4000, 4000) }));
         sim.Ship.Navigator.Update(NavSim.Dt); // starts it
         return patrol;
+    }
+
+    // -- minimap color --------------------------------------------------------
+
+    [Fact]
+    public void OnTheMinimap_DefensiveShipsAreBlue_AggressiveYellow_AndHostileOnesRed()
+    {
+        var (sim, player) = Setup();
+        using var _ = sim;
+        var npc = sim.Ship;
+        npc.Navigator.Clear();
+        Assert.Equal(Strange_Universe.Game.Systems.SpriteRenderer.DefensiveShipColor, Strange_Universe.Game.Systems.SpriteRenderer.NpcMinimapColor(npc, player)); // idle
+
+        StartPatrol(sim); // patrolling is aggressive
+        Assert.Equal(Strange_Universe.Game.Systems.SpriteRenderer.AggressiveShipColor, Strange_Universe.Game.Systems.SpriteRenderer.NpcMinimapColor(npc, player));
+
+        npc.ApplyDamage(Shot(player)); // shot by the player: it is hostile to the player now
+        Assert.Equal(Strange_Universe.Game.Systems.SpriteRenderer.HostileShipColor, Strange_Universe.Game.Systems.SpriteRenderer.NpcMinimapColor(npc, player));
+
+        npc.ForgetHostile(player); // alerting and no longer hostile: the stored aggressive task decides
+        Assert.Equal(Strange_Universe.Game.Systems.SpriteRenderer.AggressiveShipColor, Strange_Universe.Game.Systems.SpriteRenderer.NpcMinimapColor(npc, player));
     }
 
     // -- trigger and bookkeeping --------------------------------------------
@@ -78,6 +100,7 @@ public class AlertTests
         sim.Ship.ApplyDamage(Shot(null));       // no owner
         Assert.False(sim.Ship.Navigator.IsAlerting);
 
+        sim.Ship.CurrentShieldStrength = 0; // an active shield would absorb even a huge hit
         sim.Ship.ApplyDamage(Shot(attacker, damage: 1000)); // a killing shot: nothing left to alert
         Assert.True(sim.Ship.IsDestroyed);
         Assert.False(sim.Ship.Navigator.IsAlerting);

@@ -68,7 +68,7 @@ namespace Strange_Universe.Game.NavSystem
 
             // Arrive at hyperspace speed, pointing inward, and face the way the ship is travelling right away;
             // otherwise it would keep its outbound heading from the jump and only turn gradually.
-            Owner.Velocity = inward * (Owner.ShipType.MaxSpeed * SpeedMultiplier);
+            Owner.Velocity = inward * (Owner.ShipType.Flight.MaxSpeed * SpeedMultiplier);
             Owner.Rotation = (float)Math.Atan2(inward.Y, inward.X);
 
             CurrentPhase = Phase.Taper;
@@ -77,7 +77,7 @@ namespace Strange_Universe.Game.NavSystem
         private void Taper()
         {
             float radius = World?.SystemRadius ?? 50000f;
-            float normalSpeed = Owner.ShipType.MaxSpeed;
+            float normalSpeed = Owner.ShipType.Flight.MaxSpeed;
             float taperEnd = radius * TaperEndFraction;
             float distance = Owner.Position.Length();
 

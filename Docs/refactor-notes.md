@@ -523,3 +523,41 @@ Requested: arrive much faster and taper to normal travel speed halfway to the sy
 - During `ArriveInSystem` the speed is set from the ship's position (frame-rate independent): `normal + (entry - normal) * (1 - p)^2`, where `p` runs from 0 at the system edge to 1 at `ArrivalTaperEndFraction` (0.5) of the system radius. At that point the ship is at normal speed (`MaxSpeed`) and the task completes.
 - The old arrival logic (exponential deceleration toward the Mandeville radius, snapping the ship to that point) is removed. The ship is no longer moved on completion, and it now completes at half the system radius instead of the Mandeville radius (75%).
 - Tests: `Arrival_StartsMuchFasterThanNormal_AtTheEdge`, `Arrival_Tapers_ThenCompletesAtNormalSpeedHalfwayToCenter`.
+
+## Round 2 / Phase 7.2 reverted: weapons are code again
+
+The data-driven weapons from Phase 7.2 (`Definitions/weapons.json`, `DefinitionRepository`, the embedded resource and the projectile style data) were removed on request: all equipment is handled the same way, and hardcoding it is fine.
+
+- The six weapons (Light Laser, Heavy Laser, Pulse Cannon, Gatling Gun, Plasma Beam, Mining Beam) are static presets in `Equipment.cs`, next to the missiles, shields, hulls, engines and utilities, and in `Equipment.Presets`. `Equipment.Create(name)` looks any of them up by name and returns a separate copy (it replaces `FromName` and `CreateWeapon`, and an unknown name gives an inert placeholder that keeps its name, so a save written with an item that no longer exists still round-trips).
+- How a projectile looks is a rendering concern and `Equipment.cs` has no graphics types, so the looks are hardcoded `ProjectileVisual` presets in `Game/Systems/ProjectileVisual.cs`, chosen by weapon name in `ProjectileVisuals.For(name)` (default look for unknown names).
+- **No values changed.** Before deleting the JSON, every weapon stat and every look value (173 fields, including the default look) was compared with the file: it caught one mistyped value (Mining Beam burst particle count) which was fixed, and then there were zero differences.
+- `DefinitionTests` now tests the presets in code (the JSON-loading tests went away with the repository); `ArchitectureTests` still checks that each weapon's impact linger equals its look's burst duration.
+
+## Equipment refactor: one subclass per kind
+
+`Equipment` was one class with 13 nullable stat fields for every kind of item, plus the weapon firing logic, the preset catalog and the JSON converter. It is now split by kind:
+
+- **`Equipment`** (abstract): name, `EquipmentType`, `Mass`, `EnergyCost`, and `Create(name)`. Subclasses: **`Weapon`** (damage, projectile speed, range, fire rate, accuracy, firing offset and radius, impact linger, cooldown, `TryFire`, `IsPrimary`), **`Shield`**, **`HullPlating`**, **`Engine`**, **`UtilityModule`** (the attack speed, range and accuracy bonuses `WeaponSystem` adds up), and **`UnknownEquipment`** (the inert placeholder for a name that is no longer a known item).
+- Stats are plain values with the defaults the old null fallbacks used (fire rate 1, projectile speed 1000, everything else 0), instead of nullable fields. `Weapon` was `Speed` plus `ProjectileSpeed`; it is now only `ProjectileSpeed` (beams use the default 1000, as before). A weapon is created with its kind (`new Weapon(EquipmentType.FixedProjectile)`), and only weapon kinds are accepted.
+- **`EquipmentCatalog`** (internal) holds all 20 built-in items and replaces `Equipment.Presets`; `Equipment.Create(name)` asks it for the item, and it builds a new object on every request, so no object is ever shared and a new weapon always starts with a fresh cooldown (there is no `Clone` or reset step). `EquipmentListConverter` is in its own file. The weapon firing code moved to `Weapon`, and its random spread now uses `Random.Shared`.
+- `WeaponSystem` works on `Weapon` and `UtilityModule` (`IsPrimary` replaces `PrimaryWeapon`).
+- **Nothing changed in behavior or in the save format** (saves still hold equipment names). Before the change a snapshot of every preset's values was taken; after it, the same snapshot from the new classes was identical for all 20 items, in the same order.
+- Tests: `DefinitionTests` checks each catalog item is the class for its type, missiles are weapons but not primary, and a weapon needs a weapon kind; `EquipmentInstanceTests` covers copies and cooldowns; the weapon-system tests in `ShipComponentTests` use `Weapon` and `UtilityModule`.
+
+## Ship types and default loadouts
+
+- `ShipStats` is an **abstract** ship type; each type is a subclass (`Shuttle`, `Runner`, ...) so types can grow their own differences. It is made of small parts: `Flight` (`FlightStats`: thrust, rotation, max speed, damping, soft cap, mass, radius), `Durability` (`DurabilityStats`: hull and fuel; shield comes only from equipment), `Appearance` (`ShipAppearance`: sprite, splash, scale, rotation offset), and `DefaultLoadout` (a list of `Equipment` **objects**, not names).
+- `ShipPhysics` takes a `FlightStats`, `ShipDurability` a `DurabilityStats`, and the renderer/asset code the `ShipAppearance`, so each uses only the part it needs.
+- Make a type with `new Shuttle()`: each instance has its own loadout objects, so a type object belongs to one ship. There is no shared preset list.
+- Ships are given a type object: `new Player(name, new Shuttle())`, `new Nonplayer(id, new Runner())`, or `ship.AssignShipType(type)`. Assigning takes the default loadout as the ship's equipment (it can be changed from there) and fills hull, shield and fuel.
+- The only place a ship type is made from a string is `ShipStatsConverter` (via `ShipStats.FromName`). A save holds just the type's name, and a ship loaded from a save has the equipment the save holds, so the converter drops the type's default loadout. Add each new type to `FromName`.
+- Test hook: `ShipStats.FlightTuning` runs on the flight numbers of every new type; `TuningOverride` uses it for the `SU_TEST_*` environment variables.
+- Not changed, noted for later: `FromName` falls back to the Shuttle for an unknown name.
+
+## Projectile visuals live on the weapon
+
+- `ProjectileVisual` is part of `WeaponComponent` (`weapon.Visual`), set in `EquipmentCatalog` next to the weapon's other numbers. The name lookup `ProjectileVisuals.For(weaponName)` is gone.
+- Its colors are MonoGame `Color`s, used directly by the renderers with no conversion. The architecture test that keeps `Color` out of simulation code allows exactly two files (`ProjectileVisual.cs` and `EquipmentCatalog.cs`, which fills it in). Its default values are the amber energy bolt; a weapon only sets what differs.
+- Each fired `Projectile` carries its weapon's visual (`projectile.Visual`), replacing `WeaponName` and `WeaponType` on the projectile. The projectile renderer and the ship impact effects read it from the projectile.
+- `ImpactLingerSeconds` is now `Visual.BurstDuration`, so how long a spent projectile lingers and how long its burst plays are one number. The test that kept the two equal is gone.
+- Removed: `ProjectileVisualStyle` (nothing used it), the preset properties on `ProjectileVisual`, and `ProjectileVisuals`. Before the change every weapon's values (all 8, colors and burst values included) were compared with the new objects: identical.

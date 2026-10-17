@@ -29,7 +29,7 @@ An aggressive ship switches from `Pursue` to `Engage` at 90% of its range and ba
 ## Other changes this needed
 
 - **NPCs inherit their loadout and durability from their ship type.** `ShipStats.DefaultEquipment` (the Shuttle: "Light Laser"); an NPC starts with that equipment (separate copies, so cooldowns are not shared) and with hull, shield and fuel at the type's maximums. **Before this, NPCs had no weapons and no hull or shields at all, so they were unarmed and could not be damaged.** This is a gameplay change: NPCs can now be destroyed and can shoot. (The Shuttle's `MaxHull` and `MaxShield` are 1, so it dies from one hit.)
-- `Equipment.Create(name)` / `Equipment.CreateWeapon(name)` / `Equipment.Clone()`: separate equipment instances (`FromName` returns the shared preset).
+- `Equipment.Create(name)`: every ship gets its own equipment instances (weapons have a cooldown). It is the only way to get equipment by name; an unknown name gives an inert placeholder that keeps its name.
 - `IWorldContext.Ships` (the player and all NPCs); `Ship.WeaponRange` and `Ship.ProjectileSpeed`.
 - `Steering`: `MatchVelocity`, `Pursue` / `PursuitVelocity`, `LeadDirection`, `AimAt`, `FireIfAimed`.
 - `GuardTask` goes back to its approach phase if it ends up far from its orbit (for example after chasing), so it returns to its post after an alert.
@@ -64,7 +64,7 @@ NPCs can now shoot the player, so a destroyed player ends the session:
 - `PlayerDeathMonitor` (`Game/Screens`) subscribes to the universe's `ShipDestroyed` events and notes when the player's ship is the one destroyed.
 - `PlayingScreen.Update` checks it first, every frame, and returns to the main menu (the same transition as Esc).
 - `PlayingScreen.OnExit` does **not** save when the player was destroyed (it also covers the window being closed in the same frame), and instead calls `ISaveService.ReloadInto(ctx.Universes)`, which replaces the in-memory universes with what is on disk. The menu therefore offers the last saved state; progress since the last save is lost.
-- A universe that was created this session and never saved (new universes are only saved when you leave play) is not on disk, so it disappears from the menu after a death.
+- A new universe is saved the moment it is created (`ISaveService.CreateUniverse`, used by the naming screen), so it is on disk from the start and is still in the menu after a death in its first session. (Before this, a universe was first saved when you left play, and one that was never saved disappeared.)
 - Saves happen only when leaving play normally, so "the last persist point" is the last time you left play, or the last time you quit.
 
 Tests: `PlayerDeathTests` (the monitor flags only the player's destruction, stops when disposed, handles an already-destroyed player and a kill inside a full system update; reload replaces in-memory changes with the saved state, drops never-saved universes, works with both save services). The screen change itself needs a display and was not run.

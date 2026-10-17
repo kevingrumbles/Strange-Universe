@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Game.Entities.ShipParts;
 
@@ -10,9 +11,9 @@ namespace Strange_Universe.Game.Entities.ShipParts;
 /// </summary>
 public class ShipPhysics
 {
-    private readonly Func<ShipStats> _stats;
+    private readonly Func<FlightStats> _stats;
 
-    public ShipPhysics(Func<ShipStats> stats)
+    public ShipPhysics(Func<FlightStats> stats)
     {
         _stats = stats ?? throw new ArgumentNullException(nameof(stats));
     }
@@ -20,7 +21,7 @@ public class ShipPhysics
     public Transform Transform { get; } = new();
     public PhysicsBody Body { get; } = new();
 
-    private ShipStats Stats => _stats();
+    private FlightStats Stats => _stats();
 
     /// <summary>
     /// Applies thrust force in the ship's current facing direction.
@@ -29,7 +30,7 @@ public class ShipPhysics
     /// </summary>
     public void ApplyThrust(float deltaTime)
     {
-        ShipStats stats = Stats;
+        FlightStats stats = Stats;
         Vector2 thrustForce = Transform.Forward * stats.ThrustForce;
         Vector2 velocity = Body.Velocity;
         float currentSpeed = velocity.Length();

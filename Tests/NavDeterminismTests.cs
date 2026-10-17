@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.EventSystem;
 using Strange_Universe.Game.NavSystem;
@@ -84,7 +85,7 @@ public class NavDeterminismTests
         var world = new FakeWorld { SystemId = "sys" };
 
         new SpawnTask(new Nonplayer("npc-1")) { World = world }.Update(0.016f);
-        new SpawnTask(new Player("p", "Shuttle")) { World = world }.Update(0.016f);
+        new SpawnTask(new Player("p", new Shuttle())) { World = world }.Update(0.016f);
 
         Assert.NotNull(world.RandomsUsed[0]);
         Assert.Null(world.RandomsUsed[1]); // the player keeps the world's own varied generator

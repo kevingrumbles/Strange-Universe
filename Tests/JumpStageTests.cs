@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components;
 using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
@@ -5,6 +6,7 @@ using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Tests;
 
@@ -60,7 +62,7 @@ public class JumpStageTests
 
         Assert.Equal(NavTaskStatus.Complete, drive.Status);
         Assert.True(sim.Ship.Position.Length() > radius);
-        Assert.True(sim.Ship.Speed > sim.Ship.ShipType.MaxSpeed * 2f, "hyperspace speed is well above normal");
+        Assert.True(sim.Ship.Speed > sim.Ship.ShipType.Flight.MaxSpeed * 2f, "hyperspace speed is well above normal");
         Assert.False(sim.Ship.Remove, "removing an NPC is the whole jump's decision, not the drive's");
         Assert.Equal(0f, sim.Ship.Velocity.Y, 3); // straight along the facing
     }
@@ -70,7 +72,7 @@ public class JumpStageTests
     [Fact]
     public void Arrival_EntersTheTargetAndPlacesTheShipAtTheEdge_ThenTapers()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", new Shuttle());
         var world = new FakeWorld { SystemRadius = 10000f, EdgeEntry = new Vector2(10000, 0) };
         world.KnownSystems.Add("target");
         var arrival = new ArrivalTask(player, null, "target") { World = world };
@@ -80,14 +82,14 @@ public class JumpStageTests
         Assert.Equal(new[] { "target" }, world.Entered);
         Assert.Equal(ArrivalTask.Phase.Taper, arrival.CurrentPhase);
         Assert.Equal(new Vector2(10000, 0), player.Position);
-        Assert.Equal(player.ShipType.MaxSpeed * ArrivalTask.SpeedMultiplier, player.Speed, 1);
+        Assert.Equal(player.ShipType.Flight.MaxSpeed * ArrivalTask.SpeedMultiplier, player.Speed, 1);
         Assert.Equal(NavTaskStatus.Running, arrival.Status);
 
         player.Position = new Vector2(ArrivalTask.TaperEndFraction * 10000f, 0);
         arrival.Update(0.016f);
 
         Assert.Equal(NavTaskStatus.Complete, arrival.Status);
-        Assert.Equal(player.ShipType.MaxSpeed, player.Speed, 1);
+        Assert.Equal(player.ShipType.Flight.MaxSpeed, player.Speed, 1);
     }
 
     [Fact]
@@ -139,13 +141,13 @@ public class JumpStageTests
     [Fact]
     public void JumpTask_Player_GoesOnToArrive_AndOnlyThenCompletes()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", new Shuttle());
         var world = new FakeWorld { SystemRadius = 10000f, MandevilleRadius = 7500f, EdgeEntry = new Vector2(10000, 0), SystemId = "from" };
         world.KnownSystems.Add("target");
         // Beyond the edge, fast, facing outward: the drive stage is already done on its first update.
         player.Position = new Vector2(10500, 0);
         player.Rotation = 0f;
-        player.Velocity = new Vector2(player.ShipType.MaxSpeed * 3f, 0);
+        player.Velocity = new Vector2(player.ShipType.Flight.MaxSpeed * 3f, 0);
         var jump = new JumpTask(player, null, "target", JumpTask.Phase.Jump) { World = world };
 
         jump.Update(0.016f); // drive finishes
@@ -166,7 +168,7 @@ public class JumpStageTests
     [Fact]
     public void JumpTask_GivesItsStagesTheWorldItWasAssigned()
     {
-        var player = new Player("p", "Shuttle");
+        var player = new Player("p", new Shuttle());
         var world = new FakeWorld { EdgeEntry = new Vector2(7777, 0) };
         world.KnownSystems.Add("target");
         var jump = new JumpTask(player, null, "target", JumpTask.Phase.SystemTranslation) { World = world };
@@ -179,7 +181,7 @@ public class JumpStageTests
     [Fact]
     public void JumpTask_StillFailsForAnUnknownPlayerTarget()
     {
-        var jump = new JumpTask(new Player("p", "Shuttle"), null, "nowhere") { World = new FakeWorld() };
+        var jump = new JumpTask(new Player("p", new Shuttle()), null, "nowhere") { World = new FakeWorld() };
         jump.Update(0.016f);
         Assert.Equal(NavTaskStatus.Invalid, jump.Status);
     }

@@ -16,6 +16,8 @@ public class PlayerDeathTests
     {
         var u = new Universe("Death", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
         u.Generate(new RecordingAssetRequests());
+        u.Player.Equipment.Clear(); // no shield: an active shield would absorb even a huge hit, so one big shot is lethal
+        u.Player.CurrentShieldStrength = 0;
         return u;
     }
 
@@ -50,6 +52,7 @@ public class PlayerDeathTests
         u.Player.CurrentShieldStrength = 0;
 
         u.Player.ApplyDamage(new Projectile { Owner = npc, Damage = 10, Lifetime = 1f });
+        npc.CurrentShieldStrength = 0; // so the one big shot is not absorbed
         npc.ApplyDamage(Lethal(u.Player)); // an NPC is destroyed
 
         Assert.True(npc.IsDestroyed);

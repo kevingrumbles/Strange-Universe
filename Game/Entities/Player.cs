@@ -1,6 +1,7 @@
+using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.NavSystem;
-using Strange_Universe;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,7 +14,33 @@ public class Player : Ship
 {
     public string CurrentStarSystemID { get; set; }
 
-    public Player(string name, string shipType) : base(name, shipType)
+    private bool _located;
+
+    /// <summary>The player's position in the system. Assigning it (the spawn does) marks the player as placed.</summary>
+    [JsonIgnore]
+    public override Vector2 Position
+    {
+        get => base.Position;
+        set { base.Position = value; _located = true; }
+    }
+
+    /// <summary>
+    /// Where the player is, as saved (the file calls it <c>Position</c>, as before). <b>Null until the player has been placed:</b>
+    /// a new universe creates its player with no location, and entering a universe whose player has none spawns it
+    /// (see <see cref="NavSystem.SpawnTask"/>). Saves from before this was nullable always have a position.
+    /// </summary>
+    [JsonPropertyName("Position")]
+    public Vector2? Location
+    {
+        get => _located ? Position : null;
+        set
+        {
+            if (value is Vector2 position) Position = position;
+            else _located = false;
+        }
+    }
+
+    public Player(string name, ShipStats shipType) : base(name, shipType)
     {
 
     }

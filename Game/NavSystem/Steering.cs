@@ -60,7 +60,7 @@ namespace Strange_Universe.Game.NavSystem
             float brake = ship.MaxAcceleration * BrakePlanningFactor;
             float remaining = Math.Max(0f, distance);
             float allowed = MathF.Sqrt(arrivalSpeed * arrivalSpeed + 2f * brake * remaining);
-            return Math.Min(allowed, ship.ShipType.MaxSpeed);
+            return Math.Min(allowed, ship.ShipType.Flight.MaxSpeed);
         }
 
         /// <summary>
@@ -74,14 +74,14 @@ namespace Strange_Universe.Game.NavSystem
                 return;
 
             // Braking cannot start until the ship has turned around, and it keeps moving meanwhile.
-            float turnAroundTime = ship.ShipType.RotationSpeed > 0f ? MathF.PI / ship.ShipType.RotationSpeed : 0f;
+            float turnAroundTime = ship.ShipType.Flight.RotationSpeed > 0f ? MathF.PI / ship.ShipType.Flight.RotationSpeed : 0f;
             float allowed = AllowedApproachSpeed(ship, distance - ship.Speed * turnAroundTime, arrivalSpeed);
 
             // Velocity matching: steer so the velocity converges on (direction x allowed speed). This brakes
             // when too fast and also cancels sideways drift, which speed-only control would leave as an orbit.
             Vector2 desiredVelocity = Vector2.Normalize(direction) * allowed;
             Vector2 steer = desiredVelocity - ship.Velocity;
-            if (steer.Length() < (velocityTolerance ?? ship.ShipType.MaxSpeed * VelocityTolerance))
+            if (steer.Length() < (velocityTolerance ?? ship.ShipType.Flight.MaxSpeed * VelocityTolerance))
                 return; // close enough: coast
 
             Seek(ship, steer, deltaTime);
@@ -135,7 +135,7 @@ namespace Strange_Universe.Game.NavSystem
         public static bool MatchVelocity(Ship ship, Vector2 desiredVelocity, float deltaTime, float? velocityTolerance = null)
         {
             Vector2 steer = desiredVelocity - ship.Velocity;
-            if (steer.Length() < (velocityTolerance ?? ship.ShipType.MaxSpeed * VelocityTolerance))
+            if (steer.Length() < (velocityTolerance ?? ship.ShipType.Flight.MaxSpeed * VelocityTolerance))
                 return true;
 
             Seek(ship, steer, deltaTime);
@@ -161,7 +161,7 @@ namespace Strange_Universe.Game.NavSystem
 
             // Closing speed from which the ship can still stop relative to the target at stopDistance,
             // allowing for the time it takes to turn around.
-            float turnAroundTime = ship.ShipType.RotationSpeed > 0f ? MathF.PI / ship.ShipType.RotationSpeed : 0f;
+            float turnAroundTime = ship.ShipType.Flight.RotationSpeed > 0f ? MathF.PI / ship.ShipType.Flight.RotationSpeed : 0f;
             // The turn-around allowance depends on how fast the ship is moving relative to the target, not on its own speed:
             // a ship cruising alongside a moving target is not closing on it at all.
             float relativeSpeed = (ship.Velocity - targetVelocity).Length();
@@ -169,12 +169,12 @@ namespace Strange_Universe.Game.NavSystem
 
             // Near the stop distance the closing speed follows the distance error (backing off when too close), so the
             // ship settles there instead of coasting through at a speed too small to correct.
-            float backOff = ship.ShipType.MaxSpeed * PursuitBackOffFraction;
+            float backOff = ship.ShipType.Flight.MaxSpeed * PursuitBackOffFraction;
             float closing = Math.Min(planned, Math.Max(-backOff, (distance - stopDistance) * PursuitGain));
 
             Vector2 desired = targetVelocity + toTarget / distance * closing;
-            if (desired.Length() > ship.ShipType.MaxSpeed)
-                desired = Vector2.Normalize(desired) * ship.ShipType.MaxSpeed;
+            if (desired.Length() > ship.ShipType.Flight.MaxSpeed)
+                desired = Vector2.Normalize(desired) * ship.ShipType.Flight.MaxSpeed;
 
             return desired;
         }

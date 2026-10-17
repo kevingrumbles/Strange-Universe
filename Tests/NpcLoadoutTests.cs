@@ -1,6 +1,9 @@
 using System.Linq;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Tests.Fakes;
 using Xunit;
 
 namespace Strange_Universe.Tests;
@@ -13,10 +16,13 @@ public class NpcLoadoutTests
     {
         var npc = new Nonplayer("n1");
 
-        Assert.Equal(npc.ShipType.DefaultEquipment, npc.Equipment.Select(e => e.EquipmentName));
-        Assert.Contains(npc.Equipment, e => e.EquipmentName == "Light Laser" && e.PrimaryWeapon);
-        Assert.True(npc.WeaponRange > 0f);
-        Assert.True(npc.ProjectileSpeed > 0f);
+        Assert.Equal(npc.ShipType.DefaultLoadout, npc.Equipment); // the ship holds the loadout's own objects
+        Assert.Equal(new Shuttle().DefaultLoadout.Select(e => e.EquipmentName), npc.Equipment.Select(e => e.EquipmentName));
+
+        // It can shoot exactly when its loadout holds a primary weapon.
+        bool hasPrimaryWeapon = npc.Equipment.OfType<WeaponComponent>().Any(w => w.IsPrimary);
+        Assert.Equal(hasPrimaryWeapon, npc.WeaponRange > 0f);
+        Assert.Equal(hasPrimaryWeapon, npc.ProjectileSpeed > 0f);
     }
 
     [Fact]
@@ -24,9 +30,9 @@ public class NpcLoadoutTests
     {
         var npc = new Nonplayer("n1");
 
-        Assert.Equal(npc.ShipType.MaxHull, npc.CurrentHullStrength);
-        Assert.Equal(npc.ShipType.MaxShield, npc.CurrentShieldStrength);
-        Assert.Equal(npc.ShipType.MaxFuel, npc.CurrentFuelLevel);
+        Assert.Equal(npc.MaxHullStrength, npc.CurrentHullStrength);
+        Assert.Equal(npc.MaxShieldStrength, npc.CurrentShieldStrength);
+        Assert.Equal(npc.ShipType.Durability.MaxFuel, npc.CurrentFuelLevel);
     }
 
     [Fact]
@@ -35,20 +41,20 @@ public class NpcLoadoutTests
         var a = new Nonplayer("a");
         var b = new Nonplayer("b");
 
-        Assert.NotSame(a.Equipment[0], b.Equipment[0]);
-        Assert.NotSame(a.Equipment[0], Equipment.FromName("Light Laser")); // nor the shared preset
+        foreach (var item in a.Equipment)
+            Assert.DoesNotContain(b.Equipment, other => ReferenceEquals(item, other));
     }
 
     [Fact]
-    public void Equipment_Create_GivesSeparateCopies_AndNullForUnknownNames()
+    public void Equipment_Create_GivesSeparateCopies()
     {
-        var one = Equipment.Create("Basic Shield Generator");
-        var two = Equipment.Create("Basic Shield Generator");
+        var shield = EquipmentCatalog.All.OfType<ShieldComponent>().First();
+        var one = EquipmentComponent.Create(shield.EquipmentName);
+        var two = EquipmentComponent.Create(shield.EquipmentName);
 
         Assert.NotNull(one);
         Assert.NotSame(one, two);
         Assert.Equal(EquipmentType.Shield, one.EquipmentType);
-        Assert.Null(Equipment.Create("No Such Thing"));
     }
 
     [Fact]

@@ -18,7 +18,7 @@ public class CombatSteeringTests
     [Fact]
     public void LeadDirection_AtAStationaryTarget_PointsStraightAtIt()
     {
-        var ship = new Nonplayer("s") { Position = Vector2.Zero };
+        var ship = TestGear.Arm(new Nonplayer("s") { Position = Vector2.Zero }, TestGear.Gun());
         var lead = Steering.LeadDirection(ship, new Vector2(1000, 0), Vector2.Zero);
         Assert.Equal(1f, lead.X, 3);
         Assert.Equal(0f, lead.Y, 3);
@@ -27,7 +27,8 @@ public class CombatSteeringTests
     [Fact]
     public void LeadDirection_AtACrossingTarget_PointsAheadOfIt()
     {
-        var ship = new Nonplayer("s") { Position = Vector2.Zero };
+        // The shot has to be faster than the target (300) for a lead to exist, so the test supplies its own gun.
+        var ship = TestGear.Arm(new Nonplayer("s") { Position = Vector2.Zero }, TestGear.Gun(projectileSpeed: 1500f));
         var lead = Steering.LeadDirection(ship, new Vector2(1000, 0), new Vector2(0, 300)); // moving +Y
 
         Assert.True(lead.Y > 0.05f, "should aim toward where the target is going");
@@ -78,7 +79,7 @@ public class CombatSteeringTests
         bool matched = false;
         sim.Run(sim.TravelTime(sim.MaxSpeed) / 3f + 30f, () => matched, () => matched = Steering.MatchVelocity(sim.Ship, desired, NavSim.Dt));
 
-        Assert.True(Vector2.Distance(sim.Ship.Velocity, desired) < sim.Ship.ShipType.MaxSpeed * Steering.VelocityTolerance + 1f);
+        Assert.True(Vector2.Distance(sim.Ship.Velocity, desired) < sim.Ship.ShipType.Flight.MaxSpeed * Steering.VelocityTolerance + 1f);
     }
 
     [Fact]
@@ -110,6 +111,7 @@ public class CombatSteeringTests
         attacker.Navigator.Clear();
         attacker.CurrentHullStrength = 1000;
         attacker.CurrentShieldStrength = 0;
+        attacker.Equipment.Clear(); // no generator, so the shield stays down instead of recharging
         attacker.Position = new Vector2(5000, 0);
         attacker.Velocity = new Vector2(0, sim.MaxSpeed * 0.43f);
         sim.Place(Vector2.Zero);
@@ -133,6 +135,7 @@ public class CombatSteeringTests
         attacker.Navigator.Clear();
         attacker.CurrentHullStrength = 1000;
         attacker.CurrentShieldStrength = 0;
+        attacker.Equipment.Clear(); // no generator, so the shield stays down instead of recharging
         var planet = sim.System.Planets[^1];
         attacker.Position = new Vector2(0, -sim.System.SystemRadius * 0.9f);
         attacker.Velocity = Vector2.Zero;

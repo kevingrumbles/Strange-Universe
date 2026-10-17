@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,22 @@ namespace Strange_Universe.Game.Systems;
 /// </summary>
 public class SpriteRenderer
 {
+    /// <summary>Minimap colors for NPCs: hostile to the player, aggressive, defensive.</summary>
+    internal static readonly Color HostileShipColor    = new(255, 60, 60);
+    internal static readonly Color AggressiveShipColor = new(255, 220, 60);
+    internal static readonly Color DefensiveShipColor  = new(80, 140, 255);
+
+    /// <summary>Red for a ship that is hostile to the player, otherwise yellow if its current task is aggressive and blue if it is defensive.</summary>
+    internal static Color NpcMinimapColor(Ship npc, Ship player)
+    {
+        if (npc.IsHostileTo(player))
+            return HostileShipColor;
+
+        var task = npc.Navigator.ActiveTask;
+        var disposition = task is AlertTask alert ? alert.Response : task?.Disposition ?? TaskDisposition.Defensive;
+        return disposition == TaskDisposition.Aggressive ? AggressiveShipColor : DefensiveShipColor;
+    }
+
     private readonly GameServices _services;
     private readonly RenderService _renderService;
     private readonly Camera _camera;
@@ -216,8 +233,8 @@ public class SpriteRenderer
     public void DrawPlayer(Player player)
     {
         DrawEntity(player.ShipType.ShipTypeName, player.Position,
-                   player.Rotation + player.ShipType.SpriteRotationOffset,
-                   player.Radius * 2.2f * player.ShipType.SpriteScale);
+                   player.Rotation + player.ShipType.Appearance.SpriteRotationOffset,
+                   player.Radius * 2.2f * player.ShipType.Appearance.SpriteScale);
 
         DrawShipImpacts(player);
     }
@@ -225,8 +242,8 @@ public class SpriteRenderer
     public void DrawNPC(Nonplayer npc)
     {
         DrawEntity(npc.ShipType.ShipTypeName, npc.Position,
-                   npc.Rotation + npc.ShipType.SpriteRotationOffset,
-                   npc.Radius * 2.2f * npc.ShipType.SpriteScale);
+                   npc.Rotation + npc.ShipType.Appearance.SpriteRotationOffset,
+                   npc.Radius * 2.2f * npc.ShipType.Appearance.SpriteScale);
 
         DrawShipImpacts(npc);
     }
@@ -387,6 +404,17 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(x, y, size, size), color);
         }
 
+        // Draws a filled round dot of the given radius (in pixels) centred on screenPos, one pixel at a time so it stays round at tiny sizes.
+        void Disc(Vector2 screenPos, float radius, Color color)
+        {
+            int reach = (int)MathF.Ceiling(radius);
+            float limit = radius * radius + 1.2f; // the +1.2 rounds the edge pixels the way a pixel disc looks right
+            for (int dy = -reach; dy <= reach; dy++)
+                for (int dx = -reach; dx <= reach; dx++)
+                    if (dx * dx + dy * dy <= limit)
+                        Dot(new Vector2((int)screenPos.X + dx, (int)screenPos.Y + dy), 1, color);
+        }
+
         // -- HUD Panel Background ---------------------------------------------
         _spriteBatch.Draw(_pixel,
             new Rectangle(mapLeft, mapTop, MapSize, hudPanelHeight),
@@ -403,15 +431,20 @@ public class SpriteRenderer
 
         // -- Planets -------------------------------------------------------
         foreach (var planet in universe.ActiveStarSystem.Planets)
-            Dot(WorldToMap(planet.Position), 4, ProceduralHelpers.PlanetMinimapColor(planet.Type));
+        {
+            // A small round disc with a dark center pixel, so planets read as round bodies and cannot be mistaken for the solid square dots of ships
+            Vector2 planetMap = WorldToMap(planet.Position);
+            Disc(planetMap, 2f, ProceduralHelpers.PlanetMinimapColor(planet.Type));
+            Dot(planetMap, 1, new Color(0, 5, 18));
+        }
 
         // Stars
         foreach (var star in universe.ActiveStarSystem.Stars)
         {
             Vector2 starMap = WorldToMap(star.Position);
-            Dot(starMap, 10, ProceduralHelpers.StarColors[star.ColorIndex] * 0.55f);   // soft outer glow
-            Dot(starMap,  6, ProceduralHelpers.StarColors[star.ColorIndex]);            // coloured body
-            Dot(starMap,  3, Color.White * 0.90f);          // bright core
+            Disc(starMap, 4.5f, ProceduralHelpers.StarColors[star.ColorIndex] * 0.55f);   // soft outer glow
+            Disc(starMap, 2.5f, ProceduralHelpers.StarColors[star.ColorIndex]);            // coloured body
+            Disc(starMap, 1.2f, Color.White * 0.90f);          // bright core
         }
 
         // -- Player --------------------------------------------------------
@@ -426,7 +459,7 @@ public class SpriteRenderer
         foreach (var npc in universe.ActiveStarSystem.Npcs)
         {
             Vector2 npcMap = WorldToMap(npc.Position);
-            Dot(npcMap, 3, new Color(255, 180, 80));  // orange body for NPCs
+            Dot(npcMap, 3, NpcMinimapColor(npc, universe.Player));
         }
 
         // -- Target Highlight -----------------------------------------------------
@@ -502,6 +535,13 @@ public class SpriteRenderer
             _spriteBatch.Draw(_pixel, new Rectangle(barX, barY + BarHeight - 1, barWidth, 1), border);
             _spriteBatch.Draw(_pixel, new Rectangle(barX, barY, 1, BarHeight), border);
             _spriteBatch.Draw(_pixel, new Rectangle(barX + barWidth - 1, barY, 1, BarHeight), border);
+
+            // The current percentage, centered on the bar (with a shadow so it reads over the fill)
+            string percentText = $"{(int)MathF.Round(fillPercent * 100f)}%";
+            Vector2 textSize = _font.MeasureString(percentText) * FontScale;
+            Vector2 textPos = new Vector2(barX + (barWidth - textSize.X) * 0.5f, barY + (BarHeight - textSize.Y) * 0.5f);
+            _spriteBatch.DrawString(_font, percentText, textPos + Vector2.One, Color.Black, 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+            _spriteBatch.DrawString(_font, percentText, textPos, Color.White, 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
         }
 
         // -- Player Status Bars -----------------------------------------------

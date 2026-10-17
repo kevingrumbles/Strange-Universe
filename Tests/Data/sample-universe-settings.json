@@ -12,7 +12,8 @@
       "CurrentShieldStrength": 1,
       "CurrentFuelLevel": 4,
       "Equipment": [
-        "Light Laser"
+        "Light Laser",
+        "Basic Shield Generator"
       ],
       "Position": {
         "X": -2440.9517,

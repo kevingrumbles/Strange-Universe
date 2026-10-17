@@ -26,7 +26,7 @@ public class SystemSpatialQueries
     public Vector2 CalculateGravityAtLocation(Vector2 position)
     {
         Vector2 totalForce = Vector2.Zero;
-        float referenceThrust = _system.ActivePlayer?.ShipType?.ThrustForce ?? 0f;
+        float referenceThrust = _system.ActivePlayer?.ShipType?.Flight.ThrustForce ?? 0f;
 
         foreach (var star in _system.Stars)
             totalForce += star.GravityWell.CalculateForce(position, referenceThrust);

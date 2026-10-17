@@ -4,7 +4,10 @@ using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json.Serialization;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Components.ShipComponents;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -16,32 +19,29 @@ namespace Strange_Universe.Game.Entities;
 /// </summary>
 public abstract class Ship
 {
-    private ShipStats _shipType;
+    /// <summary>
+    /// This ship's type. Only its name is saved (see <see cref="ShipStatsConverter"/>). Set it with <see cref="AssignShipType"/>,
+    /// which also gives the ship the type's default loadout.
+    /// </summary>
+    [JsonConverter(typeof(ShipStatsConverter))]
+    public ShipStats ShipType { get; set; }
 
     /// <summary>
-    /// Serializer-facing setter: only <see cref="ShipStats.ShipTypeName"/> is persisted,
-    /// so assignment resolves the full preset via <see cref="ApplyShipTypeByName"/>.
+    /// Makes this ship a ship of <paramref name="shipType"/>: it takes the type's default loadout as its equipment (replacing
+    /// what it had) and starts full of hull, shield and fuel. The loadout can be changed from there. The ship type object
+    /// should not be given to another ship (make a new one, such as <c>new Shuttle()</c>, for each ship).
     /// </summary>
-    public ShipStats ShipType
+    public void AssignShipType(ShipStats shipType)
     {
-        get => _shipType;
-        set
-        {
-            if (value is null)
-                _shipType = null;
-            else
-                ApplyShipTypeByName(value.ShipTypeName);
-        }
-    }
+        ShipType = shipType ?? throw new ArgumentNullException(nameof(shipType));
+        Physics.Body.Mass = shipType.Flight.Mass;
 
-    /// <summary>
-    /// Resolves a <see cref="ShipStats"/> preset by name (falling back to the default preset)
-    /// and applies it. This is the single place where the hidden lookup behind the
-    /// <see cref="ShipType"/> setter happens.
-    /// </summary>
-    public void ApplyShipTypeByName(string shipTypeName)
-    {
-        _shipType = ShipStats.FromName(shipTypeName);
+        Equipment = new List<EquipmentComponent>(shipType.DefaultLoadout);
+
+        // Filled last: the maximums include what the equipment adds.
+        CurrentHullStrength = MaxHullStrength;
+        CurrentShieldStrength = MaxShieldStrength;
+        CurrentFuelLevel = MaxFuelLevel;
     }
 
     public string Name { get; set; }
@@ -49,12 +49,11 @@ public abstract class Ship
     public int? CurrentShieldStrength { get => Durability.Shield; set => Durability.Shield = value; }
     public int? CurrentFuelLevel      { get => Durability.Fuel;   set => Durability.Fuel = value; }
     [JsonConverter(typeof(EquipmentListConverter))]
-    public List<Equipment> Equipment { get; set; } = new();
+    public List<EquipmentComponent> Equipment { get; set; } = new();
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public Ship Target { get => Sensors.Target; set => Sensors.Target = value; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Position);
-    [JsonIgnore] public float Radius => ShipType.Radius;
-    /// <summary>The system this ship is in. Null until attached (see <see cref="Entities.StarSystem.AddNpc"/> / <see cref="Universe"/>).</summary>
+    [JsonIgnore] public float Radius => ShipType.Flight.Radius;
     [JsonIgnore] public StarSystem StarSystem { get; set; }
 
     // -- Components ---------------------------------------------------------
@@ -64,7 +63,7 @@ public abstract class Ship
     [JsonIgnore] public WeaponSystem   Weapons    { get; }
     [JsonIgnore] public ShipNavigator  Navigator  { get; }
 
-    public Vector2 Position
+    public virtual Vector2 Position
     {
         get => Physics.Transform.Position;
         set => Physics.Transform.Position = value;
@@ -86,23 +85,21 @@ public abstract class Ship
     }
     [JsonIgnore] public Vector2 Forward => Physics.Transform.Forward;
     [JsonIgnore] public float Speed => Velocity.Length();
-    [JsonIgnore] public float MaxSpeed => ShipType.MaxSpeed;
+    [JsonIgnore] public float MaxSpeed => ShipType.Flight.MaxSpeed;
     [JsonIgnore] public int MaxHullStrength => Durability.MaxHull;
     [JsonIgnore] public int MaxShieldStrength => Durability.MaxShield;
     [JsonIgnore] public int MaxFuelLevel => Durability.MaxFuel;
     [JsonIgnore] public float CurrentHullPercentage => Durability.HullPercentage;
     [JsonIgnore] public float CurrentShieldPercentage => Durability.ShieldPercentage;
     [JsonIgnore] public float CurrentFuelPercentage => Durability.FuelPercentage;
-    /// <summary>Peak acceleration from the main engine, in units per second squared.</summary>
-    [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.ThrustForce / Physics.Body.Mass : 0f;
+    [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.Flight.ThrustForce / Physics.Body.Mass : 0f;
     [JsonIgnore] public float MandevilleRadius => StarSystem == null ? 0f : StarSystem.MandevilleRadius;
     [JsonIgnore] public float DistanceFromSystemCenter => DistanceTo(Vector2.Zero);
 
-    protected Ship(string name, string shipType) : this()
+    protected Ship(string name, ShipStats shipType) : this()
     {
         Name = name;
-        ApplyShipTypeByName(shipType);
-        Physics.Body.Mass = ShipType.Mass;
+        AssignShipType(shipType);
     }
 
     /// <summary>
@@ -111,8 +108,8 @@ public abstract class Ship
     /// </summary>
     protected Ship()
     {
-        Physics    = new ShipPhysics(() => ShipType);
-        Durability = new ShipDurability(() => ShipType);
+        Physics    = new ShipPhysics(() => ShipType.Flight);
+        Durability = new ShipDurability(() => ShipType.Durability, () => Equipment);
         Sensors    = new ShipSensors(this);
         Weapons    = new WeaponSystem(() => Equipment);
         Navigator  = new ShipNavigator(this);
@@ -121,13 +118,13 @@ public abstract class Ship
     /// <summary>
     /// Recomputes runtime-only physics state after construction or deserialization.
     /// Art is loaded on the render side (<c>AssetService.EnsureShipArt</c>) using
-    /// <see cref="ShipStats.SpriteName"/>, <see cref="ShipStats.SplashName"/> and <see cref="SplashArtKey"/>.
+    /// <see cref="ShipAppearance.SpriteName"/>, <see cref="ShipAppearance.SplashName"/> and <see cref="SplashArtKey"/>.
     /// </summary>
     public virtual void Generate()
     {
         // Mass depends on ShipType, which is not available to the JSON constructor,
         // so it is (re)computed once everything is populated.
-        Physics.Body.Mass = ShipType.Mass;
+        Physics.Body.Mass = ShipType.Flight.Mass;
     }
 
     /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>
@@ -166,6 +163,7 @@ public abstract class Ship
         Physics.Integrate(gravity, deltaTime);
 
         Weapons.UpdateCooldowns(deltaTime);
+        Durability.Update(deltaTime);
     }
 
     // -- Navigation ---------------------------------------------------------
@@ -180,24 +178,6 @@ public abstract class Ship
         if (StarSystem == null)
             return;
         Weapons.Fire(this, StarSystem.Projectiles);
-    }
-
-    /// <summary>
-    /// Gives the ship the equipment its type starts with, and fills hull, shield and fuel to the type's maximums.
-    /// Used for ships that are not set up by hand (NPCs).
-    /// </summary>
-    protected void EquipFromShipType()
-    {
-        CurrentHullStrength = MaxHullStrength;
-        CurrentShieldStrength = MaxShieldStrength;
-        CurrentFuelLevel = MaxFuelLevel;
-
-        Equipment.Clear();
-        foreach (var name in ShipType.DefaultEquipment ?? System.Array.Empty<string>())
-        {
-            var item = Components.Equipment.Create(name);
-            if (item != null) Equipment.Add(item);
-        }
     }
 
     // -- Hostility ----------------------------------------------------------

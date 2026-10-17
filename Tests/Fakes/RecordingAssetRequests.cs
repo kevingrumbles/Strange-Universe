@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Tests.Fakes;

@@ -1,73 +1,104 @@
-using System.IO;
 using System.Linq;
-using System.Text;
-using Microsoft.Xna.Framework;
-using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
 using Strange_Universe.Game.Systems;
 using Xunit;
 
 namespace Strange_Universe.Tests;
 
-/// <summary>Round 2, Phase 7.2: weapons and projectile styles come from JSON.</summary>
+/// <summary>Every item of equipment is an ordinary preset defined in code, as a subclass for its kind.</summary>
 public class DefinitionTests
 {
-    private const string TestWeaponJson = """
-    {
-      "weapons": [
-        { "name": "Test Blaster", "type": "TurretProjectile", "damage": 99, "speed": 700, "range": 400,
-          "fireRate": 2, "energyCost": 1, "mass": 5, "accuracy": 1, "impactLingerSeconds": 0.5, "visualStyle": "testGreen" }
-      ],
-      "visualStyles": {
-        "default":   { "style": "laser", "coreColor": [1, 2, 3], "glowColor": [4, 5, 6], "burstDuration": 0.18 },
-        "testGreen": { "style": "pulse", "coreColor": [0, 255, 0], "glowColor": [0, 100, 0], "coreLength": 9, "burstDuration": 0.5 }
-      }
-    }
-    """;
-
-    private static DefinitionRepository FromJson(string json) =>
-        DefinitionRepository.Load(new MemoryStream(Encoding.UTF8.GetBytes(json)));
-
     [Fact]
-    public void NewWeapon_NeedsNoCodeChange()
+    public void EveryCatalogItem_CanBeCreatedByName_AsItsOwnKind()
     {
-        var repo = FromJson(TestWeaponJson);
+        foreach (var item in EquipmentCatalog.All)
+        {
+            var created = EquipmentComponent.Create(item.EquipmentName);
+            Assert.Equal(item.GetType(), created.GetType());
+            Assert.Equal(item.EquipmentName, created.EquipmentName);
+        }
 
-        var gun = repo.CreateWeapons().Single();
-        Assert.Equal("Test Blaster", gun.EquipmentName);
-        Assert.Equal(EquipmentType.TurretProjectile, gun.EquipmentType);
-        Assert.Equal(99, gun.Damage);
-        Assert.Equal(0.5f, gun.ImpactLingerSeconds);
-        Assert.True(gun.PrimaryWeapon);
-
-        var visual = ProjectileVisuals.For(repo, "Test Blaster");
-        Assert.Equal(new Color(0, 255, 0), visual.CoreColor);
-        Assert.Equal(ProjectileVisualStyle.Pulse, visual.Style);
-        Assert.Equal(9, visual.CoreLength);
-        Assert.Equal(gun.ImpactLingerSeconds, visual.BurstDuration);
+        // Other equipment is looked up the same way, and is the class for its kind.
+        var shield = Assert.IsType<ShieldComponent>(EquipmentComponent.Create("Basic Shield Generator"));
+        Assert.Equal(EquipmentType.Shield, shield.EquipmentType);
+        Assert.IsType<PlatingComponent>(EquipmentComponent.Create("Reinforced Hull"));
+        Assert.IsType<EngineComponent>(EquipmentComponent.Create("Standard Engine"));
+        Assert.IsType<UtilityComponent>(EquipmentComponent.Create("Sensor Array"));
+        Assert.IsType<UnknownComponent>(EquipmentComponent.Create("No Such Thing"));
     }
 
     [Fact]
-    public void UnknownWeapon_UsesDefaultStyle()
+    public void EveryCatalogItem_IsTheClassForItsType()
     {
-        var repo = FromJson(TestWeaponJson);
-        Assert.Equal(new Color(1, 2, 3), ProjectileVisuals.For(repo, "Nothing").CoreColor);
-        Assert.Equal(new Color(1, 2, 3), ProjectileVisuals.For(repo, null).CoreColor);
+        foreach (var item in EquipmentCatalog.All)
+        {
+            switch (item.EquipmentType)
+            {
+                case EquipmentType.Shield: Assert.IsType<ShieldComponent>(item); break;
+                case EquipmentType.Hull: Assert.IsType<PlatingComponent>(item); break;
+                case EquipmentType.Engine: Assert.IsType<EngineComponent>(item); break;
+                case EquipmentType.Utility: Assert.IsType<UtilityComponent>(item); break;
+                default: Assert.IsType<WeaponComponent>(item); break; // all the weapon kinds, missiles included
+            }
+        }
     }
 
     [Fact]
-    public void Stock_Definitions_LoadAndPopulatePresets()
+    public void MissilesAreWeapons_ButNotPrimaryWeapons_AndTheOtherKindsAre()
     {
-        var repo = DefinitionRepository.Default;
-        Assert.Equal(6, repo.Weapons.Count);
+        foreach (var weapon in EquipmentCatalog.All.OfType<WeaponComponent>())
+        {
+            bool missile = weapon.EquipmentType is EquipmentType.FixedMissile or EquipmentType.TurretMissile;
+            Assert.Equal(!missile, weapon.IsPrimary);
+        }
+    }
 
-        var light = Equipment.FromName("light laser");
-        Assert.Equal(15, light.Damage);
-        Assert.Equal(EquipmentType.FixedProjectile, light.EquipmentType);
-        Assert.Equal(0.16f, light.ImpactLingerSeconds);
-        Assert.Equal(new Color(255, 245, 200), ProjectileVisuals.For("Light Laser").CoreColor);
-        Assert.Equal(ProjectileVisualStyle.Beam, ProjectileVisuals.For("Plasma Beam").Style);
+    [Fact]
+    public void AWeapon_CanOnlyBeCreatedWithAWeaponKind()
+    {
+        Assert.Throws<System.ArgumentException>(() => new WeaponComponent(EquipmentType.Shield));
+        Assert.Throws<System.ArgumentException>(() => new WeaponComponent(EquipmentType.Unkown));
+    }
 
-        // Non-weapon equipment is still defined in code.
-        Assert.Equal(EquipmentType.Shield, Equipment.FromName("Basic Shield Generator").EquipmentType);
+    [Fact]
+    public void EveryPrimaryWeapon_HasARangeAndDamage_AndItsOwnVisual_WhoseBurstIsHowLongItsProjectilesLinger()
+    {
+        var visuals = new System.Collections.Generic.List<ProjectileVisual>();
+        foreach (var weapon in EquipmentCatalog.All.OfType<WeaponComponent>().Where(w => w.IsPrimary))
+        {
+            Assert.True(weapon.Range > 0f, weapon.EquipmentName);
+            Assert.True(weapon.Damage > 0, weapon.EquipmentName);
+            Assert.NotNull(weapon.Visual);
+            Assert.Equal(weapon.Visual.BurstDuration, weapon.ImpactLingerSeconds); // the burst plays for as long as the projectile lingers
+            visuals.Add(weapon.Visual);
+        }
+
+        Assert.Equal(visuals.Count, visuals.Distinct().Count()); // nothing shares a visual with another weapon
+    }
+
+    [Fact]
+    public void AFiredProjectile_CarriesItsWeaponsVisual()
+    {
+        var gun = new WeaponComponent(EquipmentType.FixedProjectile)
+        {
+            Range = 1000f,
+            Visual = new ProjectileVisual { BurstDuration = 0.5f, ParticleCount = 3 },
+        };
+
+        var shot = gun.TryFire(new Strange_Universe.Game.Entities.Nonplayer("shooter"));
+
+        Assert.Same(gun.Visual, shot.Visual);
+        Assert.Equal(0.5f, shot.ImpactLingerSeconds); // and lingers for its burst
+    }
+
+    [Fact]
+    public void EnergyCost_BelongsToTheKindsThatUseIt()
+    {
+        Assert.Null(typeof(EquipmentComponent).GetProperty("EnergyCost"));
+        Assert.Null(typeof(PlatingComponent).GetProperty("EnergyCost"));
+        Assert.Null(typeof(EngineComponent).GetProperty("EnergyCost"));
+        Assert.NotNull(typeof(WeaponComponent).GetProperty("EnergyCost"));
+        Assert.NotNull(typeof(ShieldComponent).GetProperty("EnergyCost"));
+        Assert.NotNull(typeof(UtilityComponent).GetProperty("EnergyCost"));
     }
 }

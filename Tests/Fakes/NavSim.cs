@@ -22,7 +22,7 @@ public sealed class NavSim : IDisposable
     public Vector2 SpawnPosition { get; }
 
     /// <summary>The ship's top speed, from its ship stats. Tests must derive speeds and time limits from this, not hard-code them.</summary>
-    public float MaxSpeed => Ship.ShipType.MaxSpeed;
+    public float MaxSpeed => Ship.ShipType.Flight.MaxSpeed;
 
     /// <summary>
     /// A generous time limit for the ship to cover <paramref name="distance"/> at its top speed (50% slack plus a fixed allowance
@@ -39,7 +39,8 @@ public sealed class NavSim : IDisposable
         Universe.Generate(new RecordingAssetRequests());
         System = Universe.ActiveStarSystem;
 
-        Ship = new Nonplayer(shipId);
+        // A gun of the test's own, so the ship's behavior does not depend on the ship type's default loadout or the catalog's numbers.
+        Ship = TestGear.Arm(new Nonplayer(shipId), TestGear.Gun());
         System.AddNpc(Ship);
         // Let the spawn task finish, then park the ship where the test wants it.
         for (int i = 0; i < 3; i++) Ship.Navigator.Update(Dt);

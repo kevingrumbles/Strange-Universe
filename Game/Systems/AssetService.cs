@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Game.Systems;
@@ -25,13 +26,13 @@ public sealed class AssetService : IAssetRequests
     {
         if (shipType == null || _cache.TryGet(shipType.ShipTypeName, out _)) return;
 
-        var tex = ArtLoader.TryLoad(_graphicsDevice, shipType.SpriteName);
+        var tex = ArtLoader.TryLoad(_graphicsDevice, shipType.Appearance.SpriteName);
         _cache.Register(shipType.ShipTypeName, tex);
 
         // Splash art -- fall back to the standard sprite if not provided or not found
         Texture2D splashTex = null;
-        if (!string.IsNullOrEmpty(shipType.SplashName))
-            splashTex = ArtLoader.TryLoad(_graphicsDevice, shipType.SplashName);
+        if (!string.IsNullOrEmpty(shipType.Appearance.SplashName))
+            splashTex = ArtLoader.TryLoad(_graphicsDevice, shipType.Appearance.SplashName);
         _cache.Register(Ship.SplashArtKeyFor(shipType), splashTex ?? tex);
     }
 

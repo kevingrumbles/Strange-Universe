@@ -56,8 +56,8 @@ public sealed class NamingScreen : IScreen
         }
         else if (_keys.Pressed(Keys.Enter))
         {
-            var created = new Universe(string.IsNullOrWhiteSpace(_name) ? "New Universe" : _name.Trim());
-            _ctx.Universes.Add(created);
+            // Saved immediately, so a new universe is on disk before the first frame is played.
+            var created = _ctx.Saves.CreateUniverse(_ctx.Universes, _name);
             _ctx.Play(created);
         }
     }

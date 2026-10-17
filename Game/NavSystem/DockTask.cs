@@ -74,7 +74,7 @@ namespace Strange_Universe.Game.NavSystem
                     float distance = toHold.Length();
 
                     if (distance <= HoldArrivalDistance &&
-                        Owner.Speed <= Owner.ShipType.MaxSpeed * HoldArrivalSpeedFraction)
+                        Owner.Speed <= Owner.ShipType.Flight.MaxSpeed * HoldArrivalSpeedFraction)
                     {
                         CurrentPhase = Phase.Hold;
                         _holdTimer = 0f;

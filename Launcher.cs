@@ -16,7 +16,7 @@ namespace Strange_Universe
         /// Developer switch. When true, every system's spawn event is the NPC test event (always, instead of the normal roll).
         /// When false the events use their own probabilities as usual. Read when a universe is entered.
         /// </summary>
-        public static bool TestMode { get; set; } = false;
+        public static bool TestMode { get; set; } = true;
 
         private readonly GameSettings _settings = new();
         private readonly ISaveService _saves = new FileSaveService();
@@ -31,7 +31,7 @@ namespace Strange_Universe
         {
             _graphics = new GraphicsDeviceManager(this)
             {
-                IsFullScreen = false,
+                IsFullScreen = true,
                 SynchronizeWithVerticalRetrace = true,
                 PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width,
                 PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height,
