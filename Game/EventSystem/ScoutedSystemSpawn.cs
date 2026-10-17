@@ -1,9 +1,9 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
-using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.NavSystem;
 using System.Collections.Generic;
 using Strange_Universe.Game.Components.ShipComponents;
+using Strange_Universe.Game.Entities.ShipParts;
 
 namespace Strange_Universe.Game.EventSystem
 {

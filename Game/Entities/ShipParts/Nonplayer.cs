@@ -2,13 +2,12 @@
 using Microsoft.Xna.Framework.Content;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.NavSystem;
-using Strange_Universe.Game.Entities;
 using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using Strange_Universe.Game.Components.ShipComponents;
 
-namespace Strange_Universe.Game.Entities;
+namespace Strange_Universe.Game.Entities.ShipParts;
 
 /// <summary>
 /// Nonplayer-controlled ship. Inherits shared ship functionality from Ship base class.

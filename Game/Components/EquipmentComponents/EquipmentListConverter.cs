@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
@@ -6,7 +7,7 @@ using System.Text.Json.Serialization;
 namespace Strange_Universe.Game.Components.EquipmentComponents;
 
 /// <summary>
-/// Serializes <see cref="Entities.Ship.Equipment"/> as a JSON array of name strings.
+/// Serializes <see cref="Ship.Equipment"/> as a JSON array of name strings.
 /// On read each name is turned into the full item with <see cref="Equipment.Create"/>.
 /// </summary>
 public class EquipmentListConverter : JsonConverter<List<EquipmentComponent>>

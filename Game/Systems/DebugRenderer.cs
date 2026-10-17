@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
 using System;
 
 namespace Strange_Universe.Game.Systems;

@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json.Serialization;
 
-namespace Strange_Universe.Game.Entities;
+namespace Strange_Universe.Game.Entities.ShipParts;
 
 /// <summary>The player-controlled ship. Inherits shared ship functionality from Ship base class.</summary>
 public class Player : Ship
@@ -27,7 +27,7 @@ public class Player : Ship
     /// <summary>
     /// Where the player is, as saved (the file calls it <c>Position</c>, as before). <b>Null until the player has been placed:</b>
     /// a new universe creates its player with no location, and entering a universe whose player has none spawns it
-    /// (see <see cref="NavSystem.SpawnTask"/>). Saves from before this was nullable always have a position.
+    /// (see <see cref="SpawnTask"/>). Saves from before this was nullable always have a position.
     /// </summary>
     [JsonPropertyName("Position")]
     public Vector2? Location
@@ -59,7 +59,7 @@ public class Player : Ship
         HandleTargeting(input);
         HandleFirePrimaryWeapons(input);
 
-        base.Update(deltaTime);
+        Update(deltaTime);
         CameraTarget = Position;
     }
 
@@ -67,7 +67,7 @@ public class Player : Ship
     /// Player position captured immediately after the player's own physics step, before
     /// collisions resolve. The camera follows this so framing matches the original behaviour.
     /// </summary>
-    [JsonIgnore] public Microsoft.Xna.Framework.Vector2 CameraTarget { get; private set; }
+    [JsonIgnore] public Vector2 CameraTarget { get; private set; }
 
     private void HandleFirePrimaryWeapons(InputState input)
     {

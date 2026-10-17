@@ -5,6 +5,7 @@ using Strange_Universe.Game.Components.ShipComponents;
 using System.Collections.Generic;
 
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Entities.ShipParts;
 namespace Strange_Universe.Game.EventSystem
 {
     public class DefendedSystemSpawn : SystemEvent

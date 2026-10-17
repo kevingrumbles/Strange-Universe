@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Entities.ShipParts;
 
 namespace Strange_Universe.Game.Components.ShipComponents;
 
@@ -10,7 +11,7 @@ namespace Strange_Universe.Game.Components.ShipComponents;
 /// <see cref="Durability"/> (hull and fuel), <see cref="Appearance"/> (its art) and the <see cref="DefaultLoadout"/> it starts with.
 /// <para>
 /// Make a type with <c>new Shuttle()</c>: each one has its own loadout objects, so a type object belongs to the one ship it is given to.
-/// Give it to a ship with <see cref="Entities.Ship.AssignShipType"/> (or a ship's constructor); the ship starts with the default loadout and can then change it.
+/// Give it to a ship with <see cref="Ship.AssignShipType"/> (or a ship's constructor); the ship starts with the default loadout and can then change it.
 /// Only <see cref="ShipTypeName"/> is saved (see <see cref="ShipStatsConverter"/>).
 /// </para>
 /// </summary>

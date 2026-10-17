@@ -1,5 +1,5 @@
 using Strange_Universe.Game.Components.EquipmentComponents;
-using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
 
 namespace Strange_Universe.Tests.Fakes;
 

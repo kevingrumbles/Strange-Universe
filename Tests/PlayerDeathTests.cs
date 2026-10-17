@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
 using Strange_Universe.Game.Screens;
 using Strange_Universe.Tests.Fakes;
 using Xunit;

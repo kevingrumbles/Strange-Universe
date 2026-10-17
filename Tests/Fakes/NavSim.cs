@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
 using Strange_Universe.Game.NavSystem;
 
 namespace Strange_Universe.Tests.Fakes;

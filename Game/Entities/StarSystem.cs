@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 using Strange_Universe.Game.Simulation;
+using Strange_Universe.Game.Entities.ShipParts;
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>Owns all game entities and drives the frame update.</summary>

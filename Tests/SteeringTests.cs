@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Tests.Fakes;
 using Xunit;

@@ -1,6 +1,7 @@
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
 using Xunit;
 
 namespace Strange_Universe.Tests;

@@ -6,6 +6,7 @@ using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
 using System;
 using System.Collections.Generic;
+using Strange_Universe.Game.Entities.ShipParts;
 
 namespace Strange_Universe.Game.Systems;
 

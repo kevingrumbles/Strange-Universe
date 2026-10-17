@@ -1,6 +1,6 @@
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.ShipComponents;
-using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
 using Strange_Universe.Game.NavSystem;
 namespace Strange_Universe.Game.EventSystem
 {

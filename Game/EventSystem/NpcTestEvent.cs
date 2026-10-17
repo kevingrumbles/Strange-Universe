@@ -4,6 +4,7 @@ using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Components;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Entities.ShipParts;
 
 namespace Strange_Universe.Game.EventSystem
 {

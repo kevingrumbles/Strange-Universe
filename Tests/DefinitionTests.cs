@@ -1,6 +1,6 @@
 using System.Linq;
 using Strange_Universe.Game.Components.EquipmentComponents;
-using Strange_Universe.Game.Systems;
+using Strange_Universe.Game.Entities.ShipParts;
 using Xunit;
 
 namespace Strange_Universe.Tests;
@@ -85,7 +85,7 @@ public class DefinitionTests
             Visual = new ProjectileVisual { BurstDuration = 0.5f, ParticleCount = 3 },
         };
 
-        var shot = gun.TryFire(new Strange_Universe.Game.Entities.Nonplayer("shooter"));
+        var shot = gun.TryFire(new Nonplayer("shooter"));
 
         Assert.Same(gun.Visual, shot.Visual);
         Assert.Equal(0.5f, shot.ImpactLingerSeconds); // and lingers for its burst

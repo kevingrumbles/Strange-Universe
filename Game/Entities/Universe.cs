@@ -8,6 +8,7 @@ using System.Linq;
 using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using Strange_Universe.Game.Entities.ShipParts;
 
 namespace Strange_Universe.Game.Entities;
 

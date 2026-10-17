@@ -1,7 +1,6 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe.Game.Components;
-using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +8,7 @@ using System.Text.Json.Serialization;
 using Strange_Universe.Game.Components.EquipmentComponents;
 using Strange_Universe.Game.Components.ShipComponents;
 
-namespace Strange_Universe.Game.Entities;
+namespace Strange_Universe.Game.Entities.ShipParts;
 
 /// <summary>
 /// Base class for all ships (player and NPCs). A facade over small components:
