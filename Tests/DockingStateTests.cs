@@ -155,6 +155,41 @@ public class DockingStateTests
     }
 
     [Fact]
+    public void TargetingAShip_ReplacesTheTargetedSpaceport()
+    {
+        foreach (var key in new[] { new InputState { CycleTarget = true }, new InputState { TargetNearest = true } })
+        {
+            var u = Started(PlanetWith(spaceport: true));
+            var other = new Nonplayer("other-ship") { Position = u.Player.Position + new Vector2(0f, 400f) };
+            u.ActiveStarSystem.AddNpc(other);
+            u.Update(Dt, PressDock);
+            Assert.NotNull(u.Player.DockTarget);
+
+            u.Update(Dt, key);
+
+            Assert.NotNull(u.Player.Target);
+            Assert.Contains(u.ActiveStarSystem.Npcs, n => ReferenceEquals(n, u.Player.Target)); // some other ship
+            Assert.Null(u.Player.DockTarget); // the ship replaced the spaceport
+            u.Dispose();
+        }
+    }
+
+    [Fact]
+    public void PressingTargetWithNoShipToTarget_KeepsTheTargetedSpaceport()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        u.Update(Dt, PressDock);
+        u.ActiveStarSystem.Npcs.Clear(); // no other ship in the system
+
+        u.Update(Dt, new InputState { CycleTarget = true });
+
+        Assert.Null(u.Player.Target);
+        Assert.Same(planet, u.Player.DockTarget); // nothing was targeted instead, so nothing was replaced
+        u.Dispose();
+    }
+
+    [Fact]
     public void TheTarget_IsForgottenWhenThePlayerIsInAnotherSystem()
     {
         var u = Started(PlanetWith(spaceport: true));
