@@ -586,8 +586,20 @@ public class SpriteRenderer
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // -- Jump Target Display (no label) -----------------------------------
-        if (universe.JumpRoute.Count > 0)
+        // -- Target Display (no label) ------------------------------------------
+        // A planet targeted for docking takes this place and shows its name (in the colour of its minimap halo);
+        // otherwise it shows the jump target.
+        if (universe.Player.DockTarget is { } dockTarget)
+        {
+            string planetName = dockTarget.Name;
+            Vector2 nameSize = _font.MeasureString(planetName) * FontScale;
+            Vector2 namePos = new Vector2(
+                mapLeft + (MapSize - nameSize.X) * 0.5f,
+                currentY);
+            _spriteBatch.DrawString(_font, planetName, namePos, new Color(80, 255, 220), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+            currentY += (int)nameSize.Y + SectionSpacing;
+        }
+        else if (universe.JumpRoute.Count > 0)
         {
             string targetSystemId = universe.JumpRoute[0];
             var targetNode = universe.Galaxy.FindById(targetSystemId);
