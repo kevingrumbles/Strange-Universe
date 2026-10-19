@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
@@ -25,6 +26,9 @@ public sealed class PlayingScreen : IScreen
     private HudRenderer _hudRenderer;
     private GalaxyMapOverlay _galaxyMap;
     private PlayerDeathMonitor _deathMonitor;
+    private SpaceportOverlay _spaceportOverlay;
+    private SpaceportMenu _spaceportMenu;
+    private IDisposable _dockSaveSubscription;
 
     public PlayingScreen(ScreenContext ctx, ProjectileRenderer projectileRenderer, Universe universe)
     {
@@ -44,17 +48,23 @@ public sealed class PlayingScreen : IScreen
             new DebugRenderer(_ctx.Render, _camera, _ctx.Settings), _ctx.Settings);
         _hudRenderer = new HudRenderer(_ctx.Render, _ctx.Font);
         _galaxyMap = new GalaxyMapOverlay(_ctx.Font, _ctx.GraphicsDevice, _ctx.Render);
+        _spaceportOverlay = new SpaceportOverlay(_ctx.Render, _ctx.Font);
 
         _universe.Settings = _ctx.Settings;
         _deathMonitor = new PlayerDeathMonitor(_universe.Events, _universe.Player);
         _sprites.ImpactEffects.Connect(_universe.Events);
         _universe.Generate(_services.Assets, _hud);
+
+        // Docking is a persist point: the player's position in the system is saved the moment they dock.
+        _dockSaveSubscription = _universe.Events.Subscribe<PlayerDocked>(_ => _ctx.Saves.Save(_universe));
         _ctx.SetMouseVisible(false);
     }
 
     public void OnExit()
     {
         // Decided before the monitor goes away: a ship destroyed in the same frame the window closes is not saved either.
+        _dockSaveSubscription?.Dispose();
+        _dockSaveSubscription = null;
         bool playerDestroyed = _deathMonitor?.PlayerDestroyed ?? false;
         _deathMonitor?.Dispose();
         _deathMonitor = null;
@@ -87,6 +97,13 @@ public sealed class PlayingScreen : IScreen
             return;
         }
 
+        // Docked: the spaceport menu takes all the input, and nothing in space is simulated.
+        if (_universe.IsDocked)
+        {
+            UpdateDocked(dt);
+            return;
+        }
+
         // Galaxy map intercepts all input while open.
         if (_galaxyMap.IsOpen)
         {
@@ -112,13 +129,56 @@ public sealed class PlayingScreen : IScreen
         _sprites.ImpactEffects.Update(dt);
 
         _universe.Update(dt, input);
+        if (_universe.IsDocked)
+            return; // the player docked this frame: there is no active star system to follow or draw now
+
         _camera.Update(_universe.Player.CameraTarget, dt, input);
+
+        // While near a planet the player could dock at, say how.
+        string dockingHint = _universe.DockingHint();
+        if (dockingHint != null)
+            _hud.Post(dockingHint, 1);
 
         _projectileRenderer.UpdateParticles(_universe.ActiveStarSystem.Projectiles, dt);
     }
 
+    private void UpdateDocked(float dt)
+    {
+        EnsureSpaceportMenu();
+
+        var input = _input.GetState();
+        if (input.Exit) { _ctx.ShowMenu(); return; }
+
+        _hud.Update(dt);
+        _universe.Update(dt, input); // uploads finished nebulae; nothing else happens while docked
+        _spaceportMenu.Update(input, _universe);
+
+        if (!_universe.IsDocked)
+        {
+            _spaceportMenu = null;
+            _input.Rebaseline();
+        }
+    }
+
+    /// <summary>The menu for the planet the player is docked at (a new one when they dock somewhere new).</summary>
+    private void EnsureSpaceportMenu()
+    {
+        if (_spaceportMenu == null || !ReferenceEquals(_spaceportMenu.Planet, _universe.DockedAt))
+            _spaceportMenu = new SpaceportMenu(_universe.DockedAt);
+    }
+
     public void Draw(GameTime gameTime)
     {
+        if (_universe.IsDocked)
+        {
+            EnsureSpaceportMenu();
+            _ctx.GraphicsDevice.Clear(ScreenContext.Background);
+            _spaceportOverlay.Draw(_spaceportMenu, _ctx.ScreenWidth, _ctx.ScreenHeight);
+            _ctx.Render.Begin(BatchMode.ScreenAlpha);
+            _hudRenderer.DrawMessage(_hud, _ctx.ScreenWidth, _ctx.ScreenHeight);
+            return;
+        }
+
         _ctx.GraphicsDevice.Clear(ScreenContext.Background);
         _world.Draw(_universe.ActiveStarSystem, _camera);
         DrawOverlay();

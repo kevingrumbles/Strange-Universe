@@ -15,4 +15,7 @@ public class InputState
     public bool CycleTarget   { get; set; }
     public bool Fire          { get; set; }
     public bool Dock          { get; set; }
+    public bool MenuUp        { get; set; }
+    public bool MenuDown      { get; set; }
+    public bool MenuSelect    { get; set; }
 }

@@ -135,7 +135,7 @@ public class Planet
             return null;
 
         return new Spaceport("Landing pads, a fuel dock and a repair yard.",
-            new SpaceportService[] { new RefuelService(), new RepairService() });
+            new SpaceportService[] { new RefuelService(), new RepairService(), new UndockService() });
     }
 
 }

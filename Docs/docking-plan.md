@@ -78,3 +78,11 @@ and ignores the map and flight keys. Escape behaves as it does in flight (back t
 ## Still open (defaults in bold)
 
 1. The numbers: **range 300 from the planet's surface, max dock speed 5 units/s**, and **a 50% chance** that a non-gas-giant planet has a spaceport.
+
+## Status
+
+Steps 1-5 are built, with tests; the docked screen itself (drawing, keys) has only been compiled, not played. The numbers are the defaults: range 300 from the surface,
+max dock speed 5, a 50% spaceport chance (`Planet.DockRange`, `Planet.MaxDockSpeed`, `Planet.SpaceportChance`). Menu keys: Up/Down or W/S, Enter; Escape goes to the main menu (which saves).
+
+Manual check list: fly to a planet with a spaceport (the HUD says "L: dock at ..."); too fast says "Slow down to dock at ..." and L says "Too fast to dock"; stop and press L; refuel and repair
+from the menu; undock (back at the same spot, at rest, shields full); dock, quit to the menu and load: the ship is in space where it docked.

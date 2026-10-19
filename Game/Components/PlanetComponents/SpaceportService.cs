@@ -27,6 +27,14 @@ public sealed class RefuelService : SpaceportService
     }
 }
 
+/// <summary>Leaves the spaceport and returns the player to the star system.</summary>
+public sealed class UndockService : SpaceportService
+{
+    public override string Name => "Undock";
+
+    public override void Perform(Universe universe) => universe.Undock();
+}
+
 /// <summary>Restores the player's hull. Shields are not its job: they recharge to full whenever the player enters a system.</summary>
 public sealed class RepairService : SpaceportService
 {
