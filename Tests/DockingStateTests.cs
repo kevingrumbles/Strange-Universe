@@ -1,0 +1,292 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using Microsoft.Xna.Framework;
+using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.Entities.ShipParts;
+using Strange_Universe.Tests.Fakes;
+using Xunit;
+
+namespace Strange_Universe.Tests;
+
+/// <summary>Docking at a spaceport: the L key, the docked state, undocking, and what is saved.</summary>
+public class DockingStateTests
+{
+    private const float Dt = 1f / 60f;
+
+    private static Planet PlanetWith(bool spaceport) =>
+        Enumerable.Range(0, 1000)
+                  .Select(i => new Planet($"dockstate_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
+                  .First(p => (p.Spaceport != null) == spaceport);
+
+    /// <summary>A started universe whose only planet is <paramref name="planet"/>, with the player at rest <paramref name="surfaceDistance"/> from its surface.</summary>
+    private static Universe Started(Planet planet, float surfaceDistance = 50f, float speed = 0f)
+    {
+        var u = new Universe("Dock", "dock-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
+        u.Generate(new RecordingAssetRequests());
+        u.Player.Navigator.Clear(); // the opening spawn task
+        u.ActiveStarSystem.Planets.Clear();
+        u.ActiveStarSystem.Planets.Add(planet);
+        planet.Position = new Vector2(2000f, 0f);
+        u.Player.Position = planet.Position + new Vector2(planet.Radius + surfaceDistance, 0f);
+        u.Player.Velocity = new Vector2(0f, speed);
+        return u;
+    }
+
+    private static readonly InputState PressDock = new() { Dock = true };
+
+    private static string FirstMessage(Universe u, Action act)
+    {
+        var messages = new List<string>();
+        using var _ = u.Events.Subscribe<MessageRequested>(m => messages.Add(m.Message));
+        act();
+        return messages.FirstOrDefault();
+    }
+
+    // -- the L key -----------------------------------------------------------------
+
+    [Fact]
+    public void PressingDock_NearlyStopped_InRange_Docks()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        var docked = new List<PlayerDocked>();
+        using var _ = u.Events.Subscribe<PlayerDocked>(docked.Add);
+
+        u.Update(Dt, PressDock);
+
+        Assert.True(u.IsDocked);
+        Assert.Same(planet, u.DockedAt);
+        Assert.Single(docked);
+        Assert.Same(planet, docked[0].Planet);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void PressingDock_TooFast_RefusesWithAMessage()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet, speed: Planet.MaxDockSpeed + 50f);
+
+        string message = FirstMessage(u, () => u.Update(Dt, PressDock));
+
+        Assert.False(u.IsDocked);
+        Assert.Equal("Too fast to dock", message);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void PressingDock_OutOfRange_OrAtAPlanetWithoutASpaceport_RefusesWithAMessage()
+    {
+        var far = Started(PlanetWith(spaceport: true), surfaceDistance: Planet.DockRange + 2000f);
+        Assert.Equal("Nothing to dock with in range", FirstMessage(far, () => far.Update(Dt, PressDock)));
+        Assert.False(far.IsDocked);
+        far.Dispose();
+
+        var noPort = Started(PlanetWith(spaceport: false));
+        Assert.Equal("Nothing to dock with in range", FirstMessage(noPort, () => noPort.Update(Dt, PressDock)));
+        Assert.False(noPort.IsDocked);
+        noPort.Dispose();
+    }
+
+    [Fact]
+    public void WithoutPressingDock_NothingHappens()
+    {
+        var u = Started(PlanetWith(spaceport: true));
+
+        u.Update(Dt, new InputState());
+
+        Assert.False(u.IsDocked);
+        u.Dispose();
+    }
+
+    // -- docked state ------------------------------------------------------------------
+
+    [Fact]
+    public void Docking_ClearsTheActiveSystem_StopsThePlayer_AndKeepsWhereTheyWere()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet, speed: Planet.MaxDockSpeed * 0.5f);
+        string systemId = u.ActiveStarSystem.SystemId;
+        Vector2 where = u.Player.Position;
+        u.Player.EnqueueNavTask(new Strange_Universe.Game.NavSystem.SpawnTask(u.Player));
+
+        u.Dock(planet);
+
+        Assert.Throws<InvalidOperationException>(() => u.ActiveStarSystem);
+        Assert.Null(u.Player.StarSystem);
+        Assert.Equal(Vector2.Zero, u.Player.Velocity);
+        Assert.False(u.Player.HasActiveNavTask);
+        Assert.Equal(where, u.Player.Position);
+        Assert.Equal(where, u.Player.Location);            // the saved position in the system
+        Assert.Equal(systemId, u.Player.CurrentStarSystemID);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void WhileDocked_UpdatingTheUniverseIsSafe_AndDoesNothing()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        u.Dock(planet);
+        Vector2 where = u.Player.Position;
+
+        u.Update(Dt, new InputState { Thrust = true, Fire = true });
+
+        Assert.Equal(where, u.Player.Position);
+        Assert.True(u.IsDocked);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void Docking_NeedsASpaceport_AndDockingTwiceIsHarmless()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        Assert.Throws<ArgumentException>(() => u.Dock(PlanetWith(spaceport: false)));
+        Assert.Throws<ArgumentNullException>(() => u.Dock(null));
+
+        var docked = new List<PlayerDocked>();
+        using var _ = u.Events.Subscribe<PlayerDocked>(docked.Add);
+        u.Dock(planet);
+        u.Dock(planet);
+
+        Assert.Single(docked);
+        u.Dispose();
+    }
+
+    // -- undocking ----------------------------------------------------------------------
+
+    [Fact]
+    public void Undocking_BringsBackTheSystem_AndPutsThePlayerWhereTheyDockedAtRest_WithFullShields()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        TestGear.Arm(u.Player, TestGear.Shield(30f), TestGear.Plating(10f));
+        string systemId = u.ActiveStarSystem.SystemId;
+        Vector2 where = u.Player.Position;
+        u.Dock(planet);
+        u.Player.CurrentShieldStrength = 0; // however it got that way, it comes back on entering the system
+        var undocked = new List<PlayerUndocked>();
+        using var _ = u.Events.Subscribe<PlayerUndocked>(undocked.Add);
+
+        u.Undock();
+
+        Assert.False(u.IsDocked);
+        Assert.Equal(systemId, u.ActiveStarSystem.SystemId);
+        Assert.Same(u.ActiveStarSystem, u.Player.StarSystem);
+        Assert.Equal(where, u.Player.Position);
+        Assert.Equal(Vector2.Zero, u.Player.Velocity);
+        Assert.Equal(u.Player.MaxShieldStrength, u.Player.CurrentShieldStrength);
+        Assert.Single(undocked);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void UndockingWhenNotDocked_DoesNothing()
+    {
+        var u = Started(PlanetWith(spaceport: true));
+        var system = u.ActiveStarSystem;
+        var undocked = new List<PlayerUndocked>();
+        using var _ = u.Events.Subscribe<PlayerUndocked>(undocked.Add);
+
+        u.Undock();
+
+        Assert.Same(system, u.ActiveStarSystem);
+        Assert.Empty(undocked);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void AfterUndocking_ThePlayerCanDockAgain()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        u.Dock(planet);
+        u.Undock();
+        // the system was rebuilt, so the planet is a new object there
+        var rebuiltPlanet = u.ActiveStarSystem.Planets.First(p => p.Spaceport != null);
+        u.Player.Position = rebuiltPlanet.Position + new Vector2(rebuiltPlanet.Radius + 40f, 0f);
+
+        u.Update(Dt, PressDock);
+
+        Assert.True(u.IsDocked);
+        u.Dispose();
+    }
+
+    // -- saving ---------------------------------------------------------------------------
+
+    private static string TempPath() => Path.Combine(Path.GetTempPath(), $"su-dock-{Guid.NewGuid():N}.json");
+
+    [Fact]
+    public void ADockedGame_IsSavedAtTheDockingPosition_AndLoadsFlyingNotDocked()
+    {
+        string path = TempPath();
+        try
+        {
+            var planet = PlanetWith(spaceport: true);
+            var u = Started(planet);
+            string systemId = u.ActiveStarSystem.SystemId;
+            Vector2 where = u.Player.Position;
+            u.Dock(planet);
+            new FileSaveService(path).Save(u);
+            u.Dispose();
+
+            var loaded = new FileSaveService(path).LoadAll().Single();
+            loaded.NebulaFactory = Nebula.CreateWithoutPixels;
+            loaded.Generate(new RecordingAssetRequests());
+
+            Assert.False(loaded.IsDocked);                              // the player starts in the ship
+            Assert.Equal(systemId, loaded.ActiveStarSystem.SystemId);   // in the system they docked in
+            Assert.Equal(where.X, loaded.Player.Position.X, 2);         // at the place they docked
+            Assert.Equal(where.Y, loaded.Player.Position.Y, 2);
+            Assert.False(loaded.Player.HasActiveNavTask);               // placed already, so no spawn task moves them
+            loaded.Dispose();
+        }
+        finally { if (File.Exists(path)) File.Delete(path); }
+    }
+
+    // -- shields ---------------------------------------------------------------------------
+
+    [Fact]
+    public void EnteringASystem_RechargesTheShieldsToFull()
+    {
+        var u = new Universe("Shields", "shield-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
+        TestGear.Arm(u.Player, TestGear.Shield(30f), TestGear.Shield(20f));
+        u.Player.CurrentShieldStrength = 3;
+
+        u.Generate(new RecordingAssetRequests()); // loading into the starting system
+
+        Assert.Equal(50, u.Player.MaxShieldStrength);
+        Assert.Equal(50, u.Player.CurrentShieldStrength);
+
+        u.Player.CurrentShieldStrength = 0;
+        u.EnterSystem(u.StarSystemNodes[0]); // and again on any other entry
+        Assert.Equal(50, u.Player.CurrentShieldStrength);
+        u.Dispose();
+    }
+
+    // -- the HUD hint ------------------------------------------------------------------------
+
+    [Fact]
+    public void TheDockingHint_NamesThePlanet_WhenInRange_AndAsksForLessSpeedWhenTooFast()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        Assert.Equal($"L: dock at {planet.Name}", u.DockingHint());
+
+        u.Player.Velocity = new Vector2(0f, Planet.MaxDockSpeed + 20f);
+        Assert.Equal($"Slow down to dock at {planet.Name}", u.DockingHint());
+
+        u.Player.Position = planet.Position + new Vector2(planet.Radius + Planet.DockRange + 1000f, 0f);
+        Assert.Null(u.DockingHint());
+
+        u.Player.Velocity = Vector2.Zero;
+        u.Player.Position = planet.Position + new Vector2(planet.Radius + 10f, 0f);
+        u.Dock(planet);
+        Assert.Null(u.DockingHint()); // nothing to hint at while docked
+        u.Dispose();
+    }
+}

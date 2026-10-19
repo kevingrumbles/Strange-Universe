@@ -34,6 +34,7 @@ public class InputHandler
             TargetNearest = WasPressed(kb, Keys.R),
             CycleTarget   = WasPressed(kb, Keys.Tab),
             Fire          = kb.IsKeyDown(Keys.Space),
+            Dock          = WasPressed(kb, Keys.L),
         };
 
         _prevKeys = kb;

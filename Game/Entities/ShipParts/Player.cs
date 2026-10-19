@@ -56,6 +56,7 @@ public class Player : Ship
         HandleRetrograde(deltaTime, input);
         HandleThrust(deltaTime, input);
         HandleJump(deltaTime, input);
+        HandleDock(input);
         HandleTargeting(input);
         HandleFirePrimaryWeapons(input);
 
@@ -128,6 +129,28 @@ public class Player : Ship
             {
                 StarSystem.Universe.Messages.Post("Insufficient fuel for jump!");
             }
+        }
+    }
+
+    // -- Docking (L) ---------------------------------------------------------------
+    // Docks at the nearest planet with a spaceport in range when nearly stopped; the planet decides (Planet.CheckDocking).
+
+    private void HandleDock(InputState input)
+    {
+        if (!input.Dock || HasActiveNavTask || StarSystem == null) return;
+
+        var option = StarSystem.FindDockingPlanet(this);
+        switch (option.Check)
+        {
+            case DockingCheck.Ok:
+                StarSystem.Universe.Dock(option.Planet);
+                break;
+            case DockingCheck.TooFast:
+                StarSystem.Universe.Messages.Post("Too fast to dock");
+                break;
+            default:
+                StarSystem.Universe.Messages.Post("Nothing to dock with in range");
+                break;
         }
     }
 

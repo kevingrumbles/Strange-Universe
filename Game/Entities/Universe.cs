@@ -57,6 +57,7 @@ public class Universe : IDisposable
         _activeStarSystem = system;
         Player.StarSystem = _activeStarSystem;
         Player.CurrentStarSystemID = node.SystemId;
+        Player.RefillShield(); // shields are always full when the player loads into a system
         WaitForNebula(_activeStarSystem.NebulaId);
         Events.Publish(new SystemEntered(_activeStarSystem));
         return _activeStarSystem;
@@ -160,7 +161,79 @@ public class Universe : IDisposable
     {
         UploadFinishedNebulae();
 
+        if (IsDocked)
+            return; // nothing is simulated while docked: there is no active star system
+
         ActiveStarSystem.Update(deltaTime, input);
+    }
+
+    // -- Docking -----------------------------------------------------------------
+
+    /// <summary>The planet the player is docked at; null when flying. Runtime only: it is not saved, so a loaded game starts in the ship.</summary>
+    [JsonIgnore] public Planet DockedAt { get; private set; }
+
+    [JsonIgnore] public bool IsDocked => DockedAt != null;
+
+    /// <summary>
+    /// Docks the player at <paramref name="planet"/>, which must have a spaceport. The active star system is cleared (nothing in it survives; it is
+    /// rebuilt on <see cref="Undock"/>), the player stops and keeps the position in the system they are saved with, and <see cref="PlayerDocked"/> is
+    /// published (the playing screen saves on it). Does nothing when already docked.
+    /// </summary>
+    public void Dock(Planet planet)
+    {
+        ArgumentNullException.ThrowIfNull(planet);
+        if (planet.Spaceport == null)
+            throw new ArgumentException("That planet has no spaceport.", nameof(planet));
+        if (IsDocked)
+            return;
+
+        Player.Navigator.Clear();
+        Player.Velocity = Vector2.Zero;
+
+        DockedAt = planet;
+        _activeStarSystem = null;
+        Player.StarSystem = null;
+
+        Events.Publish(new PlayerDocked(planet));
+    }
+
+    /// <summary>
+    /// Leaves the spaceport: the player's system is built again and they are put back where they docked, at rest, with full shields.
+    /// Does nothing when not docked.
+    /// </summary>
+    public void Undock()
+    {
+        if (!IsDocked)
+            return;
+
+        var planet = DockedAt;
+        Vector2 where = Player.Position;
+        StarSystemNode node = ResolveStartNode();
+
+        DockedAt = null;
+        EnterSystem(node);
+        Player.Position = where;
+        Player.Velocity = Vector2.Zero;
+
+        Events.Publish(new PlayerUndocked(planet));
+    }
+
+    /// <summary>
+    /// A hint for the HUD while the player is flying near a planet they could dock at: "L: dock at X", or "Slow down to dock at X" when they are
+    /// in range but too fast. Null when there is nothing to hint at (or while docked).
+    /// </summary>
+    public string DockingHint()
+    {
+        if (IsDocked)
+            return null;
+
+        var option = ActiveStarSystem.FindDockingPlanet(Player);
+        return option.Check switch
+        {
+            DockingCheck.Ok => $"L: dock at {option.Planet.Name}",
+            DockingCheck.TooFast => $"Slow down to dock at {option.Planet.Name}",
+            _ => null,
+        };
     }
 
     /// <summary>

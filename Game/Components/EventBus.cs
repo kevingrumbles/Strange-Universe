@@ -65,5 +65,11 @@ public readonly record struct ProjectileHit(Projectile Projectile, Ship TargetSh
 /// <summary>The player entered a star system; it is now the active one.</summary>
 public readonly record struct SystemEntered(StarSystem System);
 
+/// <summary>The player docked at a planet's spaceport; there is no active star system until they undock.</summary>
+public readonly record struct PlayerDocked(Planet Planet);
+
+/// <summary>The player left the spaceport and is back in the star system.</summary>
+public readonly record struct PlayerUndocked(Planet Planet);
+
 /// <summary>The simulation wants a short on-screen message shown.</summary>
 public readonly record struct MessageRequested(string Message, int DurationSeconds);

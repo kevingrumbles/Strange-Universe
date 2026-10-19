@@ -229,6 +229,9 @@ public abstract class Ship
     /// <inheritdoc cref="ShipDurability.ApplyDamage"/>
     public void ApplyDamage(int damage, Ship source = null) => Durability.ApplyDamage(damage, source);
 
+    /// <summary>Recharges every shield generator to full at once.</summary>
+    public void RefillShield() => Durability.Shield = Durability.MaxShield;
+
     [JsonIgnore] public bool IsDestroyed => Durability.IsDestroyed;
 
     [JsonIgnore] public Ship LastDamageSource => Durability.LastDamageSource;
