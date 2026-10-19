@@ -94,8 +94,8 @@ A `SpaceportService` has `IsAvailable(universe)` (default true). Refuel is liste
 
 ## Update: the map route is a target too
 
-`L` targets the nearest spaceport; the galaxy map targets its route. Opening the map, and closing it, calls `Universe.TargetJumpRoute()`: when a route is selected, the ship and spaceport
-targets are dropped so the HUD shows the route. With no route selected they are left alone. A planet targeted afterwards (`L`) takes the HUD slot from the route again.
+`L` targets the nearest spaceport; the galaxy map targets its route. Opening the map, and closing it, calls `Universe.TargetJumpRoute()`: when a route is selected, the spaceport targeted for
+landing is dropped so the HUD slot shows the route. A targeted ship is left alone, and with no route selected nothing changes. A planet targeted afterwards (`L`) takes the HUD slot from the route again.
 
 ## Status
 

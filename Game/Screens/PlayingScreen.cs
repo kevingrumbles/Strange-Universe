@@ -109,7 +109,7 @@ public sealed class PlayingScreen : IScreen
         {
             if (_galaxyMap.Update(_universe, _ctx.ScreenWidth, _ctx.ScreenHeight, dt))
             {
-                _universe.TargetJumpRoute(); // a route chosen on the map replaces the ship or spaceport that was targeted
+                _universe.TargetJumpRoute(); // a route chosen on the map replaces the spaceport that was targeted for landing
                 _ctx.SetMouseVisible(false);
                 _input.Rebaseline(); // so the closing Escape is not seen as Exit
             }

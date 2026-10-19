@@ -190,7 +190,7 @@ public class DockingStateTests
     }
 
     [Fact]
-    public void ASelectedMapRoute_ReplacesTheShipAndSpaceportTargets()
+    public void ASelectedMapRoute_ReplacesTheSpaceportTarget_ButNotATargetedShip()
     {
         var u = Started(PlanetWith(spaceport: true));
         var other = new Nonplayer("other-ship") { Position = u.Player.Position + new Vector2(0f, 400f) };
@@ -203,14 +203,14 @@ public class DockingStateTests
 
         u.TargetJumpRoute();
 
-        Assert.Null(u.Player.DockTarget);
-        Assert.Null(u.Player.Target);
-        Assert.Single(u.JumpRoute); // and the route itself is what remains targeted
+        Assert.Null(u.Player.DockTarget);       // the landing target is replaced by the route
+        Assert.Same(other, u.Player.Target);    // the ship stays targeted
+        Assert.Single(u.JumpRoute);             // and the route is what remains in the HUD slot
         u.Dispose();
     }
 
     [Fact]
-    public void WithNoMapRouteSelected_OpeningTheMapLeavesTheTargetsAlone()
+    public void WithNoMapRouteSelected_OpeningTheMapLeavesTheSpaceportTargetAlone()
     {
         var planet = PlanetWith(spaceport: true);
         var u = Started(planet);

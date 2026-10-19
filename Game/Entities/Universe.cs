@@ -220,8 +220,8 @@ public class Universe : IDisposable
     }
 
     /// <summary>
-    /// Makes the selected galaxy-map route the player's target: when a route is selected, any ship or spaceport the player has targeted is dropped, so the HUD
-    /// shows the route. Called when the map is opened and when it is closed. With no route selected, targets are left alone.
+    /// Makes the selected galaxy-map route the player's target: when a route is selected, the spaceport targeted for landing is dropped, so the HUD shows the
+    /// route. A targeted ship is not touched. Called when the map is opened and when it is closed. With no route selected, nothing changes.
     /// </summary>
     public void TargetJumpRoute()
     {
@@ -229,7 +229,6 @@ public class Universe : IDisposable
             return;
 
         Player.ClearDockTarget();
-        Player.ClearTarget();
     }
 
     /// <summary>
