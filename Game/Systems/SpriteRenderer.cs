@@ -201,6 +201,28 @@ public class SpriteRenderer
             rotation, origin, scale, SpriteEffects.None, 0f);
     }
 
+    /// <summary>
+    /// A subtle square outline around a targeted ship or planet, in world space. Its line stays about the same width on screen at any zoom.
+    /// </summary>
+    public void DrawTargetIndicator(Vector2 position, float radius)
+    {
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
+
+        float zoom = Math.Max(_camera.Zoom, 0.01f);
+        float half = radius * 1.3f + 8f / zoom;
+        float line = 1.5f / zoom;
+        Color color = new Color(170, 215, 255) * 0.45f;
+        float side = half * 2f;
+
+        void Bar(float x, float y, float w, float h) =>
+            _spriteBatch.Draw(_pixel, new Vector2(x, y), null, color, 0f, Vector2.Zero, new Vector2(w, h), SpriteEffects.None, 0f);
+
+        Bar(position.X - half, position.Y - half, side, line);               // top
+        Bar(position.X - half, position.Y + half - line, side, line);        // bottom
+        Bar(position.X - half, position.Y - half, line, side);               // left
+        Bar(position.X + half - line, position.Y - half, line, side);        // right
+    }
+
     public void DrawStar(Star star) =>
         DrawEntity(star.Id, star.Position, 0f, star.Radius);
 

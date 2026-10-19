@@ -42,6 +42,12 @@ public sealed class WorldRenderer
         _projectiles.SetCameraMatrix(camera.GetTransformMatrix());
         _projectiles.DrawAll(sys.Projectiles);
 
+        // The player's targets get a square around them: a targeted ship, or the planet with a spaceport targeted for docking.
+        if (player.Target != null && player.IsTargetValid(player.Target))
+            _sprites.DrawTargetIndicator(player.Target.Position, player.Target.Radius);
+        if (player.DockTarget != null)
+            _sprites.DrawTargetIndicator(player.DockTarget.Position, player.DockTarget.Radius);
+
         _debug.Draw(sys, player);
     }
 }
