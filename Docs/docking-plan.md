@@ -92,6 +92,11 @@ Targeting a ship (Tab or R) replaces the targeted spaceport, so there is one tar
 A `SpaceportService` has `IsAvailable(universe)` (default true). Refuel is listed only while the fuel is below full and Repair only while the hull is below full; Undock is always there.
 `SpaceportMenu` lists the available services each time it is asked, so a service disappears as soon as it has done its job, and the highlight is kept on the list.
 
+## Update: the map route is a target too
+
+`L` targets the nearest spaceport; the galaxy map targets its route. Opening the map, and closing it, calls `Universe.TargetJumpRoute()`: when a route is selected, the ship and spaceport
+targets are dropped so the HUD shows the route. With no route selected they are left alone. A planet targeted afterwards (`L`) takes the HUD slot from the route again.
+
 ## Status
 
 Steps 1-5 are built, with tests; the docked screen itself (drawing, keys) has only been compiled, not played. The numbers are the defaults: range 300 from the surface,

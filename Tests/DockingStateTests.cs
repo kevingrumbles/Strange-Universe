@@ -190,6 +190,39 @@ public class DockingStateTests
     }
 
     [Fact]
+    public void ASelectedMapRoute_ReplacesTheShipAndSpaceportTargets()
+    {
+        var u = Started(PlanetWith(spaceport: true));
+        var other = new Nonplayer("other-ship") { Position = u.Player.Position + new Vector2(0f, 400f) };
+        u.ActiveStarSystem.AddNpc(other);
+        u.Player.SetTarget(other);
+        u.Update(Dt, PressDock); // targets the spaceport (a ship target does not stop that)
+        Assert.NotNull(u.Player.DockTarget);
+        Assert.NotNull(u.Player.Target);
+        u.JumpRoute.Add(u.Galaxy.FindById(u.Player.CurrentStarSystemID).SystemId);
+
+        u.TargetJumpRoute();
+
+        Assert.Null(u.Player.DockTarget);
+        Assert.Null(u.Player.Target);
+        Assert.Single(u.JumpRoute); // and the route itself is what remains targeted
+        u.Dispose();
+    }
+
+    [Fact]
+    public void WithNoMapRouteSelected_OpeningTheMapLeavesTheTargetsAlone()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+        u.Update(Dt, PressDock);
+
+        u.TargetJumpRoute();
+
+        Assert.Same(planet, u.Player.DockTarget);
+        u.Dispose();
+    }
+
+    [Fact]
     public void TheTarget_IsForgottenWhenThePlayerIsInAnotherSystem()
     {
         var u = Started(PlanetWith(spaceport: true));

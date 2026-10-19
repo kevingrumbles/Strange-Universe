@@ -220,6 +220,19 @@ public class Universe : IDisposable
     }
 
     /// <summary>
+    /// Makes the selected galaxy-map route the player's target: when a route is selected, any ship or spaceport the player has targeted is dropped, so the HUD
+    /// shows the route. Called when the map is opened and when it is closed. With no route selected, targets are left alone.
+    /// </summary>
+    public void TargetJumpRoute()
+    {
+        if (JumpRoute.Count == 0)
+            return;
+
+        Player.ClearDockTarget();
+        Player.ClearTarget();
+    }
+
+    /// <summary>
     /// A hint for the HUD about the spaceport the player has targeted: "L: dock at X" when they can dock now, "Slow down to dock at X" when they are in
     /// range but too fast. Null when nothing is targeted, the target is out of range, or the player is docked.
     /// </summary>
