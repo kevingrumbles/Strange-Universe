@@ -85,7 +85,7 @@ and ignores the map and flight keys. Escape behaves as it does in flight (back t
 "Targeted <planet>" (or "No spaceport in this system"). With one targeted (`Player.DockTarget`, runtime only, forgotten when the player is in another system), `L` starts the docking process:
 `Planet.CheckDocking` decides; Ok docks (and clears the target), otherwise "Too fast to dock" or "<planet> is out of docking range" and the target stays. The HUD hint follows the target
 ("L: dock at X", "Slow down to dock at X"), and the targeted planet has a halo on the minimap. `StarSystem.FindDockingPlanet` and `DockingOption` were removed.
-Targeting a ship (Tab or R) replaces the targeted spaceport, so there is one target at a time; with no ship to target, Tab leaves the spaceport targeted. Otherwise the spaceport target clears on docking or leaving the system.
+Targeting a ship (Tab or R) does not touch the targeted spaceport and the other way round: the ship target and the landing target are separate, and the main targeting area only ever holds a ship. The landing target and the jump target share one HUD slot, so whichever was set last is shown (L shows the landing target; choosing a map route drops it so the route shows). The spaceport target clears on docking or leaving the system.
 
 ## Update: only the services that are needed are listed
 

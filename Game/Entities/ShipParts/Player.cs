@@ -188,10 +188,6 @@ public class Player : Ship
         {
             CycleToNextTarget();
         }
-
-        // There is one target at a time: targeting a ship replaces the spaceport targeted for docking.
-        if ((input.TargetNearest || input.CycleTarget) && Target != null)
-            ClearDockTarget();
     }
 
     private void CycleToNextTarget()

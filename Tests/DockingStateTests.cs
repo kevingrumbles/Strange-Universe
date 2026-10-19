@@ -155,70 +155,40 @@ public class DockingStateTests
     }
 
     [Fact]
-    public void TargetingAShip_ReplacesTheTargetedSpaceport()
+    public void TargetingAShip_KeepsTheSpaceportTargetedForLanding()
     {
         foreach (var key in new[] { new InputState { CycleTarget = true }, new InputState { TargetNearest = true } })
         {
-            var u = Started(PlanetWith(spaceport: true));
-            var other = new Nonplayer("other-ship") { Position = u.Player.Position + new Vector2(0f, 400f) };
-            u.ActiveStarSystem.AddNpc(other);
+            var planet = PlanetWith(spaceport: true);
+            var u = Started(planet);
+            u.ActiveStarSystem.AddNpc(new Nonplayer("other-ship") { Position = u.Player.Position + new Vector2(0f, 400f) });
             u.Update(Dt, PressDock);
-            Assert.NotNull(u.Player.DockTarget);
+            Assert.Same(planet, u.Player.DockTarget);
 
             u.Update(Dt, key);
 
             Assert.NotNull(u.Player.Target);
-            Assert.Contains(u.ActiveStarSystem.Npcs, n => ReferenceEquals(n, u.Player.Target)); // some other ship
-            Assert.Null(u.Player.DockTarget); // the ship replaced the spaceport
+            Contains(u);
+            Assert.Same(planet, u.Player.DockTarget); // the two targets are separate: the ship area only ever holds ships
             u.Dispose();
         }
+
+        static void Contains(Universe u) =>
+            Assert.Contains(u.ActiveStarSystem.Npcs, n => ReferenceEquals(n, u.Player.Target)); // the ship target is a ship
     }
 
     [Fact]
-    public void PressingTargetWithNoShipToTarget_KeepsTheTargetedSpaceport()
-    {
-        var planet = PlanetWith(spaceport: true);
-        var u = Started(planet);
-        u.Update(Dt, PressDock);
-        u.ActiveStarSystem.Npcs.Clear(); // no other ship in the system
-
-        u.Update(Dt, new InputState { CycleTarget = true });
-
-        Assert.Null(u.Player.Target);
-        Assert.Same(planet, u.Player.DockTarget); // nothing was targeted instead, so nothing was replaced
-        u.Dispose();
-    }
-
-    [Fact]
-    public void ASelectedMapRoute_ReplacesTheSpaceportTarget_ButNotATargetedShip()
+    public void TargetingAPlanet_DoesNotChangeTheTargetedShip()
     {
         var u = Started(PlanetWith(spaceport: true));
         var other = new Nonplayer("other-ship") { Position = u.Player.Position + new Vector2(0f, 400f) };
         u.ActiveStarSystem.AddNpc(other);
         u.Player.SetTarget(other);
-        u.Update(Dt, PressDock); // targets the spaceport (a ship target does not stop that)
+
+        u.Update(Dt, PressDock); // targets the spaceport
+
         Assert.NotNull(u.Player.DockTarget);
-        Assert.NotNull(u.Player.Target);
-        u.JumpRoute.Add(u.Galaxy.FindById(u.Player.CurrentStarSystemID).SystemId);
-
-        u.TargetJumpRoute();
-
-        Assert.Null(u.Player.DockTarget);       // the landing target is replaced by the route
-        Assert.Same(other, u.Player.Target);    // the ship stays targeted
-        Assert.Single(u.JumpRoute);             // and the route is what remains in the HUD slot
-        u.Dispose();
-    }
-
-    [Fact]
-    public void WithNoMapRouteSelected_OpeningTheMapLeavesTheSpaceportTargetAlone()
-    {
-        var planet = PlanetWith(spaceport: true);
-        var u = Started(planet);
-        u.Update(Dt, PressDock);
-
-        u.TargetJumpRoute();
-
-        Assert.Same(planet, u.Player.DockTarget);
+        Assert.Same(other, u.Player.Target);
         u.Dispose();
     }
 
