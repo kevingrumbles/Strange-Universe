@@ -228,8 +228,8 @@ public class SpriteRenderer
         float inner = halfExtent + 8f / zoom;
         float outer = inner + 4f / zoom;
 
-        DrawBrackets(position, inner, armFraction: 0.34f, TargetColor * 0.65f, 1.6f / zoom);
-        DrawBrackets(position, outer, armFraction: 0.34f, TargetColor * 0.22f, 1.1f / zoom);
+        DrawBrackets(position, inner, armFraction: 0.34f, TargetColor * 0.28f, 1.6f / zoom);
+        DrawBrackets(position, outer, armFraction: 0.34f, TargetColor * 0.14f, 1.1f / zoom);
     }
 
     /// <summary>The four corner brackets of a square of half-size <paramref name="half"/>, each an arm, a diagonal cut across the corner, and an arm.</summary>
