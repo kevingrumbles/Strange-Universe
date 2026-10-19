@@ -36,10 +36,11 @@ public sealed class SpaceportOverlay
 
         string title = menu.Planet.Name;
         string description = menu.Planet.Spaceport.Description;
+        var items = menu.Items;
         Vector2 titleSize = _font.MeasureString(title) * TitleScale;
         Vector2 descriptionSize = _font.MeasureString(description);
 
-        int panelHeight = Padding * 2 + (int)titleSize.Y + 12 + (int)descriptionSize.Y + 28 + menu.Items.Count * RowHeight + 28 + 20;
+        int panelHeight = Padding * 2 + (int)titleSize.Y + 12 + (int)descriptionSize.Y + 28 + items.Count * RowHeight + 28 + 20;
         int left = (screenWidth - PanelWidth) / 2;
         int top = (screenHeight - panelHeight) / 2;
 
@@ -52,10 +53,10 @@ public sealed class SpaceportOverlay
         sb.DrawString(_font, description, new Vector2(left + (PanelWidth - descriptionSize.X) / 2f, y), Body);
         y += descriptionSize.Y + 28;
 
-        for (int i = 0; i < menu.Items.Count; i++)
+        for (int i = 0; i < items.Count; i++)
         {
             bool selected = i == menu.Selected;
-            string text = (selected ? "> " : "  ") + menu.Items[i].Name;
+            string text = (selected ? "> " : "  ") + items[i].Name;
             if (selected)
                 DrawRect(sb, left + Padding - 8, (int)y - 4, PanelWidth - (Padding - 8) * 2, RowHeight - 4, Highlight * 0.12f);
             sb.DrawString(_font, text, new Vector2(left + Padding, y), selected ? Highlight : Item);

@@ -87,6 +87,11 @@ and ignores the map and flight keys. Escape behaves as it does in flight (back t
 ("L: dock at X", "Slow down to dock at X"), and the targeted planet has a halo on the minimap. `StarSystem.FindDockingPlanet` and `DockingOption` were removed.
 Targeting a ship (Tab or R) replaces the targeted spaceport, so there is one target at a time; with no ship to target, Tab leaves the spaceport targeted. Otherwise the spaceport target clears on docking or leaving the system.
 
+## Update: only the services that are needed are listed
+
+A `SpaceportService` has `IsAvailable(universe)` (default true). Refuel is listed only while the fuel is below full and Repair only while the hull is below full; Undock is always there.
+`SpaceportMenu` lists the available services each time it is asked, so a service disappears as soon as it has done its job, and the highlight is kept on the list.
+
 ## Status
 
 Steps 1-5 are built, with tests; the docked screen itself (drawing, keys) has only been compiled, not played. The numbers are the defaults: range 300 from the surface,

@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Strange_Universe.Tests;
 
-/// <summary>The docked screen's selection logic, and the services a spaceport offers.</summary>
+/// <summary>The docked screen's selection logic, and which services it lists.</summary>
 public class SpaceportMenuTests
 {
     private static Planet PlanetWithSpaceport() =>
@@ -17,7 +17,8 @@ public class SpaceportMenuTests
                   .Select(i => new Planet($"menu_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
                   .First(p => p.Spaceport != null);
 
-    private static Universe DockedUniverse(out Planet planet)
+    /// <summary>A docked player with the given fuel and hull.</summary>
+    private static Universe DockedUniverse(out Planet planet, bool needsFuel = true, bool needsRepair = true)
     {
         planet = PlanetWithSpaceport();
         var u = new Universe("Menu", "menu-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
@@ -27,6 +28,8 @@ public class SpaceportMenuTests
         u.ActiveStarSystem.Planets.Add(planet);
         u.Player.Position = planet.Position + new Vector2(planet.Radius + 20f, 0f);
         u.Dock(planet);
+        u.Player.CurrentFuelLevel = needsFuel ? 0 : u.Player.MaxFuelLevel;
+        u.Player.CurrentHullStrength = needsRepair ? 1 : u.Player.MaxHullStrength;
         return u;
     }
 
@@ -34,21 +37,60 @@ public class SpaceportMenuTests
     private static readonly InputState Down = new() { MenuDown = true };
     private static readonly InputState Select = new() { MenuSelect = true };
 
-    [Fact]
-    public void ASpaceport_OffersRefuelRepairAndUndock_InThatOrder()
-    {
-        var menu = new SpaceportMenu(PlanetWithSpaceport());
+    private static string[] Names(SpaceportMenu menu) => menu.Items.Select(s => s.Name).ToArray();
 
-        Assert.Equal(new[] { "Refuel", "Repair", "Undock" }, menu.Items.Select(s => s.Name));
-        Assert.Equal(0, menu.Selected);
+    // -- which services are listed ---------------------------------------------
+
+    [Fact]
+    public void Refuel_IsListedOnlyWhenFuelIsMissing_AndRepairOnlyWhenTheHullIsDamaged()
+    {
+        using var both = DockedUniverse(out var planet, needsFuel: true, needsRepair: true);
+        Assert.Equal(new[] { "Refuel", "Repair", "Undock" }, Names(new SpaceportMenu(planet, both)));
+
+        using var fuelOnly = DockedUniverse(out planet, needsFuel: true, needsRepair: false);
+        Assert.Equal(new[] { "Refuel", "Undock" }, Names(new SpaceportMenu(planet, fuelOnly)));
+
+        using var hullOnly = DockedUniverse(out planet, needsFuel: false, needsRepair: true);
+        Assert.Equal(new[] { "Repair", "Undock" }, Names(new SpaceportMenu(planet, hullOnly)));
+
+        using var neither = DockedUniverse(out planet, needsFuel: false, needsRepair: false);
+        Assert.Equal(new[] { "Undock" }, Names(new SpaceportMenu(planet, neither)));
     }
+
+    [Fact]
+    public void AServiceLeavesTheList_OnceItHasDoneItsJob()
+    {
+        using var u = DockedUniverse(out var planet);
+        var menu = new SpaceportMenu(planet, u);
+
+        menu.Update(Select, u); // Refuel is first
+        Assert.Equal(new[] { "Repair", "Undock" }, Names(menu));
+
+        menu.Update(Select, u); // Repair is first now
+        Assert.Equal(new[] { "Undock" }, Names(menu));
+    }
+
+    [Fact]
+    public void ThePlayerStillNeedingFuelOrRepairs_SeesTheServiceAgain()
+    {
+        using var u = DockedUniverse(out var planet, needsFuel: false, needsRepair: false);
+        var menu = new SpaceportMenu(planet, u);
+        Assert.Equal(new[] { "Undock" }, Names(menu));
+
+        u.Player.CurrentFuelLevel = 1; // the list follows the player's state, it is not fixed when the menu opens
+
+        Assert.Equal(new[] { "Refuel", "Undock" }, Names(menu));
+    }
+
+    // -- the highlight --------------------------------------------------------------
 
     [Fact]
     public void UpAndDown_MoveTheHighlight_AndWrapAround()
     {
         using var u = DockedUniverse(out var planet);
-        var menu = new SpaceportMenu(planet);
+        var menu = new SpaceportMenu(planet, u);
         int count = menu.Items.Count;
+        Assert.Equal(0, menu.Selected);
 
         menu.Update(Down, u);
         Assert.Equal(1, menu.Selected);
@@ -62,11 +104,28 @@ public class SpaceportMenuTests
     }
 
     [Fact]
+    public void TheHighlight_StaysOnTheList_WhenTheServiceItWasOnLeaves()
+    {
+        using var u = DockedUniverse(out var planet);
+        var menu = new SpaceportMenu(planet, u);
+        menu.Update(Down, u);                  // on Repair, in the middle of [Refuel, Repair, Undock]
+
+        menu.Update(Select, u);                // repair: the list becomes [Refuel, Undock]
+
+        Assert.InRange(menu.Selected, 0, menu.Items.Count - 1);
+        Assert.Equal(new[] { "Refuel", "Undock" }, Names(menu));
+
+        u.Player.CurrentFuelLevel = u.Player.MaxFuelLevel; // and Refuel goes too, with the highlight on the last entry
+        menu.Update(Down, u);
+        menu.Update(new InputState(), u);
+        Assert.Equal(0, menu.Selected);        // [Undock]
+    }
+
+    [Fact]
     public void NoKeys_ChangeNothing()
     {
         using var u = DockedUniverse(out var planet);
-        var menu = new SpaceportMenu(planet);
-        u.Player.CurrentFuelLevel = 0;
+        var menu = new SpaceportMenu(planet, u);
 
         menu.Update(new InputState(), u);
 
@@ -75,20 +134,19 @@ public class SpaceportMenuTests
         Assert.True(u.IsDocked);
     }
 
+    // -- select -------------------------------------------------------------------------
+
     [Fact]
     public void Select_CarriesOutTheHighlightedService()
     {
         using var u = DockedUniverse(out var planet);
-        var menu = new SpaceportMenu(planet);
-        u.Player.CurrentFuelLevel = 0;
-        u.Player.CurrentHullStrength = 1;
+        var menu = new SpaceportMenu(planet, u);
 
         menu.Update(Select, u);                                           // Refuel is first
         Assert.Equal(u.Player.MaxFuelLevel, u.Player.CurrentFuelLevel);
-        Assert.Equal(1, u.Player.CurrentHullStrength);
+        Assert.Equal(1, u.Player.CurrentHullStrength);                    // refuelling does not repair
 
-        menu.Update(Down, u);
-        menu.Update(Select, u);                                           // then Repair
+        menu.Update(Select, u);                                           // Repair is first now
         Assert.Equal(u.Player.MaxHullStrength, u.Player.CurrentHullStrength);
         Assert.True(u.IsDocked);                                          // neither of them leaves
     }
@@ -97,7 +155,7 @@ public class SpaceportMenuTests
     public void SelectingUndock_LeavesTheSpaceport()
     {
         using var u = DockedUniverse(out var planet);
-        var menu = new SpaceportMenu(planet);
+        var menu = new SpaceportMenu(planet, u);
 
         menu.Update(Up, u); // from the top, up wraps to the last service: Undock
         Assert.Equal("Undock", menu.Items[menu.Selected].Name);
@@ -105,6 +163,17 @@ public class SpaceportMenuTests
 
         Assert.False(u.IsDocked);
         Assert.NotNull(u.ActiveStarSystem);
+    }
+
+    [Fact]
+    public void UndockIsAlwaysThere()
+    {
+        using var u = DockedUniverse(out var planet, needsFuel: false, needsRepair: false);
+        var menu = new SpaceportMenu(planet, u);
+
+        menu.Update(Select, u); // the only entry
+
+        Assert.False(u.IsDocked);
     }
 
     [Fact]

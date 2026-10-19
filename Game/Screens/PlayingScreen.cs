@@ -164,7 +164,7 @@ public sealed class PlayingScreen : IScreen
     private void EnsureSpaceportMenu()
     {
         if (_spaceportMenu == null || !ReferenceEquals(_spaceportMenu.Planet, _universe.DockedAt))
-            _spaceportMenu = new SpaceportMenu(_universe.DockedAt);
+            _spaceportMenu = new SpaceportMenu(_universe.DockedAt, _universe);
     }
 
     public void Draw(GameTime gameTime)
