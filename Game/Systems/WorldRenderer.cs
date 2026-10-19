@@ -44,9 +44,9 @@ public sealed class WorldRenderer
 
         // The player's targets get a square around them: a targeted ship, or the planet with a spaceport targeted for docking.
         if (player.Target != null && player.IsTargetValid(player.Target))
-            _sprites.DrawTargetIndicator(player.Target.Position, player.Target.Radius);
+            _sprites.DrawTargetIndicator(player.Target);
         if (player.DockTarget != null)
-            _sprites.DrawTargetIndicator(player.DockTarget.Position, player.DockTarget.Radius);
+            _sprites.DrawTargetIndicator(player.DockTarget);
 
         _debug.Draw(sys, player);
     }

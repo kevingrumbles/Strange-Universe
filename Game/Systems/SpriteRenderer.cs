@@ -202,14 +202,27 @@ public class SpriteRenderer
     }
 
     /// <summary>
-    /// A subtle square outline around a targeted ship or planet, in world space. Its line stays about the same width on screen at any zoom.
+    /// A subtle square outline around a targeted ship, sized to the sprite that is drawn for it (not its collision radius, which is smaller).
     /// </summary>
-    public void DrawTargetIndicator(Vector2 position, float radius)
+    public void DrawTargetIndicator(Ship ship) =>
+        DrawTargetSquare(ship.Position, ship.Radius * ShipSpriteHalfExtent * ship.ShipType.Appearance.SpriteScale);
+
+    /// <summary>A subtle square outline around a planet targeted for landing, sized to the planet as drawn.</summary>
+    public void DrawTargetIndicator(Planet planet) => DrawTargetSquare(planet.Position, planet.Radius);
+
+    /// <summary>A ship sprite is drawn <c>radius * 2.2 * SpriteScale</c> wide, so half of that from its centre.</summary>
+    private const float ShipSpriteHalfExtent = 1.1f;
+
+    /// <summary>
+    /// The square itself: <paramref name="halfExtent"/> is how far the target's drawn size reaches from its centre; the square sits a small margin
+    /// outside it. Its line stays about the same width and margin on screen at any zoom.
+    /// </summary>
+    private void DrawTargetSquare(Vector2 position, float halfExtent)
     {
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         float zoom = Math.Max(_camera.Zoom, 0.01f);
-        float half = radius * 1.3f + 8f / zoom;
+        float half = halfExtent + 8f / zoom;
         float line = 1.5f / zoom;
         Color color = new Color(170, 215, 255) * 0.45f;
         float side = half * 2f;
