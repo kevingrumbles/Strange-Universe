@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Strange_Universe;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.PlanetComponents;
 using System;
 using System.Text.Json.Serialization;
 using static Strange_Universe.NameGenerator;
@@ -47,6 +48,12 @@ public class Planet
     public string Id { get; }
     public GravityWell GravityWell { get; private set; }
 
+    /// <summary>What a docked ship can do here; null when the planet has no spaceport and cannot be docked at. Never set on a gas giant.</summary>
+    public Spaceport Spaceport { get; }
+
+    /// <summary>The chance that a planet that can have a spaceport (anything but a gas giant) has one.</summary>
+    public const float SpaceportChance = 0.5f;
+
     public Planet(string planetId, float minPlanetRadius, float maxPlanetRadius, float minOrbit, float maxOrbit, int planetNumber, int totalPlanets)
     {
         Id = planetId;
@@ -88,6 +95,25 @@ public class Planet
         float wellRadius = Radius * MathHelper.Lerp(8f, 15f, (float)planetRng.NextDouble());
         float wellStrength = MathHelper.Lerp(0.3f, 0.6f, (float)planetRng.NextDouble()) * densityMultiplier;
         GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);
+
+        Spaceport = RollSpaceport();
+    }
+
+    /// <summary>
+    /// A planet other than a gas giant has a spaceport with probability <see cref="SpaceportChance"/>. The roll has its own seeded generator, so it
+    /// does not disturb the draws that generate the planet itself.
+    /// </summary>
+    private Spaceport RollSpaceport()
+    {
+        if (Type == PlanetType.GasGiant)
+            return null;
+
+        var rng = new Random(ProceduralHelpers.SeedHash($"{Id}_spaceport"));
+        if (rng.NextDouble() >= SpaceportChance)
+            return null;
+
+        return new Spaceport("Landing pads, a fuel dock and a repair yard.",
+            new SpaceportService[] { new RefuelService(), new RepairService() });
     }
 
 }
