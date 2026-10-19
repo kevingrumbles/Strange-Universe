@@ -189,6 +189,7 @@ public class Universe : IDisposable
 
         Player.Navigator.Clear();
         Player.Velocity = Vector2.Zero;
+        Player.ClearDockTarget();
 
         DockedAt = planet;
         _activeStarSystem = null;
@@ -219,19 +220,22 @@ public class Universe : IDisposable
     }
 
     /// <summary>
-    /// A hint for the HUD while the player is flying near a planet they could dock at: "L: dock at X", or "Slow down to dock at X" when they are
-    /// in range but too fast. Null when there is nothing to hint at (or while docked).
+    /// A hint for the HUD about the spaceport the player has targeted: "L: dock at X" when they can dock now, "Slow down to dock at X" when they are in
+    /// range but too fast. Null when nothing is targeted, the target is out of range, or the player is docked.
     /// </summary>
     public string DockingHint()
     {
         if (IsDocked)
             return null;
 
-        var option = ActiveStarSystem.FindDockingPlanet(Player);
-        return option.Check switch
+        var target = Player.DockTarget;
+        if (target == null)
+            return null;
+
+        return target.CheckDocking(Player) switch
         {
-            DockingCheck.Ok => $"L: dock at {option.Planet.Name}",
-            DockingCheck.TooFast => $"Slow down to dock at {option.Planet.Name}",
+            DockingCheck.Ok => $"L: dock at {target.Name}",
+            DockingCheck.TooFast => $"Slow down to dock at {target.Name}",
             _ => null,
         };
     }

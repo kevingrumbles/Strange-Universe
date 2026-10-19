@@ -435,6 +435,8 @@ public class SpriteRenderer
         {
             // A small round disc with a dark center pixel, so planets read as round bodies and cannot be mistaken for the solid square dots of ships
             Vector2 planetMap = WorldToMap(planet.Position);
+            if (ReferenceEquals(planet, universe.Player.DockTarget))
+                Disc(planetMap, 5.5f, new Color(80, 255, 220) * 0.8f); // halo around the spaceport targeted for docking
             Disc(planetMap, 2f, ProceduralHelpers.PlanetMinimapColor(planet.Type));
             Dot(planetMap, 1, new Color(0, 5, 18));
         }

@@ -45,50 +45,101 @@ public class DockingStateTests
         return messages.FirstOrDefault();
     }
 
-    // -- the L key -----------------------------------------------------------------
+    // -- the L key: the first press targets, the next one docks -----------------------
 
     [Fact]
-    public void PressingDock_NearlyStopped_InRange_Docks()
+    public void PressingDock_WithNothingTargeted_TargetsTheSpaceport_AndDoesNotDock()
+    {
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet);
+
+        string message = FirstMessage(u, () => u.Update(Dt, PressDock));
+
+        Assert.False(u.IsDocked);
+        Assert.Same(planet, u.Player.DockTarget);
+        Assert.Equal($"Targeted {planet.Name}", message);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void PressingDockAgain_NearlyStopped_InRange_Docks_AndClearsTheTarget()
     {
         var planet = PlanetWith(spaceport: true);
         var u = Started(planet);
         var docked = new List<PlayerDocked>();
         using var _ = u.Events.Subscribe<PlayerDocked>(docked.Add);
 
-        u.Update(Dt, PressDock);
+        u.Update(Dt, PressDock); // target
+        u.Update(Dt, PressDock); // dock
 
         Assert.True(u.IsDocked);
         Assert.Same(planet, u.DockedAt);
         Assert.Single(docked);
         Assert.Same(planet, docked[0].Planet);
+        Assert.Null(u.Player.DockTarget);
         u.Dispose();
     }
 
     [Fact]
-    public void PressingDock_TooFast_RefusesWithAMessage()
+    public void PressingDock_TargetsTheNearestSpaceport_WhereverItIs()
+    {
+        var near = PlanetWith(spaceport: true);
+        var far = Enumerable.Range(0, 1000).Select(i => new Planet($"other_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
+                            .First(p => p.Spaceport != null);
+        var u = Started(near, surfaceDistance: 4000f); // well out of docking range of both
+        far.Position = new Vector2(-9000f, 6000f);
+        u.ActiveStarSystem.Planets.Add(far);
+        var noPort = PlanetWith(spaceport: false);
+        noPort.Position = u.Player.Position + new Vector2(5f, 0f); // right next to the player, but no spaceport
+        u.ActiveStarSystem.Planets.Add(noPort);
+
+        u.Update(Dt, PressDock);
+
+        Assert.Same(near, u.Player.DockTarget);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void PressingDock_InASystemWithNoSpaceport_SaysSo_AndTargetsNothing()
+    {
+        var noPort = Started(PlanetWith(spaceport: false));
+
+        string message = FirstMessage(noPort, () => noPort.Update(Dt, PressDock));
+
+        Assert.Equal("No spaceport in this system", message);
+        Assert.Null(noPort.Player.DockTarget);
+        Assert.False(noPort.IsDocked);
+        noPort.Dispose();
+    }
+
+    [Fact]
+    public void PressingDockAgain_TooFast_RefusesWithAMessage_AndKeepsTheTarget()
     {
         var planet = PlanetWith(spaceport: true);
         var u = Started(planet, speed: Planet.MaxDockSpeed + 50f);
+        u.Update(Dt, PressDock);
 
         string message = FirstMessage(u, () => u.Update(Dt, PressDock));
 
         Assert.False(u.IsDocked);
         Assert.Equal("Too fast to dock", message);
+        Assert.Same(planet, u.Player.DockTarget);
         u.Dispose();
     }
 
     [Fact]
-    public void PressingDock_OutOfRange_OrAtAPlanetWithoutASpaceport_RefusesWithAMessage()
+    public void PressingDockAgain_OutOfRange_RefusesWithAMessage_AndKeepsTheTarget()
     {
-        var far = Started(PlanetWith(spaceport: true), surfaceDistance: Planet.DockRange + 2000f);
-        Assert.Equal("Nothing to dock with in range", FirstMessage(far, () => far.Update(Dt, PressDock)));
-        Assert.False(far.IsDocked);
-        far.Dispose();
+        var planet = PlanetWith(spaceport: true);
+        var u = Started(planet, surfaceDistance: Planet.DockRange + 2000f);
+        u.Update(Dt, PressDock);
 
-        var noPort = Started(PlanetWith(spaceport: false));
-        Assert.Equal("Nothing to dock with in range", FirstMessage(noPort, () => noPort.Update(Dt, PressDock)));
-        Assert.False(noPort.IsDocked);
-        noPort.Dispose();
+        string message = FirstMessage(u, () => u.Update(Dt, PressDock));
+
+        Assert.False(u.IsDocked);
+        Assert.Equal($"{planet.Name} is out of docking range", message);
+        Assert.Same(planet, u.Player.DockTarget);
+        u.Dispose();
     }
 
     [Fact]
@@ -99,6 +150,20 @@ public class DockingStateTests
         u.Update(Dt, new InputState());
 
         Assert.False(u.IsDocked);
+        Assert.Null(u.Player.DockTarget);
+        u.Dispose();
+    }
+
+    [Fact]
+    public void TheTarget_IsForgottenWhenThePlayerIsInAnotherSystem()
+    {
+        var u = Started(PlanetWith(spaceport: true));
+        u.Update(Dt, PressDock);
+        Assert.NotNull(u.Player.DockTarget);
+
+        u.EnterSystem(u.StarSystemNodes[0]); // the system is built again, so the old planet is not in it
+
+        Assert.Null(u.Player.DockTarget);
         u.Dispose();
     }
 
@@ -210,7 +275,8 @@ public class DockingStateTests
         var rebuiltPlanet = u.ActiveStarSystem.Planets.First(p => p.Spaceport != null);
         u.Player.Position = rebuiltPlanet.Position + new Vector2(rebuiltPlanet.Radius + 40f, 0f);
 
-        u.Update(Dt, PressDock);
+        u.Update(Dt, PressDock); // target
+        u.Update(Dt, PressDock); // dock
 
         Assert.True(u.IsDocked);
         u.Dispose();
@@ -271,17 +337,20 @@ public class DockingStateTests
     // -- the HUD hint ------------------------------------------------------------------------
 
     [Fact]
-    public void TheDockingHint_NamesThePlanet_WhenInRange_AndAsksForLessSpeedWhenTooFast()
+    public void TheDockingHint_FollowsTheTarget_NamesThePlanet_AndAsksForLessSpeedWhenTooFast()
     {
         var planet = PlanetWith(spaceport: true);
         var u = Started(planet);
+        Assert.Null(u.DockingHint()); // nothing targeted yet
+
+        u.Update(Dt, PressDock);      // target it
         Assert.Equal($"L: dock at {planet.Name}", u.DockingHint());
 
         u.Player.Velocity = new Vector2(0f, Planet.MaxDockSpeed + 20f);
         Assert.Equal($"Slow down to dock at {planet.Name}", u.DockingHint());
 
         u.Player.Position = planet.Position + new Vector2(planet.Radius + Planet.DockRange + 1000f, 0f);
-        Assert.Null(u.DockingHint());
+        Assert.Null(u.DockingHint()); // out of range: no hint
 
         u.Player.Velocity = Vector2.Zero;
         u.Player.Position = planet.Position + new Vector2(planet.Radius + 10f, 0f);

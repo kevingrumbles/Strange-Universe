@@ -99,32 +99,26 @@ public class StarSystem : IWorldContext
     [JsonIgnore] public SystemSpatialQueries Spatial { get; }
 
     /// <summary>
-    /// The planet with a spaceport nearest <paramref name="ship"/> that is within docking range, with the result of its check (<see cref="DockingCheck.Ok"/>
-    /// or <see cref="DockingCheck.TooFast"/>). When none is in range the planet is null, and the check says <see cref="DockingCheck.OutOfRange"/>, or
-    /// <see cref="DockingCheck.NoSpaceport"/> when no planet in the system has a spaceport at all.
+    /// The planet with a spaceport nearest <paramref name="position"/> (by distance to its surface), wherever it is in the system; null when no planet
+    /// here has a spaceport.
     /// </summary>
-    public DockingOption FindDockingPlanet(Ship ship)
+    public Planet NearestSpaceport(Vector2 position)
     {
         Planet nearest = null;
         float nearestSurface = float.MaxValue;
-        bool anySpaceport = false;
 
         foreach (var planet in Planets)
         {
             if (planet.Spaceport == null) continue;
-            anySpaceport = true;
 
-            float surface = Vector2.Distance(ship.Position, planet.Position) - planet.Radius;
-            if (surface <= Planet.DockRange && surface < nearestSurface)
+            float surface = Vector2.Distance(position, planet.Position) - planet.Radius;
+            if (surface < nearestSurface)
             {
                 nearest = planet;
                 nearestSurface = surface;
             }
         }
-
-        if (nearest != null)
-            return new DockingOption(nearest, nearest.CheckDocking(ship));
-        return new DockingOption(null, anySpaceport ? DockingCheck.OutOfRange : DockingCheck.NoSpaceport);
+        return nearest;
     }
 
     public void Update(float deltaTime, InputState input)

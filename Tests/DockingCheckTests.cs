@@ -75,61 +75,42 @@ public class DockingCheckTests
         Assert.Equal(DockingCheck.NoSpaceport, planet.CheckDocking(ShipAt(planet, 10f)));
     }
 
-    // -- finding the planet to dock at ------------------------------------------
+    // -- finding the nearest spaceport ---------------------------------------------
 
-    private static (NavSim sim, Planet near, Planet far) SystemWithTwoSpaceports()
-    {
-        var sim = new NavSim();
-        var withPort = Enumerable.Range(0, 1000).Select(i => new Planet($"find_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
-                                 .Where(p => p.Spaceport != null).Take(2).ToList();
-        withPort[0].Position = new Vector2(0f, 0f);
-        withPort[1].Position = new Vector2(1000f, 0f);
-        sim.System.Planets.Clear();
-        sim.System.Planets.AddRange(withPort);
-        return (sim, withPort[0], withPort[1]);
-    }
+    private static Planet[] TwoSpaceports() =>
+        Enumerable.Range(0, 1000).Select(i => new Planet($"find_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
+                  .Where(p => p.Spaceport != null).Take(2).ToArray();
 
     [Fact]
-    public void FindDockingPlanet_ReturnsTheNearestSpaceportInRange_WithItsCheck()
-    {
-        var (sim, near, far) = SystemWithTwoSpaceports();
-        using var _ = sim;
-        sim.Ship.Position = near.Position + new Vector2(near.Radius + 40f, 0f);
-        sim.Ship.Velocity = Vector2.Zero;
-
-        var option = sim.System.FindDockingPlanet(sim.Ship);
-
-        Assert.Same(near, option.Planet);
-        Assert.Equal(DockingCheck.Ok, option.Check);
-
-        sim.Ship.Velocity = new Vector2(0f, Planet.MaxDockSpeed + 5f);
-        Assert.Equal(DockingCheck.TooFast, sim.System.FindDockingPlanet(sim.Ship).Check); // still the same planet, now refused
-        Assert.Same(near, sim.System.FindDockingPlanet(sim.Ship).Planet);
-    }
-
-    [Fact]
-    public void FindDockingPlanet_WithNothingInRange_SaysSo()
-    {
-        var (sim, near, _) = SystemWithTwoSpaceports();
-        using var _ = sim;
-        sim.Ship.Position = near.Position + new Vector2(0f, 20000f);
-
-        var option = sim.System.FindDockingPlanet(sim.Ship);
-
-        Assert.Null(option.Planet);
-        Assert.Equal(DockingCheck.OutOfRange, option.Check);
-    }
-
-    [Fact]
-    public void FindDockingPlanet_InASystemWithNoSpaceports_SaysNoSpaceport()
+    public void NearestSpaceport_IsTheClosestToTheSurface_WhateverTheRange()
     {
         using var sim = new NavSim();
+        var ports = TwoSpaceports();
+        ports[0].Position = new Vector2(0f, 0f);
+        ports[1].Position = new Vector2(1000000f, 0f);
         sim.System.Planets.Clear();
-        sim.System.Planets.Add(PlanetWith(spaceport: false));
+        sim.System.Planets.AddRange(new[] { ports[1], ports[0] });
 
-        var option = sim.System.FindDockingPlanet(sim.Ship);
+        Assert.Same(ports[0], sim.System.NearestSpaceport(new Vector2(400000f, 0f)));
+        Assert.Same(ports[1], sim.System.NearestSpaceport(new Vector2(600000f, 0f)));
+        Assert.Same(ports[0], sim.System.NearestSpaceport(new Vector2(0f, 90000f))); // far beyond any docking range, still the nearest
+    }
 
-        Assert.Null(option.Planet);
-        Assert.Equal(DockingCheck.NoSpaceport, option.Check);
+    [Fact]
+    public void NearestSpaceport_SkipsPlanetsWithoutOne_AndIsNullWhenThereAreNone()
+    {
+        using var sim = new NavSim();
+        var withPort = TwoSpaceports()[0];
+        var without = Enumerable.Range(0, 1000).Select(i => new Planet($"find_none_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
+                                .First(p => p.Spaceport == null);
+        withPort.Position = new Vector2(8000f, 0f);
+        without.Position = Vector2.Zero;
+        sim.System.Planets.Clear();
+        sim.System.Planets.AddRange(new[] { without, withPort });
+
+        Assert.Same(withPort, sim.System.NearestSpaceport(Vector2.Zero)); // the planet with no spaceport is closer, and ignored
+
+        sim.System.Planets.Remove(withPort);
+        Assert.Null(sim.System.NearestSpaceport(Vector2.Zero));
     }
 }

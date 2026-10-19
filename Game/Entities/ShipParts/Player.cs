@@ -133,23 +133,42 @@ public class Player : Ship
     }
 
     // -- Docking (L) ---------------------------------------------------------------
-    // Docks at the nearest planet with a spaceport in range when nearly stopped; the planet decides (Planet.CheckDocking).
+    // L with no spaceport targeted targets the nearest one in the system. L with one targeted starts the docking process:
+    // the planet decides whether the ship can dock now (Planet.CheckDocking) and the ship docks, or is told why not.
+
+    private Planet _dockTarget;
+
+    /// <summary>The planet with a spaceport the player has targeted for docking; null when none (or when it is not in the player's current system). Not saved.</summary>
+    [JsonIgnore]
+    public Planet DockTarget =>
+        _dockTarget != null && StarSystem != null && StarSystem.Planets.Contains(_dockTarget) ? _dockTarget : null;
+
+    public void ClearDockTarget() => _dockTarget = null;
 
     private void HandleDock(InputState input)
     {
         if (!input.Dock || HasActiveNavTask || StarSystem == null) return;
 
-        var option = StarSystem.FindDockingPlanet(this);
-        switch (option.Check)
+        var messages = StarSystem.Universe.Messages;
+        var target = DockTarget;
+
+        if (target == null)
+        {
+            _dockTarget = StarSystem.NearestSpaceport(Position);
+            messages.Post(_dockTarget != null ? $"Targeted {_dockTarget.Name}" : "No spaceport in this system");
+            return;
+        }
+
+        switch (target.CheckDocking(this))
         {
             case DockingCheck.Ok:
-                StarSystem.Universe.Dock(option.Planet);
+                StarSystem.Universe.Dock(target);
                 break;
             case DockingCheck.TooFast:
-                StarSystem.Universe.Messages.Post("Too fast to dock");
+                messages.Post("Too fast to dock");
                 break;
             default:
-                StarSystem.Universe.Messages.Post("Nothing to dock with in range");
+                messages.Post($"{target.Name} is out of docking range");
                 break;
         }
     }

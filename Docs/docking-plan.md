@@ -79,10 +79,18 @@ and ignores the map and flight keys. Escape behaves as it does in flight (back t
 
 1. The numbers: **range 300 from the planet's surface, max dock speed 5 units/s**, and **a 50% chance** that a non-gas-giant planet has a spaceport.
 
+## Update: targeting before docking
+
+`L` is now two steps. With no spaceport targeted, `L` targets the nearest planet with a spaceport in the system (`StarSystem.NearestSpaceport`, by distance to the surface, any distance) and says
+"Targeted <planet>" (or "No spaceport in this system"). With one targeted (`Player.DockTarget`, runtime only, forgotten when the player is in another system), `L` starts the docking process:
+`Planet.CheckDocking` decides; Ok docks (and clears the target), otherwise "Too fast to dock" or "<planet> is out of docking range" and the target stays. The HUD hint follows the target
+("L: dock at X", "Slow down to dock at X"), and the targeted planet has a halo on the minimap. `StarSystem.FindDockingPlanet` and `DockingOption` were removed.
+There is no key to un-target yet: the target clears on docking or leaving the system.
+
 ## Status
 
 Steps 1-5 are built, with tests; the docked screen itself (drawing, keys) has only been compiled, not played. The numbers are the defaults: range 300 from the surface,
 max dock speed 5, a 50% spaceport chance (`Planet.DockRange`, `Planet.MaxDockSpeed`, `Planet.SpaceportChance`). Menu keys: Up/Down or W/S, Enter; Escape goes to the main menu (which saves).
 
-Manual check list: fly to a planet with a spaceport (the HUD says "L: dock at ..."); too fast says "Slow down to dock at ..." and L says "Too fast to dock"; stop and press L; refuel and repair
+Manual check list: press L (a spaceport is targeted and haloed on the minimap), fly to it (the HUD says "L: dock at ..."); too fast says "Slow down to dock at ..." and L says "Too fast to dock"; stop and press L; refuel and repair
 from the menu; undock (back at the same spot, at rest, shields full); dock, quit to the menu and load: the ship is in space where it docked.

@@ -15,6 +15,3 @@ public enum DockingCheck
     /// <summary>In range, but moving faster than <see cref="Planet.MaxDockSpeed"/>.</summary>
     TooFast,
 }
-
-/// <summary>The planet a ship could dock at, and the result of its check. The planet is null when none has a spaceport in range.</summary>
-public readonly record struct DockingOption(Planet Planet, DockingCheck Check);
