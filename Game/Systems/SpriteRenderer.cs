@@ -202,38 +202,73 @@ public class SpriteRenderer
     }
 
     /// <summary>
-    /// A subtle square outline around a targeted ship, sized to the sprite that is drawn for it (not its collision radius, which is smaller).
+    /// Targeting brackets around a targeted ship, sized to the sprite that is drawn for it (not its collision radius, which is smaller).
     /// </summary>
     public void DrawTargetIndicator(Ship ship) =>
-        DrawTargetSquare(ship.Position, ship.Radius * ShipSpriteHalfExtent * ship.ShipType.Appearance.SpriteScale);
+        DrawTargetBrackets(ship.Position, ship.Radius * ShipSpriteHalfExtent * ship.ShipType.Appearance.SpriteScale);
 
-    /// <summary>A subtle square outline around a planet targeted for landing, sized to the planet as drawn.</summary>
-    public void DrawTargetIndicator(Planet planet) => DrawTargetSquare(planet.Position, planet.Radius);
+    /// <summary>Targeting brackets around a planet targeted for landing, sized to the planet as drawn.</summary>
+    public void DrawTargetIndicator(Planet planet) => DrawTargetBrackets(planet.Position, planet.Radius);
 
     /// <summary>A ship sprite is drawn <c>radius * 2.2 * SpriteScale</c> wide, so half of that from its centre.</summary>
     private const float ShipSpriteHalfExtent = 1.1f;
 
+    private static readonly Color TargetColor = new(170, 215, 255);
+
     /// <summary>
-    /// The square itself: <paramref name="halfExtent"/> is how far the target's drawn size reaches from its centre; the square sits a small margin
-    /// outside it. Its line stays about the same width and margin on screen at any zoom.
+    /// The targeting brackets: <paramref name="halfExtent"/> is how far the target's drawn size reaches from its centre, and the brackets sit a small margin
+    /// outside it. Each of the four corners is a chamfered bracket drawn twice, an inner line and, just outside it, a fainter outer line, like the
+    /// targeting overlay of a starship's viewscreen. Line widths and gaps keep the same size on screen at any zoom.
     /// </summary>
-    private void DrawTargetSquare(Vector2 position, float halfExtent)
+    private void DrawTargetBrackets(Vector2 position, float halfExtent)
     {
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
         float zoom = Math.Max(_camera.Zoom, 0.01f);
-        float half = halfExtent + 8f / zoom;
-        float line = 1.5f / zoom;
-        Color color = new Color(170, 215, 255) * 0.45f;
-        float side = half * 2f;
+        float inner = halfExtent + 8f / zoom;
+        float outer = inner + 4f / zoom;
 
-        void Bar(float x, float y, float w, float h) =>
-            _spriteBatch.Draw(_pixel, new Vector2(x, y), null, color, 0f, Vector2.Zero, new Vector2(w, h), SpriteEffects.None, 0f);
+        DrawBrackets(position, inner, armFraction: 0.34f, TargetColor * 0.65f, 1.6f / zoom);
+        DrawBrackets(position, outer, armFraction: 0.34f, TargetColor * 0.22f, 1.1f / zoom);
+    }
 
-        Bar(position.X - half, position.Y - half, side, line);               // top
-        Bar(position.X - half, position.Y + half - line, side, line);        // bottom
-        Bar(position.X - half, position.Y - half, line, side);               // left
-        Bar(position.X + half - line, position.Y - half, line, side);        // right
+    /// <summary>The four corner brackets of a square of half-size <paramref name="half"/>, each an arm, a diagonal cut across the corner, and an arm.</summary>
+    private void DrawBrackets(Vector2 center, float half, float armFraction, Color color, float thickness)
+    {
+        float arm = half * 2f * armFraction;
+        float cut = arm * 0.3f; // how far the diagonal cuts into the corner along each side
+
+        for (int sx = -1; sx <= 1; sx += 2)
+        {
+            for (int sy = -1; sy <= 1; sy += 2)
+            {
+                Vector2 P(float x, float y) => center + new Vector2(sx * x, sy * y);
+
+                var armEndA   = P(half, half - arm);
+                var cutStartA = P(half, half - cut);
+                var cutEndB   = P(half - cut, half);
+                var armEndB   = P(half - arm, half);
+
+                DrawWorldLine(armEndA, cutStartA, color, thickness);
+                DrawWorldLine(cutStartA, cutEndB, color, thickness);
+                DrawWorldLine(cutEndB, armEndB, color, thickness);
+            }
+        }
+    }
+
+    /// <summary>A straight line segment in world space, a little longer than its ends so joined segments leave no gap.</summary>
+    private void DrawWorldLine(Vector2 from, Vector2 to, Color color, float thickness)
+    {
+        Vector2 delta = to - from;
+        float length = delta.Length();
+        if (length < 0.0001f) return;
+
+        float angle = MathF.Atan2(delta.Y, delta.X);
+        Vector2 direction = delta / length;
+        Vector2 start = from - direction * (thickness * 0.5f);
+
+        _spriteBatch.Draw(_pixel, start, null, color, angle, new Vector2(0f, 0.5f),
+            new Vector2(length + thickness, thickness), SpriteEffects.None, 0f);
     }
 
     public void DrawStar(Star star) =>
