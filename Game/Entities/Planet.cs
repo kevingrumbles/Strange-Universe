@@ -3,6 +3,7 @@ using Strange_Universe;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.PlanetComponents;
+using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Text.Json.Serialization;
 using static Strange_Universe.NameGenerator;
@@ -53,6 +54,27 @@ public class Planet
 
     /// <summary>The chance that a planet that can have a spaceport (anything but a gas giant) has one.</summary>
     public const float SpaceportChance = 0.5f;
+
+    /// <summary>How close to the planet's surface (not its centre) a ship has to be to dock.</summary>
+    public const float DockRange = 300f;
+
+    /// <summary>The fastest a ship can be moving and still dock, in units per second: stopped, or almost.</summary>
+    public const float MaxDockSpeed = 5f;
+
+    /// <summary>
+    /// Whether <paramref name="ship"/> can dock here now. The planet decides this alone: it needs a spaceport, the ship within <see cref="DockRange"/>
+    /// of its surface and moving no faster than <see cref="MaxDockSpeed"/>. Range is checked before speed.
+    /// </summary>
+    public DockingCheck CheckDocking(Ship ship)
+    {
+        if (Spaceport == null)
+            return DockingCheck.NoSpaceport;
+        if (Vector2.Distance(ship.Position, Position) - Radius > DockRange)
+            return DockingCheck.OutOfRange;
+        if (ship.Speed > MaxDockSpeed)
+            return DockingCheck.TooFast;
+        return DockingCheck.Ok;
+    }
 
     public Planet(string planetId, float minPlanetRadius, float maxPlanetRadius, float minOrbit, float maxOrbit, int planetNumber, int totalPlanets)
     {
