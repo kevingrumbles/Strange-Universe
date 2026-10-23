@@ -1,12 +1,9 @@
 using Microsoft.Xna.Framework;
-using Strange_Universe;
-using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.PlanetComponents;
 using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Text.Json.Serialization;
-using static Strange_Universe.NameGenerator;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -59,7 +56,7 @@ public class Planet
     public const float DockRange = 300f;
 
     /// <summary>The fastest a ship can be moving and still dock, in units per second: stopped, or almost.</summary>
-    public const float MaxDockSpeed = 5f;
+    public const float MaxDockSpeed = 20f;
 
     /// <summary>
     /// Whether <paramref name="ship"/> can dock here now. The planet decides this alone: it needs a spaceport, the ship within <see cref="DockRange"/>
