@@ -35,6 +35,21 @@ public abstract class EquipmentComponent
 
     public float Mass { get; set; }
 
+    /// <summary>What the item costs at a spaceport, and what it counts for in a trade-in or a sale.</summary>
+    public int Price { get; set; }
+
+    /// <summary>Which of a ship's equipment limits the item counts against; null for an item that is no longer a known item.</summary>
+    public SlotKind? Slot => EquipmentType switch
+    {
+        EquipmentType.FixedProjectile or EquipmentType.TurretProjectile or EquipmentType.FixedBeam or
+        EquipmentType.TurretBeam or EquipmentType.FixedMissile or EquipmentType.TurretMissile => SlotKind.Weapon,
+        EquipmentType.Shield  => SlotKind.Shield,
+        EquipmentType.Hull    => SlotKind.Plating,
+        EquipmentType.Engine  => SlotKind.Engine,
+        EquipmentType.Utility => SlotKind.Utility,
+        _ => null,
+    };
+
     private protected EquipmentComponent(EquipmentType type)
     {
         EquipmentType = type;

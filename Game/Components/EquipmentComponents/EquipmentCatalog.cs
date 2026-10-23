@@ -16,6 +16,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent LightLaser => new(EquipmentType.FixedProjectile)
     {
         EquipmentName       = "Light Laser",
+        Price = 150,
         Damage              = 15,
         ProjectileSpeed     = 2000f,
         Range               = 1500f,
@@ -32,6 +33,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent HeavyLaser => new(EquipmentType.FixedProjectile)
     {
         EquipmentName       = "Heavy Laser",
+        Price = 400,
         Damage              = 35,
         ProjectileSpeed     = 1800f,
         Range               = 2000f,
@@ -53,6 +55,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent PulseCannon => new(EquipmentType.TurretProjectile)
     {
         EquipmentName       = "Pulse Cannon",
+        Price = 300,
         Damage              = 20,
         ProjectileSpeed     = 1500f,
         Range               = 1200f,
@@ -74,6 +77,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent GatlingGun => new(EquipmentType.FixedProjectile)
     {
         EquipmentName       = "Gatling Gun",
+        Price = 350,
         Damage              = 8,
         ProjectileSpeed     = 2500f,
         Range               = 1000f,
@@ -95,6 +99,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent PlasmaGun => new(EquipmentType.FixedProjectile)
     {
         EquipmentName = "Plasma Gun",
+        Price = 450,
         Damage = 35,
         ProjectileSpeed = 1800f,
         Range = 2000f,
@@ -126,6 +131,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent PlasmaBeam => new(EquipmentType.FixedBeam)
     {
         EquipmentName       = "Plasma Beam",
+        Price = 700,
         Damage              = 50,
         Range               = 2500f,
         EnergyCost          = 40f,
@@ -145,6 +151,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent MiningBeam => new(EquipmentType.TurretBeam)
     {
         EquipmentName       = "Mining Beam",
+        Price = 200,
         Damage              = 5,
         Range               = 800f,
         EnergyCost          = 15f,
@@ -164,6 +171,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent LightMissile => new(EquipmentType.FixedMissile)
     {
         EquipmentName   = "Light Missile",
+        Price = 300,
         Damage          = 80,
         ProjectileSpeed = 500f,
         Range           = 3000f,
@@ -175,6 +183,7 @@ internal static class EquipmentCatalog
     public static WeaponComponent HeavyTorpedo => new(EquipmentType.TurretMissile)
     {
         EquipmentName   = "Heavy Torpedo",
+        Price = 800,
         Damage          = 200,
         ProjectileSpeed = 300f,
         Range           = 5000f,
@@ -188,6 +197,7 @@ internal static class EquipmentCatalog
     public static ShieldComponent BasicShieldGenerator => new()
     {
         EquipmentName = "Basic Shield Generator",
+        Price = 200,
         ShieldStrength = 25f,
         RechargeRate   = 5f,
         RechargeDelay  = 5f,
@@ -198,6 +208,7 @@ internal static class EquipmentCatalog
     public static ShieldComponent AdvancedShieldGenerator => new()
     {
         EquipmentName = "Advanced Shield Generator",
+        Price = 600,
         ShieldStrength = 60f,
         RechargeRate   = 10f,
         RechargeDelay  = 3f,
@@ -208,6 +219,7 @@ internal static class EquipmentCatalog
     public static ShieldComponent MilitaryShieldGenerator => new()
     {
         EquipmentName = "Military Shield Generator",
+        Price = 1500,
         ShieldStrength = 125f,
         RechargeRate   = 16f,
         RechargeDelay  = 2f,
@@ -220,6 +232,7 @@ internal static class EquipmentCatalog
     public static PlatingComponent LightHullPlating => new()
     {
         EquipmentName = "Light Hull Plating",
+        Price = 100,
         HullStrength  = 25f,
         Mass          = 150f,
     };
@@ -227,6 +240,7 @@ internal static class EquipmentCatalog
     public static PlatingComponent ReinforcedHull => new()
     {
         EquipmentName = "Reinforced Hull",
+        Price = 350,
         HullStrength  = 65f,
         Mass          = 400f,
     };
@@ -234,6 +248,7 @@ internal static class EquipmentCatalog
     public static PlatingComponent MilitaryArmor => new()
     {
         EquipmentName = "Military Armor",
+        Price = 900,
         HullStrength  = 125f,
         Mass          = 800f,
     };
@@ -243,6 +258,7 @@ internal static class EquipmentCatalog
     public static EngineComponent StandardEngine => new()
     {
         EquipmentName = "Standard Engine",
+        Price = 300,
         EngineThrust  = 1000f,
         FuelLevel     = 100f,
         Mass          = 300f,
@@ -251,6 +267,7 @@ internal static class EquipmentCatalog
     public static EngineComponent HighPerformanceEngine => new()
     {
         EquipmentName = "High-Performance Engine",
+        Price = 800,
         EngineThrust  = 2000f,
         FuelLevel     = 80f,
         Mass          = 450f,
@@ -259,6 +276,7 @@ internal static class EquipmentCatalog
     public static EngineComponent EfficientEngine => new()
     {
         EquipmentName = "Efficient Engine",
+        Price = 500,
         EngineThrust  = 1200f,
         FuelLevel     = 150f,
         Mass          = 350f,
@@ -269,12 +287,14 @@ internal static class EquipmentCatalog
     public static UtilityComponent CargoExpander => new()
     {
         EquipmentName = "Cargo Expander",
+        Price = 100,
         Mass          = 100f,
     };
 
     public static UtilityComponent SensorArray => new()
     {
         EquipmentName = "Sensor Array",
+        Price = 150,
         EnergyCost    = 5f,
         Mass          = 75f,
     };
@@ -282,6 +302,7 @@ internal static class EquipmentCatalog
     public static UtilityComponent AutoRepairModule => new()
     {
         EquipmentName = "Auto-Repair Module",
+        Price = 400,
         EnergyCost    = 15f,
         Mass          = 150f,
     };
@@ -289,7 +310,7 @@ internal static class EquipmentCatalog
     /// <summary>How to build each built-in item. Every call builds a new object, so nothing is ever shared.</summary>
     private static readonly Func<EquipmentComponent>[] Builders =
     {
-        () => LightLaser, () => HeavyLaser, () => PulseCannon, () => GatlingGun, () => PlasmaBeam, () => MiningBeam,
+        () => LightLaser, () => HeavyLaser, () => PulseCannon, () => GatlingGun, () => PlasmaGun, () => PlasmaBeam, () => MiningBeam,
         () => LightMissile, () => HeavyTorpedo,
         () => BasicShieldGenerator, () => AdvancedShieldGenerator, () => MilitaryShieldGenerator,
         () => LightHullPlating, () => ReinforcedHull, () => MilitaryArmor,

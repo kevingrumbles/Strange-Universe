@@ -25,6 +25,15 @@ public sealed class Shuttle : ShipStats
 
         DefaultLoadout = new EquipmentComponent[] { EquipmentCatalog.LightLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.LightHullPlating };
         TypicalCredits = 100;
+        Price = 800;
+
+        Limits.MaxWeapons = 1;
+        Limits.MaxShields = 1;
+        Limits.MaxPlating = 1;
+        Limits.MaxEngines = 1;
+        Limits.MaxUtilities = 1;
+        Limits.MaxMass = 450f;
+
         FinishSetup();
     }
 }

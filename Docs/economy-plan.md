@@ -89,3 +89,13 @@ All the defaults were accepted:
 
 Step 1 (credits) is built: `Ship.Credits` with `CanAfford`, `TrySpend`, `Earn`; `Universe.StartingCredits`; `ShipStats.TypicalCredits` and `Nonplayer.RollCredits`;
 credits on the HUD and at the top of the spaceport screen. The sample save now has `"Credits": 120`, and a test removes it to check an old save loads with 0.
+
+Step 2 (prices, slot kinds and limits) is built: `SlotKind` and `EquipmentComponent.Slot`/`Price`; `LoadoutLimits` as `ShipStats.Limits` (values as decided above);
+`ShipStats.Price` (the ship alone) and `ListPrice` (the ship plus its default loadout); `Ship.CountOf`, `EquipmentMass`, `EquipmentValue`, `ShipValue`, `CheckInstall` (an `InstallCheck`: Ok, NoSlot, TooHeavy), `Install`, `Uninstall`.
+`ShipStats.BuiltIn()` lists every ship type (`FromName` uses it too).
+
+**One refinement for step 3:** `ShipStats.Price` is the ship without equipment, so buying a ship costs its **`ListPrice`** (ship plus the default loadout it arrives with) minus the player's `ShipValue` (current ship plus current equipment).
+Otherwise a new ship's free default loadout would be an exploit.
+
+Placeholder prices: Shuttle 800 (list 1250), Runner 2500 (list 3900); equipment from 100 (Cargo Expander, Light Hull Plating) to 1500 (Military Shield Generator). They need balancing once credits can be earned.
+The Plasma Gun was in the Runner's default loadout but missing from the catalog's list, so a saved Runner would have loaded it as an unknown item; it is in the list now.
