@@ -14,6 +14,14 @@ public sealed class ShieldComponent : EquipmentComponent
     private float? _strength; // null until it is first used: a new generator is at full strength
     private float _rechargeDelayLeft;
 
+    public override EquipmentComponent Clone()
+    {
+        var copy = (ShieldComponent)base.Clone();
+        copy._strength = null;
+        copy._rechargeDelayLeft = 0f;
+        return copy;
+    }
+
     public ShieldComponent() : base(EquipmentType.Shield) { }
 
     /// <summary>Energy used to run the shield.</summary>

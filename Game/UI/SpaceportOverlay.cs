@@ -23,6 +23,7 @@ public sealed class SpaceportOverlay : IDisposable
 
     private const float TitleScale = 1.6f;
     private const int   PanelWidth = 520;
+    private const int   StorePanelWidth = 780;
     private const int   Padding    = 28;
     private const int   RowHeight  = 34;
     private const int   ImageGap   = 14;
@@ -49,59 +50,74 @@ public sealed class SpaceportOverlay : IDisposable
 
         string title = menu.Planet.Name;
         string description = menu.Planet.Spaceport.Description;
-        var items = menu.Items;
+        var lines = menu.Lines;
+        string heading = menu.Heading;
+        int panelWidth = heading == null ? PanelWidth : StorePanelWidth; // a store lists long lines, so it gets a wider panel
         Vector2 titleSize = _font.MeasureString(title) * TitleScale;
         Vector2 descriptionSize = _font.MeasureString(description);
 
-        int textHeight = Padding * 2 + (int)titleSize.Y + 12 + (int)descriptionSize.Y + 28 + items.Count * RowHeight + 28 + 20;
+        int headingHeight = heading == null ? 0 : RowHeight;
+        int fixedHeight = Padding * 2 + (int)titleSize.Y + 12 + (int)descriptionSize.Y + 28 + headingHeight + 28 + 20;
+
+        // A long list (a store) shows a window of rows that follows the highlight, and drops the picture to make room.
+        int roomForRows = (screenHeight - ScreenMargin * 2 - fixedHeight) / RowHeight;
+        int visibleRows = Math.Max(3, Math.Min(lines.Count, heading == null ? lines.Count : roomForRows));
+        int firstRow = Math.Clamp(menu.Selected - visibleRows / 2, 0, Math.Max(0, lines.Count - visibleRows));
+        int textHeight = fixedHeight + visibleRows * RowHeight;
 
         // The picture is as wide as the panel's text area, shrunk when the screen is too short to fit it as well.
-        Texture2D art = ArtFor(menu.Planet.Type);
+        Texture2D art = heading == null ? ArtFor(menu.Planet.Type) : null;
         int imageSize = 0;
         if (art != null)
         {
-            imageSize = Math.Min(PanelWidth - Padding * 2, screenHeight - ScreenMargin * 2 - textHeight - ImageGap);
+            imageSize = Math.Min(panelWidth - Padding * 2, screenHeight - ScreenMargin * 2 - textHeight - ImageGap);
             if (imageSize < MinImage) imageSize = 0; // no room: leave it out rather than squash the menu
         }
 
         int panelHeight = textHeight + (imageSize > 0 ? imageSize + ImageGap : 0);
-        int left = (screenWidth - PanelWidth) / 2;
+        int left = (screenWidth - panelWidth) / 2;
         int top = (screenHeight - panelHeight) / 2;
 
-        DrawRect(sb, left, top, PanelWidth, panelHeight, Panel * 0.95f);
-        DrawBorder(sb, left, top, PanelWidth, panelHeight, 1, Border);
+        DrawRect(sb, left, top, panelWidth, panelHeight, Panel * 0.95f);
+        DrawBorder(sb, left, top, panelWidth, panelHeight, 1, Border);
 
         string credits = $"Credits: {menu.Credits}";
         Vector2 creditsSize = _font.MeasureString(credits) * 0.8f;
-        sb.DrawString(_font, credits, new Vector2(left + PanelWidth - creditsSize.X - 14, top + 10), Highlight, 0f, Vector2.Zero, 0.8f, SpriteEffects.None, 0f);
+        sb.DrawString(_font, credits, new Vector2(left + panelWidth - creditsSize.X - 14, top + 10), Highlight, 0f, Vector2.Zero, 0.8f, SpriteEffects.None, 0f);
 
         float y = top + Padding;
         if (imageSize > 0)
         {
-            var imageRect = new Rectangle(left + (PanelWidth - imageSize) / 2, (int)y, imageSize, imageSize);
+            var imageRect = new Rectangle(left + (panelWidth - imageSize) / 2, (int)y, imageSize, imageSize);
             sb.Draw(art, imageRect, Color.White);
             sb.Draw(FadeMask(), imageRect, Color.White); // fades the picture's edges into the panel, whatever its background is
             y += imageSize + ImageGap;
         }
 
-        sb.DrawString(_font, title, new Vector2(left + (PanelWidth - titleSize.X) / 2f, y), Title, 0f, Vector2.Zero, TitleScale, SpriteEffects.None, 0f);
+        sb.DrawString(_font, title, new Vector2(left + (panelWidth - titleSize.X) / 2f, y), Title, 0f, Vector2.Zero, TitleScale, SpriteEffects.None, 0f);
         y += titleSize.Y + 12;
-        sb.DrawString(_font, description, new Vector2(left + (PanelWidth - descriptionSize.X) / 2f, y), Body);
+        sb.DrawString(_font, description, new Vector2(left + (panelWidth - descriptionSize.X) / 2f, y), Body);
         y += descriptionSize.Y + 28;
 
-        for (int i = 0; i < items.Count; i++)
+        if (heading != null)
+        {
+            sb.DrawString(_font, heading, new Vector2(left + Padding, y), Title);
+            y += RowHeight;
+        }
+
+        for (int i = firstRow; i < firstRow + visibleRows && i < lines.Count; i++)
         {
             bool selected = i == menu.Selected;
-            string text = (selected ? "> " : "  ") + items[i].Name;
+            string text = (selected ? "> " : "  ") + lines[i];
             if (selected)
-                DrawRect(sb, left + Padding - 8, (int)y - 4, PanelWidth - (Padding - 8) * 2, RowHeight - 4, Highlight * 0.12f);
+                DrawRect(sb, left + Padding - 8, (int)y - 4, panelWidth - (Padding - 8) * 2, RowHeight - 4, Highlight * 0.12f);
             sb.DrawString(_font, text, new Vector2(left + Padding, y), selected ? Highlight : Item);
             y += RowHeight;
         }
 
-        const string hint = "Up/Down: choose     Enter: select     Esc: menu";
+        string hint = heading == null ? "Up/Down: choose     Enter: select     Esc: menu" : "Up/Down: choose     Enter: buy or sell     Esc: back";
         Vector2 hintSize = _font.MeasureString(hint) * 0.7f;
-        sb.DrawString(_font, hint, new Vector2(left + (PanelWidth - hintSize.X) / 2f, top + panelHeight - Padding - hintSize.Y + 8),
+        sb.DrawString(_font, hint, new Vector2(left + (panelWidth - hintSize.X) / 2f, top + panelHeight - Padding - hintSize.Y + 8),
                       Hint, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
     }
 

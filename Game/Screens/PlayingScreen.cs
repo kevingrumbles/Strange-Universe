@@ -151,7 +151,12 @@ public sealed class PlayingScreen : IScreen
         EnsureSpaceportMenu();
 
         var input = _input.GetState();
-        if (input.Exit) { _ctx.ShowMenu(); return; }
+        if (input.Exit)
+        {
+            if (!_spaceportMenu.Back()) // Escape closes an open store first, and leaves for the main menu from the services
+                _ctx.ShowMenu();
+            return;
+        }
 
         _hud.Update(dt);
         _universe.Update(dt, input); // uploads finished nebulae; nothing else happens while docked

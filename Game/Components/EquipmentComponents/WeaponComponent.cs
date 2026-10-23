@@ -16,6 +16,14 @@ public sealed class WeaponComponent : EquipmentComponent
 
     private float _cooldown;
 
+    public override EquipmentComponent Clone()
+    {
+        var copy = (WeaponComponent)base.Clone();
+        copy._cooldown = 0f;
+        copy.Visual = Visual.Clone(); // each weapon has its own look
+        return copy;
+    }
+
     public WeaponComponent(EquipmentType kind) : base(RequireWeaponKind(kind))
     {
     }

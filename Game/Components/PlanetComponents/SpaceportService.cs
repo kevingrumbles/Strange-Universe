@@ -1,3 +1,8 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 
 namespace Strange_Universe.Game.Components.PlanetComponents;
@@ -19,6 +24,96 @@ public abstract class SpaceportService
 
     /// <summary>Carries the service out for the docked player.</summary>
     public abstract void Perform(Universe universe);
+
+    /// <summary>
+    /// True for a service that opens a list when chosen (a store) instead of doing something at once. The docked menu then shows its
+    /// <see cref="Rows"/> and passes the player's choice to <see cref="Choose"/>.
+    /// </summary>
+    public virtual bool OpensRows => false;
+
+    /// <summary>The lines of the list this service opens, as they are now.</summary>
+    public virtual IReadOnlyList<string> Rows(Universe universe) => Array.Empty<string>();
+
+    /// <summary>The player picked row <paramref name="row"/> of <see cref="Rows"/>.</summary>
+    public virtual void Choose(Universe universe, int row) { }
+}
+
+/// <summary>
+/// Sells equipment. It keeps a list of one item of each kind it sells (<see cref="Stock"/>); a buyer is given a copy (<see cref="EquipmentComponent.Clone"/>),
+/// so the stock never runs out. After the items for sale the list offers each item the player carries, to sell back.
+/// </summary>
+public sealed class EquipmentBayService : SpaceportService
+{
+    public EquipmentBayService(IEnumerable<EquipmentComponent> stock) => Stock = stock.ToList();
+
+    /// <summary>What is for sale. These are display copies; what a buyer gets is a clone.</summary>
+    public List<EquipmentComponent> Stock { get; }
+
+    public override string Name => "Equipment";
+    public override bool OpensRows => true;
+    public override void Perform(Universe universe) { }
+
+    /// <summary>The player's items that can be sold back (anything that is still a known item).</summary>
+    private static List<EquipmentComponent> Sellable(Universe universe) =>
+        universe.Player.Equipment.Where(item => item is not UnknownComponent).ToList();
+
+    public override IReadOnlyList<string> Rows(Universe universe)
+    {
+        var limits = universe.Player.ShipType.Limits;
+        var rows = new List<string>();
+
+        foreach (var item in Stock)
+        {
+            int carried = universe.Player.Equipment.Count(other => other.GetType() == item.GetType());
+            rows.Add($"{item.EquipmentName}   {item.Price} cr   mass {item.Mass:0}   [{carried}/{item.SlotLimit(limits)}]");
+        }
+        foreach (var item in Sellable(universe))
+            rows.Add($"Sell {item.EquipmentName}   {item.Price} cr");
+
+        return rows;
+    }
+
+    public override void Choose(Universe universe, int row)
+    {
+        if (row < 0) return;
+        if (row < Stock.Count)
+        {
+            universe.BuyEquipment(Stock[row].Clone());
+            return;
+        }
+
+        var sellable = Sellable(universe);
+        int sell = row - Stock.Count;
+        if (sell < sellable.Count)
+            universe.SellEquipment(sellable[sell]);
+    }
+}
+
+/// <summary>
+/// Sells ships. It keeps a list of one ship type of each kind it sells (<see cref="Stock"/>); a buyer is given a clone. The player's current ship
+/// and everything on it is traded in against the price (<see cref="Universe.BuyShip"/>).
+/// </summary>
+public sealed class StarshipBayService : SpaceportService
+{
+    public StarshipBayService(IEnumerable<ShipStats> stock) => Stock = stock.ToList();
+
+    /// <summary>What is for sale. These are display copies; what a buyer gets is a clone.</summary>
+    public List<ShipStats> Stock { get; }
+
+    public override string Name => "Starships";
+    public override bool OpensRows => true;
+    public override void Perform(Universe universe) { }
+
+    public override IReadOnlyList<string> Rows(Universe universe) =>
+        Stock.Select(type =>
+            $"{type.ShipTypeName}   {type.ListPrice} cr   trade-in {universe.Player.ShipValue} cr   cost {universe.ShipCostAfterTradeIn(type)} cr")
+             .ToList();
+
+    public override void Choose(Universe universe, int row)
+    {
+        if (row >= 0 && row < Stock.Count)
+            universe.BuyShip(Stock[row].Clone());
+    }
 }
 
 /// <summary>Fills the player's fuel. Listed only while the tank is not full.</summary>

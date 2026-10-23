@@ -1,6 +1,8 @@
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.PlanetComponents;
+using Strange_Universe.Game.Components.ShipComponents;
+using Strange_Universe.Game.Components.EquipmentComponents;
 using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Text.Json.Serialization;
@@ -132,7 +134,13 @@ public class Planet
             return null;
 
         return new Spaceport("Landing pads, a fuel dock and a repair yard.",
-            new SpaceportService[] { new RefuelService(), new RepairService(), new UndockService() });
+            new SpaceportService[]
+            {
+                new RefuelService(), new RepairService(),
+                new EquipmentBayService(EquipmentCatalog.All),
+                new StarshipBayService(ShipStats.BuiltIn()),
+                new UndockService(),
+            });
     }
 
 }

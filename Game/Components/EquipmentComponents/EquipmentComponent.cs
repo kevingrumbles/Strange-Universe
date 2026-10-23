@@ -44,6 +44,12 @@ public abstract class EquipmentComponent
     /// </summary>
     public virtual int SlotLimit(Strange_Universe.Game.Components.ShipComponents.LoadoutLimits limits) => 0;
 
+    /// <summary>
+    /// A copy of this item for a new owner, as if freshly made: the same name, price, mass and stats, and no use behind it (a weapon is ready to fire,
+    /// a shield full). A spaceport keeps one item of each kind it sells and hands each buyer a copy.
+    /// </summary>
+    public virtual EquipmentComponent Clone() => (EquipmentComponent)MemberwiseClone();
+
     private protected EquipmentComponent(EquipmentType type)
     {
         EquipmentType = type;

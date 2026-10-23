@@ -35,8 +35,7 @@ The HUD stats area and the spaceport screen show the player's credits.
 
 ### 3. Buying (rules, no UI)
 
-Kept in `Universe` beside `Dock`/`Undock`. **No new types:** the stock is what the catalogs already build fresh with every read (`EquipmentCatalog.All`, `ShipStats.BuiltIn()`), so an item taken from them is already
-its own new object; there are no "offer" classes and no result enum. Each method returns `true` when the trade went through; a refusal changes nothing and says why through `Messages` ("Not enough credits",
+Kept in `Universe` beside `Dock`/`Undock`. **No new types:** the trade methods take the item or ship type to hand over, which the bay makes with `Clone()` from the stock it keeps; there are no "offer" classes and no result enum. Each method returns `true` when the trade went through; a refusal changes nothing and says why through `Messages` ("Not enough credits",
 "No free slot for X", "X is too heavy for this ship"), so whatever lists the stock only has to try the trade.
 
 - **`BuyEquipment(item)`**: must be docked; credits are checked, then `CheckInstall`; on success the price is spent and the item installed.
@@ -46,21 +45,22 @@ its own new object; there are no "offer" classes and no result enum. Each method
 
 ### 4. The bays (no new data classes)
 
-- **The spaceport's services are the bays.** `Spaceport` is unchanged (a description and a list of services); two services join Refuel, Repair and Undock: **`EquipmentBayService`** and **`StarshipBayService`**. Their stock is the catalogs
-  (every spaceport sells everything for now; a per-planet stock later would be a list handed to the service's constructor).
-- **A service with rows.** `SpaceportService` gets two virtual members, default "none": `Rows(universe)` (a list of text lines) and `Choose(universe, row)`. The equipment bay's rows are one line per catalog item ("Light Laser  150  mass 50  (1/2 weapons)"),
-  then one per carried item to sell back ("Sell Light Laser  150"); the starship bay's rows are one line per ship type with its list price, the trade-in and the cost after it. `Choose` just calls `BuyEquipment` / `SellEquipment` / `BuyShip` on the row's item (rebuilt from the
-  same catalog index) and the trade posts its own message. No row, page or offer classes.
-- **`SpaceportMenu`** needs one extra field: the service that is open (or none). While one is open the menu shows its rows instead of the service list; Up/Down/Select work the same way; `Back()` closes it (Escape calls it, and only leaves for the main menu
-  when nothing is open). There is no page stack because there is only ever one level.
-- **`SpaceportOverlay`** draws whichever list the menu has (services, or the open service's rows) with the same row style, and shows credits in the header, as it does now.
+- **The spaceport's services are the bays.** `Spaceport` is unchanged (a description and a list of services); two services join Refuel, Repair and Undock: **`EquipmentBayService`** and **`StarshipBayService`**. Each **holds a `List` of the objects it sells**
+  (`Stock`: `List<EquipmentComponent>` / `List<ShipStats>`), filled from the catalogs for now (every spaceport sells everything; a per-planet stock later is just a different list handed to the constructor).
+- **A buyer gets a clone.** `EquipmentComponent.Clone()` (a copy as if freshly made: a weapon is ready to fire, a shield full, each weapon with its own look) and `ShipStats.Clone()` (a new ship type of the same kind with its own parts and default loadout) make the object
+  that is handed over, so the stock never runs out and the shelf object is never installed on a ship.
+- **A service with rows.** `SpaceportService` gets `OpensRows`, `Rows(universe)` (lines of text) and `Choose(universe, row)`, all "none" by default. The equipment bay's rows are one line per stock item ("Light Laser   150 cr   mass 50   [1/2]", the last
+  being how many of that kind the ship carries against its limit), then "Sell X" lines for what the player carries; the starship bay's rows are one per ship type with its list price, the trade-in and the cost after it. `Choose` clones the stock item and calls `BuyEquipment` /
+  `BuyShip`, or calls `SellEquipment`; the trade posts its own message.
+- **`SpaceportMenu`** has one extra field, the service that is open (or none). While one is open it shows that service's rows (and heading) instead of the service list; `Back()` closes it (Escape calls it, and only leaves for the main menu when nothing is open).
+- **`SpaceportOverlay`** draws whichever list the menu has with the same row style, in a wider panel for a store, as a window of rows that follows the highlight, without the planet picture, with the credits in the header.
 
 ## Steps
 
 1. **Credits.** `Ship.Credits` + helpers, new-player amount, NPC credits from the ship type and a seeded roll, HUD and spaceport-screen display. Tests: spend/earn/can't overspend; saved and loaded; NPC credits reproducible and in range; two NPCs differ.
 2. **Prices, kinds and limits.** `SlotLimit` on each kind of equipment, `Price` on equipment and ship types, `LoadoutLimits` and the values for `Shuttle`/`Runner`, the `Ship` helpers and `CheckInstall`. Tests: counts and mass per kind; each limit enforced and exactly-at-limit allowed; every built-in type's default loadout fits; unknown items cost nothing.
 3. **Purchase rules.** `BuyEquipment`, `BuyShip`, `SellEquipment` (bool results, messages for refusals). Tests: each failure leaves credits and equipment untouched; success spends, installs a separate object; trade-in math (new price minus ship and equipment value, including the case where the trade-in is worth more); the new ship has the default loadout, full hull/shield/fuel, kept position and credits; not docked is refused.
-4. **Bays.** `EquipmentBayService` and `StarshipBayService`, `Rows`/`Choose` on `SpaceportService`, the open-service field and `Back()` in `SpaceportMenu`, the two services added to every spaceport. Tests: the rows (names, prices, what the player can sell), choosing a row buys or sells, Back, and that the old services and menu behave as before.
+4. **Bays.** `EquipmentBayService` and `StarshipBayService` (each with a `Stock` list), `Clone()` on equipment and ship types, `Rows`/`Choose` on `SpaceportService`, the open-service field and `Back()` in `SpaceportMenu`, the two services added to every spaceport. Tests: the rows (names, prices, what the player can sell), choosing a row buys or sells, Back, and that the old services and menu behave as before.
 5. **Overlay.** Draw the open service's rows (the credits are already there); Escape/Back handling in `PlayingScreen`. Drawing only compiled, so a manual check list.
 6. **Cleanup.** Architecture tests (no graphics types in the new data), docs, manual check list: buy a weapon, hit the weapon limit, hit the weight limit, buy a ship, check the trade-in, save and reload with the new ship and credits.
 
@@ -101,3 +101,5 @@ The Plasma Gun was in the Runner's default loadout but missing from the catalog'
 
 Step 3 (purchase rules) is built, in `Universe` beside `Dock`/`Undock`, with no UI and no new types: `BuyEquipment(item)`, `BuyShip(type)`, `SellEquipment(item)` return `true` when they went through and post the reason through
 `Messages` when they refuse; `ShipCostAfterTradeIn(type)` is the number the screen will show. (The first version had offer classes and a result enum; both were removed to keep the code small.)
+
+Steps 4 and 5 are built: the two bays with their `Stock` lists, `Clone()` on equipment and ship types, rows and choosing, the open-store state and `Back()` in `SpaceportMenu`, and the overlay and Escape handling. The drawing and the keys have only been compiled, not played; see the manual check list.

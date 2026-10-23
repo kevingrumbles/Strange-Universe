@@ -59,6 +59,12 @@ public abstract class ShipStats
     /// <summary>A new instance of every built-in ship type (the first is the Shuttle). Add each new type here.</summary>
     internal static IReadOnlyList<ShipStats> BuiltIn() => new ShipStats[] { new Shuttle(), new Runner() };
 
+    /// <summary>
+    /// A new ship type of the same kind, with its own parts and its own new default loadout. A spaceport keeps one of each ship type it sells and hands
+    /// each buyer a copy.
+    /// </summary>
+    public ShipStats Clone() => (ShipStats)Activator.CreateInstance(GetType());
+
     /// <summary>Drops the default loadout, for a ship whose equipment comes from a save instead.</summary>
     internal void ClearDefaultLoadout() => DefaultLoadout = Array.Empty<EquipmentComponent>();
 }

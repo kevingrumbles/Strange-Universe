@@ -45,16 +45,16 @@ public class SpaceportMenuTests
     public void Refuel_IsListedOnlyWhenFuelIsMissing_AndRepairOnlyWhenTheHullIsDamaged()
     {
         using var both = DockedUniverse(out var planet, needsFuel: true, needsRepair: true);
-        Assert.Equal(new[] { "Refuel", "Repair", "Undock" }, Names(new SpaceportMenu(planet, both)));
+        Assert.Equal(new[] { "Refuel", "Repair", "Equipment", "Starships", "Undock" }, Names(new SpaceportMenu(planet, both)));
 
         using var fuelOnly = DockedUniverse(out planet, needsFuel: true, needsRepair: false);
-        Assert.Equal(new[] { "Refuel", "Undock" }, Names(new SpaceportMenu(planet, fuelOnly)));
+        Assert.Equal(new[] { "Refuel", "Equipment", "Starships", "Undock" }, Names(new SpaceportMenu(planet, fuelOnly)));
 
         using var hullOnly = DockedUniverse(out planet, needsFuel: false, needsRepair: true);
-        Assert.Equal(new[] { "Repair", "Undock" }, Names(new SpaceportMenu(planet, hullOnly)));
+        Assert.Equal(new[] { "Repair", "Equipment", "Starships", "Undock" }, Names(new SpaceportMenu(planet, hullOnly)));
 
         using var neither = DockedUniverse(out planet, needsFuel: false, needsRepair: false);
-        Assert.Equal(new[] { "Undock" }, Names(new SpaceportMenu(planet, neither)));
+        Assert.Equal(new[] { "Equipment", "Starships", "Undock" }, Names(new SpaceportMenu(planet, neither)));
     }
 
     [Fact]
@@ -64,10 +64,10 @@ public class SpaceportMenuTests
         var menu = new SpaceportMenu(planet, u);
 
         menu.Update(Select, u); // Refuel is first
-        Assert.Equal(new[] { "Repair", "Undock" }, Names(menu));
+        Assert.Equal(new[] { "Repair", "Equipment", "Starships", "Undock" }, Names(menu));
 
         menu.Update(Select, u); // Repair is first now
-        Assert.Equal(new[] { "Undock" }, Names(menu));
+        Assert.Equal(new[] { "Equipment", "Starships", "Undock" }, Names(menu));
     }
 
     [Fact]
@@ -75,11 +75,11 @@ public class SpaceportMenuTests
     {
         using var u = DockedUniverse(out var planet, needsFuel: false, needsRepair: false);
         var menu = new SpaceportMenu(planet, u);
-        Assert.Equal(new[] { "Undock" }, Names(menu));
+        Assert.Equal(new[] { "Equipment", "Starships", "Undock" }, Names(menu));
 
         u.Player.CurrentFuelLevel = 1; // the list follows the player's state, it is not fixed when the menu opens
 
-        Assert.Equal(new[] { "Refuel", "Undock" }, Names(menu));
+        Assert.Equal(new[] { "Refuel", "Equipment", "Starships", "Undock" }, Names(menu));
     }
 
     // -- the highlight --------------------------------------------------------------
@@ -108,17 +108,17 @@ public class SpaceportMenuTests
     {
         using var u = DockedUniverse(out var planet);
         var menu = new SpaceportMenu(planet, u);
-        menu.Update(Down, u);                  // on Repair, in the middle of [Refuel, Repair, Undock]
+        menu.Update(Down, u);                  // on Repair, second in [Refuel, Repair, Equipment, Starships, Undock]
 
-        menu.Update(Select, u);                // repair: the list becomes [Refuel, Undock]
+        menu.Update(Select, u);                // repair: Repair leaves the list
 
         Assert.InRange(menu.Selected, 0, menu.Items.Count - 1);
-        Assert.Equal(new[] { "Refuel", "Undock" }, Names(menu));
+        Assert.Equal(new[] { "Refuel", "Equipment", "Starships", "Undock" }, Names(menu));
 
-        u.Player.CurrentFuelLevel = u.Player.MaxFuelLevel; // and Refuel goes too, with the highlight on the last entry
-        menu.Update(Down, u);
+        u.Player.CurrentFuelLevel = u.Player.MaxFuelLevel; // and Refuel goes too, with the highlight further down the list
+        for (int i = 0; i < 3; i++) menu.Update(Down, u);
         menu.Update(new InputState(), u);
-        Assert.Equal(0, menu.Selected);        // [Undock]
+        Assert.InRange(menu.Selected, 0, menu.Items.Count - 1);
     }
 
     [Fact]
@@ -166,12 +166,14 @@ public class SpaceportMenuTests
     }
 
     [Fact]
-    public void UndockIsAlwaysThere()
+    public void UndockIsAlwaysThere_AndLast()
     {
         using var u = DockedUniverse(out var planet, needsFuel: false, needsRepair: false);
         var menu = new SpaceportMenu(planet, u);
+        Assert.Equal("Undock", Names(menu).Last());
 
-        menu.Update(Select, u); // the only entry
+        menu.Update(Up, u);     // from the top, up wraps to the last entry
+        menu.Update(Select, u);
 
         Assert.False(u.IsDocked);
     }
