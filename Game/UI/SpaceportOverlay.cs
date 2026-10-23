@@ -12,7 +12,8 @@ namespace Strange_Universe.Game.UI;
 /// </summary>
 public sealed class SpaceportOverlay : IDisposable
 {
-    private static readonly Color Panel     = new(0, 5, 18);
+    /// <summary>The panel is this colour exactly (fully opaque), so art whose background is the same colour blends into it without a seam.</summary>
+    private static readonly Color Panel     = new(5, 10, 51);
     private static readonly Color Border    = new(60, 90, 130);
     private static readonly Color Title     = new(255, 255, 255);
     private static readonly Color Body      = new(170, 180, 190);
@@ -66,7 +67,7 @@ public sealed class SpaceportOverlay : IDisposable
         int left = (screenWidth - PanelWidth) / 2;
         int top = (screenHeight - panelHeight) / 2;
 
-        DrawRect(sb, left, top, PanelWidth, panelHeight, Panel * 0.95f);
+        DrawRect(sb, left, top, PanelWidth, panelHeight, Panel);
         DrawBorder(sb, left, top, PanelWidth, panelHeight, 1, Border);
 
         float y = top + Padding;
