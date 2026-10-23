@@ -160,7 +160,7 @@ public sealed class PlayingScreen : IScreen
 
         _hud.Update(dt);
         _universe.Update(dt, input); // uploads finished nebulae; nothing else happens while docked
-        _spaceportMenu.Update(input, _universe);
+        _spaceportMenu.Update(input);
 
         if (!_universe.IsDocked)
         {

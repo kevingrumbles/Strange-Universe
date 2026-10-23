@@ -6,36 +6,21 @@ using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.UI;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
+using static Strange_Universe.Tests.Fakes.DockedWorld;
 
 namespace Strange_Universe.Tests;
 
 /// <summary>The docked screen's selection logic, and which services it lists.</summary>
 public class SpaceportMenuTests
 {
-    private static Planet PlanetWithSpaceport() =>
-        Enumerable.Range(0, 1000)
-                  .Select(i => new Planet($"menu_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
-                  .First(p => p.Spaceport != null);
-
     /// <summary>A docked player with the given fuel and hull.</summary>
     private static Universe DockedUniverse(out Planet planet, bool needsFuel = true, bool needsRepair = true)
     {
-        planet = PlanetWithSpaceport();
-        var u = new Universe("Menu", "menu-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
-        u.Player.Navigator.Clear();
-        u.ActiveStarSystem.Planets.Clear();
-        u.ActiveStarSystem.Planets.Add(planet);
-        u.Player.Position = planet.Position + new Vector2(planet.Radius + 20f, 0f);
-        u.Dock(planet);
+        var u = Docked(out planet);
         u.Player.CurrentFuelLevel = needsFuel ? 0 : u.Player.MaxFuelLevel;
         u.Player.CurrentHullStrength = needsRepair ? 1 : u.Player.MaxHullStrength;
         return u;
     }
-
-    private static readonly InputState Up = new() { MenuUp = true };
-    private static readonly InputState Down = new() { MenuDown = true };
-    private static readonly InputState Select = new() { MenuSelect = true };
 
     private static string[] Names(SpaceportMenu menu) => menu.Items.Select(s => s.Name).ToArray();
 
@@ -63,10 +48,10 @@ public class SpaceportMenuTests
         using var u = DockedUniverse(out var planet);
         var menu = new SpaceportMenu(planet, u);
 
-        menu.Update(Select, u); // Refuel is first
+        menu.Update(Select); // Refuel is first
         Assert.Equal(new[] { "Repair", "Equipment", "Starships", "Undock" }, Names(menu));
 
-        menu.Update(Select, u); // Repair is first now
+        menu.Update(Select); // Repair is first now
         Assert.Equal(new[] { "Equipment", "Starships", "Undock" }, Names(menu));
     }
 
@@ -92,14 +77,14 @@ public class SpaceportMenuTests
         int count = menu.Items.Count;
         Assert.Equal(0, menu.Selected);
 
-        menu.Update(Down, u);
+        menu.Update(Down);
         Assert.Equal(1, menu.Selected);
 
-        menu.Update(Up, u);
-        menu.Update(Up, u);
+        menu.Update(Up);
+        menu.Update(Up);
         Assert.Equal(count - 1, menu.Selected); // wrapped from the top to the bottom
 
-        menu.Update(Down, u);
+        menu.Update(Down);
         Assert.Equal(0, menu.Selected);         // and from the bottom to the top
     }
 
@@ -108,16 +93,16 @@ public class SpaceportMenuTests
     {
         using var u = DockedUniverse(out var planet);
         var menu = new SpaceportMenu(planet, u);
-        menu.Update(Down, u);                  // on Repair, second in [Refuel, Repair, Equipment, Starships, Undock]
+        menu.Update(Down);                  // on Repair, second in [Refuel, Repair, Equipment, Starships, Undock]
 
-        menu.Update(Select, u);                // repair: Repair leaves the list
+        menu.Update(Select);                // repair: Repair leaves the list
 
         Assert.InRange(menu.Selected, 0, menu.Items.Count - 1);
         Assert.Equal(new[] { "Refuel", "Equipment", "Starships", "Undock" }, Names(menu));
 
         u.Player.CurrentFuelLevel = u.Player.MaxFuelLevel; // and Refuel goes too, with the highlight further down the list
-        for (int i = 0; i < 3; i++) menu.Update(Down, u);
-        menu.Update(new InputState(), u);
+        for (int i = 0; i < 3; i++) menu.Update(Down);
+        menu.Update(new InputState());
         Assert.InRange(menu.Selected, 0, menu.Items.Count - 1);
     }
 
@@ -127,7 +112,7 @@ public class SpaceportMenuTests
         using var u = DockedUniverse(out var planet);
         var menu = new SpaceportMenu(planet, u);
 
-        menu.Update(new InputState(), u);
+        menu.Update(new InputState());
 
         Assert.Equal(0, menu.Selected);
         Assert.Equal(0, u.Player.CurrentFuelLevel);
@@ -142,11 +127,11 @@ public class SpaceportMenuTests
         using var u = DockedUniverse(out var planet);
         var menu = new SpaceportMenu(planet, u);
 
-        menu.Update(Select, u);                                           // Refuel is first
+        menu.Update(Select);                                           // Refuel is first
         Assert.Equal(u.Player.MaxFuelLevel, u.Player.CurrentFuelLevel);
         Assert.Equal(1, u.Player.CurrentHullStrength);                    // refuelling does not repair
 
-        menu.Update(Select, u);                                           // Repair is first now
+        menu.Update(Select);                                           // Repair is first now
         Assert.Equal(u.Player.MaxHullStrength, u.Player.CurrentHullStrength);
         Assert.True(u.IsDocked);                                          // neither of them leaves
     }
@@ -157,9 +142,9 @@ public class SpaceportMenuTests
         using var u = DockedUniverse(out var planet);
         var menu = new SpaceportMenu(planet, u);
 
-        menu.Update(Up, u); // from the top, up wraps to the last service: Undock
+        menu.Update(Up); // from the top, up wraps to the last service: Undock
         Assert.Equal("Undock", menu.Items[menu.Selected].Name);
-        menu.Update(Select, u);
+        menu.Update(Select);
 
         Assert.False(u.IsDocked);
         Assert.NotNull(u.ActiveStarSystem);
@@ -172,8 +157,8 @@ public class SpaceportMenuTests
         var menu = new SpaceportMenu(planet, u);
         Assert.Equal("Undock", Names(menu).Last());
 
-        menu.Update(Up, u);     // from the top, up wraps to the last entry
-        menu.Update(Select, u);
+        menu.Update(Up);     // from the top, up wraps to the last entry
+        menu.Update(Select);
 
         Assert.False(u.IsDocked);
     }

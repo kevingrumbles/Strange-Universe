@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components.ShipComponents;
 namespace Strange_Universe.Game.Components.EquipmentComponents;
 
 /// <summary>
@@ -7,7 +8,7 @@ namespace Strange_Universe.Game.Components.EquipmentComponents;
 public sealed class UtilityComponent : EquipmentComponent
 {
     /// <summary>The ship type's limit for this kind of equipment.</summary>
-    public override int SlotLimit(Strange_Universe.Game.Components.ShipComponents.LoadoutLimits limits) => limits.MaxUtilities;
+    public override int SlotLimit(LoadoutLimits limits) => limits.MaxUtilities;
 
     public UtilityComponent() : base(EquipmentType.Utility) { }
 

@@ -4,17 +4,13 @@ using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Entities.ShipParts;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
+using static Strange_Universe.Tests.Fakes.DockedWorld;
 
 namespace Strange_Universe.Tests;
 
 /// <summary>The planet decides whether a ship can dock: spaceport, range from the surface, and a flat speed limit.</summary>
 public class DockingCheckTests
 {
-    private static Planet PlanetWith(bool spaceport) =>
-        Enumerable.Range(0, 1000)
-                  .Select(i => new Planet($"dock_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
-                  .First(p => (p.Spaceport != null) == spaceport);
-
     /// <summary>A ship <paramref name="surfaceDistance"/> from the planet's surface, moving at <paramref name="speed"/>.</summary>
     private static Nonplayer ShipAt(Planet planet, float surfaceDistance, float speed = 0f)
     {

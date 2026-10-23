@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components.ShipComponents;
 using System;
 
 namespace Strange_Universe.Game.Components.EquipmentComponents;
@@ -42,7 +43,7 @@ public abstract class EquipmentComponent
     /// How many items of this kind (this class) a ship with <paramref name="limits"/> can carry. Each kind of equipment names its own limit; an item
     /// that is no longer a known item has none, so it can never be installed.
     /// </summary>
-    public virtual int SlotLimit(Strange_Universe.Game.Components.ShipComponents.LoadoutLimits limits) => 0;
+    public virtual int SlotLimit(LoadoutLimits limits) => 0;
 
     /// <summary>
     /// A copy of this item for a new owner, as if freshly made: the same name, price, mass and stats, and no use behind it (a weapon is ready to fire,

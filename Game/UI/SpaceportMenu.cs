@@ -58,7 +58,7 @@ public sealed class SpaceportMenu
         return true;
     }
 
-    public void Update(InputState input, Universe universe)
+    public void Update(InputState input)
     {
         int count = Lines.Count;
         if (count == 0) return;
@@ -73,7 +73,7 @@ public sealed class SpaceportMenu
 
         if (Open != null)
         {
-            Open.Choose(universe, Selected);
+            Open.Choose(_universe, Selected);
         }
         else
         {
@@ -85,7 +85,7 @@ public sealed class SpaceportMenu
                 Selected = 0;
                 return;
             }
-            service.Perform(universe);
+            service.Perform(_universe);
         }
 
         Selected = Math.Max(0, Math.Min(Selected, Lines.Count - 1)); // a trade or a service may have changed the list

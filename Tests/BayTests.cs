@@ -9,30 +9,13 @@ using Strange_Universe.Game.Entities.ShipParts;
 using Strange_Universe.Game.UI;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
+using static Strange_Universe.Tests.Fakes.DockedWorld;
 
 namespace Strange_Universe.Tests;
 
 /// <summary>The equipment bay and the starship bay: stock lists, copies for buyers, their rows, and the store screen's navigation.</summary>
 public class BayTests
 {
-    private static readonly InputState Up = new() { MenuUp = true };
-    private static readonly InputState Down = new() { MenuDown = true };
-    private static readonly InputState Select = new() { MenuSelect = true };
-
-    private static Universe DockedUniverse(out Planet planet)
-    {
-        planet = Enumerable.Range(0, 1000).Select(i => new Planet($"bay_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
-                           .First(p => p.Spaceport != null);
-        var u = new Universe("Bays", "bay-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
-        u.Player.Navigator.Clear();
-        u.ActiveStarSystem.Planets.Clear();
-        u.ActiveStarSystem.Planets.Add(planet);
-        u.Player.Position = planet.Position + new Vector2(planet.Radius + 20f, 0f);
-        u.Dock(planet);
-        return u;
-    }
-
     private static EquipmentBayService EquipmentBay(Planet planet) => planet.Spaceport.Services.OfType<EquipmentBayService>().Single();
     private static StarshipBayService StarshipBay(Planet planet) => planet.Spaceport.Services.OfType<StarshipBayService>().Single();
 
@@ -110,8 +93,7 @@ public class BayTests
     [Fact]
     public void EverySpaceport_HasBothBays_WithTheCatalogsAsStock()
     {
-        var planet = Enumerable.Range(0, 1000).Select(i => new Planet($"stock_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
-                               .First(p => p.Spaceport != null);
+        var planet = PlanetWith(spaceport: true);
 
         Assert.Equal(EquipmentCatalog.All.Select(item => item.EquipmentName), EquipmentBay(planet).Stock.Select(item => item.EquipmentName));
         Assert.Equal(ShipStats.BuiltIn().Select(type => type.ShipTypeName), StarshipBay(planet).Stock.Select(type => type.ShipTypeName));
@@ -122,7 +104,7 @@ public class BayTests
     [Fact]
     public void TheEquipmentBayRows_ListEachStockItemWithItsPrice_ThenWhatThePlayerCanSell()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var bay = EquipmentBay(planet);
         TestGear.Arm(u.Player, new UtilityComponent { EquipmentName = "Carried Thing", Price = 77 }, new UnknownComponent("Retired Gizmo"));
 
@@ -141,7 +123,7 @@ public class BayTests
     [Fact]
     public void ARowForAKindOfEquipment_ShowsHowManyTheShipCarriesAgainstItsLimit()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var bay = EquipmentBay(planet);
         TestGear.Arm(u.Player, TestGear.Gun());
         u.Player.ShipType.Limits.MaxWeapons = 3;
@@ -153,7 +135,7 @@ public class BayTests
     [Fact]
     public void ChoosingABuyRow_BuysACopy_AndTheStockIsUntouched()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var bay = EquipmentBay(planet);
         int stockCount = bay.Stock.Count;
         TestGear.Arm(u.Player);
@@ -177,7 +159,7 @@ public class BayTests
     [Fact]
     public void ChoosingASellRow_SellsThatItem()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var bay = EquipmentBay(planet);
         var carried = new UtilityComponent { EquipmentName = "Carried Thing", Price = 77 };
         TestGear.Arm(u.Player, carried);
@@ -192,7 +174,7 @@ public class BayTests
     [Fact]
     public void ChoosingARowThatDoesNotExist_DoesNothing()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var bay = EquipmentBay(planet);
         TestGear.Arm(u.Player);
         u.Player.Credits = 500;
@@ -209,7 +191,7 @@ public class BayTests
     [Fact]
     public void TheStarshipBayRows_ShowEachShipsListPrice_TheTradeInAndTheCost()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var bay = StarshipBay(planet);
 
         var rows = bay.Rows(u);
@@ -227,7 +209,7 @@ public class BayTests
     [Fact]
     public void ChoosingAShipRow_BuysACopyOfTheStockType_AndTheStockIsUntouched()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var bay = StarshipBay(planet);
         u.Player.AssignShipType(new Shuttle());
         u.Player.Credits = 100000;
@@ -249,14 +231,14 @@ public class BayTests
     private static void Open(SpaceportMenu menu, Universe u, string name)
     {
         while (menu.Items[menu.Selected].Name != name)
-            menu.Update(Down, u);
-        menu.Update(Select, u);
+            menu.Update(Down);
+        menu.Update(Select);
     }
 
     [Fact]
     public void ChoosingAStore_OpensItsRows_InsteadOfDoingAnything()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var menu = new SpaceportMenu(planet, u);
         u.Player.Credits = 1000;
 
@@ -273,7 +255,7 @@ public class BayTests
     [Fact]
     public void InAStore_UpDownAndSelectWorkOnTheRows()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var menu = new SpaceportMenu(planet, u);
         TestGear.Arm(u.Player);
         u.Player.Credits = 100000;
@@ -283,13 +265,13 @@ public class BayTests
         Open(menu, u, "Equipment");
         int rows = menu.Lines.Count;
 
-        menu.Update(Up, u);
+        menu.Update(Up);
         Assert.Equal(rows - 1, menu.Selected); // wrapped to the last row (there is nothing to sell yet, so the last stock item)
 
-        menu.Update(Down, u);
-        menu.Update(Down, u);
+        menu.Update(Down);
+        menu.Update(Down);
         Assert.Equal(1, menu.Selected);
-        menu.Update(Select, u);                // buys the second stock item
+        menu.Update(Select);                // buys the second stock item
 
         Assert.Equal(EquipmentBay(planet).Stock[1].EquipmentName, Assert.Single(u.Player.Equipment).EquipmentName);
         Assert.True(menu.Lines.Count > rows);  // and it now appears as a row to sell
@@ -298,11 +280,11 @@ public class BayTests
     [Fact]
     public void Back_ClosesTheStore_AndPutsTheHighlightBackOnIt()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var menu = new SpaceportMenu(planet, u);
         Open(menu, u, "Starships");
         int starships = Index(menu, "Starships") >= 0 ? Index(menu, "Starships") : 0;
-        menu.Update(Down, u); // move inside the store
+        menu.Update(Down); // move inside the store
 
         Assert.True(menu.Back());
 
@@ -315,7 +297,7 @@ public class BayTests
     [Fact]
     public void Back_WithNoStoreOpen_DoesNothing_SoEscapeCanLeaveInstead()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var menu = new SpaceportMenu(planet, u);
 
         Assert.False(menu.Back());
@@ -325,12 +307,12 @@ public class BayTests
     [Fact]
     public void WhileAStoreIsOpen_TheServicesAreNotChosen()
     {
-        using var u = DockedUniverse(out var planet);
+        using var u = Docked(out var planet);
         var menu = new SpaceportMenu(planet, u);
         Open(menu, u, "Equipment");
         u.Player.Credits = 0;
 
-        menu.Update(Select, u); // a buy row with no credits: refused, and the menu is still the store
+        menu.Update(Select); // a buy row with no credits: refused, and the menu is still the store
 
         Assert.True(u.IsDocked);
         Assert.NotNull(menu.Open);

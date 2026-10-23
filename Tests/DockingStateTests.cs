@@ -8,6 +8,7 @@ using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Entities.ShipParts;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
+using static Strange_Universe.Tests.Fakes.DockedWorld;
 
 namespace Strange_Universe.Tests;
 
@@ -15,27 +16,6 @@ namespace Strange_Universe.Tests;
 public class DockingStateTests
 {
     private const float Dt = 1f / 60f;
-
-    private static Planet PlanetWith(bool spaceport) =>
-        Enumerable.Range(0, 1000)
-                  .Select(i => new Planet($"dockstate_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
-                  .First(p => (p.Spaceport != null) == spaceport);
-
-    /// <summary>A started universe whose only planet is <paramref name="planet"/>, with the player at rest <paramref name="surfaceDistance"/> from its surface.</summary>
-    private static Universe Started(Planet planet, float surfaceDistance = 50f, float speed = 0f)
-    {
-        var u = new Universe("Dock", "dock-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
-        u.Player.Navigator.Clear(); // the opening spawn task
-        u.ActiveStarSystem.Planets.Clear();
-        u.ActiveStarSystem.Planets.Add(planet);
-        planet.Position = new Vector2(2000f, 0f);
-        u.Player.Position = planet.Position + new Vector2(planet.Radius + surfaceDistance, 0f);
-        u.Player.Velocity = new Vector2(0f, speed);
-        return u;
-    }
-
-    private static readonly InputState PressDock = new() { Dock = true };
 
     private static string FirstMessage(Universe u, Action act)
     {

@@ -28,8 +28,7 @@ public class TradeTests
             Universe.Events.Subscribe<MessageRequested>(m => Messages.Add(m.Message));
             Player.Navigator.Clear();
 
-            var planet = Enumerable.Range(0, 1000).Select(i => new Planet($"trade_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
-                                   .First(p => p.Spaceport != null);
+            var planet = DockedWorld.PlanetWith(spaceport: true);
             Universe.ActiveStarSystem.Planets.Clear();
             Universe.ActiveStarSystem.Planets.Add(planet);
             Player.Position = planet.Position + new Vector2(planet.Radius + 20f, 0f);

@@ -252,14 +252,13 @@ public class Universe : IDisposable
         if (!Player.CanAfford(item.Price))
             return Refuse("Not enough credits");
 
-        switch (Player.CheckInstall(item))
+        switch (Player.Install(item)) // adds it only if it fits
         {
             case InstallCheck.NoSlot: return Refuse($"No free slot for {item.EquipmentName}");
             case InstallCheck.TooHeavy: return Refuse($"{item.EquipmentName} is too heavy for this ship");
         }
 
-        Player.TrySpend(item.Price);
-        Player.Install(item);
+        Player.Credits -= item.Price;
         Messages.Post($"Bought {item.EquipmentName}");
         return true;
     }
@@ -280,8 +279,7 @@ public class Universe : IDisposable
         if (cost > 0 && !Player.CanAfford(cost))
             return Refuse("Not enough credits");
 
-        if (cost >= 0) Player.TrySpend(cost);
-        else Player.Earn(-cost);
+        Player.Credits -= cost; // a negative cost pays the player
 
         Player.AssignShipType(type);
         _assets.EnsureShipArt(type);
