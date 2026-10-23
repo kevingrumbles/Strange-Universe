@@ -71,6 +71,10 @@ public sealed class SpaceportOverlay : IDisposable
         DrawRect(sb, left, top, PanelWidth, panelHeight, Panel * 0.95f);
         DrawBorder(sb, left, top, PanelWidth, panelHeight, 1, Border);
 
+        string credits = $"Credits: {menu.Credits}";
+        Vector2 creditsSize = _font.MeasureString(credits) * 0.8f;
+        sb.DrawString(_font, credits, new Vector2(left + PanelWidth - creditsSize.X - 14, top + 10), Highlight, 0f, Vector2.Zero, 0.8f, SpriteEffects.None, 0f);
+
         float y = top + Padding;
         if (imageSize > 0)
         {

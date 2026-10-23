@@ -73,12 +73,19 @@ Kept in `Universe` beside `Dock`/`Undock`, returning a `PurchaseResult` (`Ok`, `
 - **Prices need balancing** once there is more than one source of credits; the first numbers are placeholders chosen so the loop can be tested (a new player can afford one useful upgrade).
 - A ship's drawn art, type name and `Flight` change with a purchase, so anything caching them per ship (`EnsureShipArt`, the HUD speed bar) is refreshed through `AssignShipType` and `EnsureShipArt`.
 
-## Open decisions (defaults in bold)
+## Decided
 
-1. **Slot kinds**: weapon / shield / plating / engine / utility, as above? And per-type limits, e.g. Shuttle **1 weapon, 1 shield, 1 plating, 1 engine, 1 utility, mass 450**; Runner **2 weapons, 1 shield, 1 plating, 1 engine, 2 utilities, mass 900**.
-2. **Starting credits** for a new player: **1000**. NPC credits: **about 100 for a Shuttle and 250 for a Runner, +/-50%**.
-3. **Trade-in worth more than the new ship**: **the difference is paid to the player** (it is a trade-in), or the cost never goes below 0.
-4. **Selling equipment** back (needed once a ship is full): **yes, at its full price, from the Equipment Bay**, or buy-only for now.
-5. **What the bays stock**: **every spaceport sells everything** for now, or a seeded subset per planet.
-6. **Missing `Credits` in an old save**: **start at 0**, or give the starting amount.
-7. **Purchases save at once**, like docking: **yes** (an autosave after each purchase), or only on exit.
+All the defaults were accepted:
+
+1. Slot kinds weapon / shield / plating / engine / utility. Limits: Shuttle 1 weapon, 1 shield, 1 plating, 1 engine, 1 utility, mass 450; Runner 2 weapons, 1 shield, 1 plating, 1 engine, 2 utilities, mass 900.
+2. A new player starts with 1000 credits. NPCs carry about 100 (Shuttle) or 250 (Runner), between half and one and a half times that.
+3. If the trade-in is worth more than the new ship, the difference is paid to the player.
+4. Equipment can be sold back at its full price, from the Equipment Bay.
+5. Every spaceport sells everything for now.
+6. A save without credits loads with 0.
+7. **Nothing saves on a purchase.** Only docking saves (as before), and quitting saves as it always has.
+
+## Status
+
+Step 1 (credits) is built: `Ship.Credits` with `CanAfford`, `TrySpend`, `Earn`; `Universe.StartingCredits`; `ShipStats.TypicalCredits` and `Nonplayer.RollCredits`;
+credits on the HUD and at the top of the spaceport screen. The sample save now has `"Credits": 120`, and a test removes it to check an old save loads with 0.

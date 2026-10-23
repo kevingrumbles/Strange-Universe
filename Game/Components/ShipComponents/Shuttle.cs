@@ -24,6 +24,7 @@ public sealed class Shuttle : ShipStats
         Appearance.SpriteScale = 1.5f;
 
         DefaultLoadout = new EquipmentComponent[] { EquipmentCatalog.LightLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.LightHullPlating };
+        TypicalCredits = 100;
         FinishSetup();
     }
 }

@@ -8,6 +8,7 @@
         "ShipTypeName": "Shuttle"
       },
       "Name": "Strife",
+      "Credits": 120,
       "CurrentHullStrength": 1,
       "CurrentShieldStrength": 1,
       "CurrentFuelLevel": 4,

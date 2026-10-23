@@ -29,6 +29,9 @@ public sealed class SpaceportMenu
     public IReadOnlyList<SpaceportService> Items =>
         Planet.Spaceport.Services.Where(service => service.IsAvailable(_universe)).ToList();
 
+    /// <summary>The player's credits, shown on the spaceport screen.</summary>
+    public int Credits => _universe.Player.Credits;
+
     /// <summary>Index of the highlighted service.</summary>
     public int Selected { get; private set; }
 

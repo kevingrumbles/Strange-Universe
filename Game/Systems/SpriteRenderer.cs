@@ -755,6 +755,7 @@ public class SpriteRenderer
         // -- Player Stats Display (no label) ----------------------------------
         string[] stats = new[]
         {
+            $"Credits: {universe.Player.Credits}",
             "Speed: 450 m/s",
             "Mass: 12.5 t",
             "Thrust: 260 N"

@@ -145,6 +145,9 @@ public class Universe : IDisposable
         }
     }
 
+    /// <summary>The credits a new player starts with.</summary>
+    public const int StartingCredits = 1000;
+
     public Universe() { Messages = new BusMessageSink(Events); }
     public Universe(string name, string seed = null) : this()
     {
@@ -154,7 +157,7 @@ public class Universe : IDisposable
         Id = id;
         Name = name;
         Seed = seed ?? id.ToString();
-        Player = new Player(name, new Runner());
+        Player = new Player(name, new Runner()) { Credits = StartingCredits };
     }
 
     public void Update(float deltaTime, InputState input)

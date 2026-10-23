@@ -24,6 +24,7 @@ public sealed class Runner : ShipStats
         Appearance.SpriteScale = 1.5f;
 
         DefaultLoadout = new EquipmentComponent[] {EquipmentCatalog.PlasmaGun, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull };
+        TypicalCredits = 250;
         FinishSetup();
     }
 }

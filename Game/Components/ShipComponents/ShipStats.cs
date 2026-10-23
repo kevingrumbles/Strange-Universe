@@ -27,6 +27,12 @@ public abstract class ShipStats
     public DurabilityStats Durability { get; } = new();
     public ShipAppearance Appearance { get; } = new();
 
+    /// <summary>
+    /// About how many credits an NPC of this type carries. Each NPC has its own amount, between half and one and a half times this
+    /// (see <see cref="Entities.ShipParts.Nonplayer"/>).
+    /// </summary>
+    public int TypicalCredits { get; protected set; }
+
     /// <summary>The equipment a ship of this type starts with. These are the objects the ship is given, so they are never shared between ships.</summary>
     public IReadOnlyList<EquipmentComponent> DefaultLoadout { get; protected set; } = Array.Empty<EquipmentComponent>();
 

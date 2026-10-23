@@ -44,6 +44,32 @@ public abstract class Ship
     }
 
     public string Name { get; set; }
+
+    /// <summary>
+    /// The money this ship carries. The player spends it at spaceports; an NPC has some from the moment it is made, for the player to loot later.
+    /// Saved with the player (a save from before credits existed reads as 0).
+    /// </summary>
+    public int Credits { get; set; }
+
+    public bool CanAfford(int amount) => amount >= 0 && Credits >= amount;
+
+    /// <summary>Takes <paramref name="amount"/> from the ship's credits. Returns false, changing nothing, when it has less than that.</summary>
+    public bool TrySpend(int amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        if (Credits < amount)
+            return false;
+
+        Credits -= amount;
+        return true;
+    }
+
+    /// <summary>Adds <paramref name="amount"/> to the ship's credits.</summary>
+    public void Earn(int amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        Credits += amount;
+    }
     public int? CurrentHullStrength   { get => Durability.Hull;   set => Durability.Hull = value; }
     public int? CurrentShieldStrength { get => Durability.Shield; set => Durability.Shield = value; }
     public int? CurrentFuelLevel      { get => Durability.Fuel;   set => Durability.Fuel = value; }
