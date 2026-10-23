@@ -99,3 +99,8 @@ Otherwise a new ship's free default loadout would be an exploit.
 
 Placeholder prices: Shuttle 800 (list 1250), Runner 2500 (list 3900); equipment from 100 (Cargo Expander, Light Hull Plating) to 1500 (Military Shield Generator). They need balancing once credits can be earned.
 The Plasma Gun was in the Runner's default loadout but missing from the catalog's list, so a saved Runner would have loaded it as an unknown item; it is in the list now.
+
+Step 3 (purchase rules) is built, in `Universe` beside `Dock`/`Undock`, with no UI and no messages (the pages in step 4 will word the results). `TradeResult` is Ok, NotDocked, NotEnoughCredits, NoSlot, TooHeavy or NotCarried; anything but Ok changes nothing.
+- `BuyEquipment(EquipmentOffer)`: docked; credits checked first, then `CheckInstall`; spends the price and installs a new object from the offer (`EquipmentOffer` keeps a builder and a display template).
+- `BuyShip(ShipOffer)`: docked; cost = the offer's `ListPrice` minus `Player.ShipValue`; a negative cost pays the player. The new type replaces the old one through `AssignShipType` (default loadout, full hull/shield/fuel) and its art is requested. `ShipCostAfterTradeIn(offer)` is the number the screen will show.
+- `SellEquipment(item)`: docked; removes the item and pays its price.

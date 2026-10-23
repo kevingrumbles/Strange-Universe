@@ -1,4 +1,6 @@
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Components.PlanetComponents;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.NavSystem;
@@ -232,6 +234,72 @@ public class Universe : IDisposable
             return;
 
         Player.ClearDockTarget();
+    }
+
+    // -- Trading ---------------------------------------------------------------------
+
+    /// <summary>
+    /// Buys <paramref name="offer"/> for the docked player: the credits are spent and a new item is installed. Credits are checked first, then whether the
+    /// item fits (<see cref="Ship.CheckInstall"/>). Anything but <see cref="TradeResult.Ok"/> leaves the player's credits and equipment as they were.
+    /// </summary>
+    public TradeResult BuyEquipment(EquipmentOffer offer)
+    {
+        ArgumentNullException.ThrowIfNull(offer);
+        if (!IsDocked)
+            return TradeResult.NotDocked;
+        if (!Player.CanAfford(offer.Price))
+            return TradeResult.NotEnoughCredits;
+
+        var item = offer.Create();
+        switch (Player.CheckInstall(item))
+        {
+            case InstallCheck.NoSlot: return TradeResult.NoSlot;
+            case InstallCheck.TooHeavy: return TradeResult.TooHeavy;
+        }
+
+        Player.TrySpend(offer.Price);
+        Player.Install(item);
+        return TradeResult.Ok;
+    }
+
+    /// <summary>
+    /// Buys the ship in <paramref name="offer"/> for the docked player. The ship costs its list price (the ship and the equipment it comes with) minus what the
+    /// player's current ship is worth (the ship and everything it carries); when the new one is worth less the player is paid the difference. The new ship
+    /// replaces the old one and comes equipped with its default loadout, full of hull, shield and fuel; the player's position, name and credits carry over.
+    /// </summary>
+    public TradeResult BuyShip(ShipOffer offer)
+    {
+        ArgumentNullException.ThrowIfNull(offer);
+        if (!IsDocked)
+            return TradeResult.NotDocked;
+
+        int cost = offer.ListPrice - Player.ShipValue;
+        if (cost > 0 && !Player.CanAfford(cost))
+            return TradeResult.NotEnoughCredits;
+
+        var type = offer.Create();
+        if (cost >= 0) Player.TrySpend(cost);
+        else Player.Earn(-cost);
+
+        Player.AssignShipType(type);
+        _assets.EnsureShipArt(type);
+        return TradeResult.Ok;
+    }
+
+    /// <summary>What buying the ship in <paramref name="offer"/> would cost the player now, after the trade-in. Negative when they would be paid.</summary>
+    public int ShipCostAfterTradeIn(ShipOffer offer) => offer.ListPrice - Player.ShipValue;
+
+    /// <summary>Sells <paramref name="item"/>, which the docked player carries, back for its price.</summary>
+    public TradeResult SellEquipment(EquipmentComponent item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!IsDocked)
+            return TradeResult.NotDocked;
+        if (!Player.Uninstall(item))
+            return TradeResult.NotCarried;
+
+        Player.Earn(item.Price);
+        return TradeResult.Ok;
     }
 
     /// <summary>
