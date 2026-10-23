@@ -35,34 +35,33 @@ The HUD stats area and the spaceport screen show the player's credits.
 
 ### 3. Buying (rules, no UI)
 
-Kept in `Universe` beside `Dock`/`Undock`, returning a `PurchaseResult` (`Ok`, `NotEnoughCredits`, `NoSlot`, `TooHeavy`, `NotDocked`) so tests and messages share one source:
+Kept in `Universe` beside `Dock`/`Undock`. **No new types:** the stock is what the catalogs already build fresh with every read (`EquipmentCatalog.All`, `ShipStats.BuiltIn()`), so an item taken from them is already
+its own new object; there are no "offer" classes and no result enum. Each method returns `true` when the trade went through; a refusal changes nothing and says why through `Messages` ("Not enough credits",
+"No free slot for X", "X is too heavy for this ship"), so whatever lists the stock only has to try the trade.
 
-- **`BuyEquipment(offer)`**: must be docked; checks credits, then `CheckInstall`; on success spends the price and installs a new object built from the offer (every ship gets its own copy).
-- **`BuyShip(offer)`**: must be docked. Cost = the new type's price minus `Player.ShipValue` (the current ship plus everything it carries). On success the player's credits change by that cost, the new type is built fresh (`new Shuttle()` etc.) and
-  given with `AssignShipType` (so it is full and equipped with its **default loadout**; the old equipment is gone, already paid for in the trade-in), the new ship's art is requested (`EnsureShipArt`), and the player's position, credits and name carry over.
-- **`SellEquipment(item)`** (see the decisions): removes it and pays its price back.
-- A price for an offer is read from the object, never typed twice.
+- **`BuyEquipment(item)`**: must be docked; credits are checked, then `CheckInstall`; on success the price is spent and the item installed.
+- **`BuyShip(type)`**: must be docked. Cost = the new type's `ListPrice` (the ship plus the default loadout it arrives with) minus `Player.ShipValue` (the current ship plus everything it carries); a negative cost pays the player. On success the new type replaces
+  the old through `AssignShipType` (so it is full and equipped with its **default loadout**; the old equipment is gone, paid for in the trade-in), the art is requested (`EnsureShipArt`), and position, name and credits carry over. `ShipCostAfterTradeIn(type)` is the number to show.
+- **`SellEquipment(item)`**: must be docked and carrying it; removes it and pays its price.
 
-### 4. The bays (spaceport data and screens)
+### 4. The bays (no new data classes)
 
-- `Spaceport` gets the data: an **`EquipmentBay`** (a list of equipment offers) and a **`StarshipBay`** (a list of ship offers); both are plain data like the rest of `Spaceport`. An offer holds a builder (`Func<...>`) and a template built once for display,
-  so a purchase always creates a fresh object and nothing is made from a name. The catalog gains a list of what can be sold (the existing builders), and a ship catalog (`Shuttle`, `Runner`; `ShipStats.FromName` uses it too, so there is one list).
-  First version: every spaceport sells the whole equipment catalog and every ship type (stock varied per spaceport from the planet's seed is a later step).
-- **Two services** join Refuel, Repair and Undock: `EquipmentBayService` and `StarshipBayService` ("Equipment" / "Starships"). A service that has nothing to act on opens a page instead: `SpaceportService` gets
-  `Open(universe)`, returning a `SpaceportPage` (or null for the immediate kind like Refuel).
-- **`SpaceportPage`** is a small abstract class: a title, rows (a name, a detail such as price and mass, and whether it can be bought now with the reason if not), and `Select(row, universe)`. `EquipmentBayPage` and `StarshipBayPage` implement it
-  over the bays. `SpaceportMenu` keeps a stack of pages: the main service list is the first, Select on a service with a page pushes it, **Escape or a Back row pops** (and only on the main list does Escape leave for the main menu).
-- The overlay draws whichever page is on top (title, rows with price/mass, the highlight, credits in the header, a one-line reason for a disabled row, hints), and everything stays driven by the same `InputState` menu keys.
-- Equipment rows show: name, kind, price, mass, and the slot/weight left. Ship rows show: type, price, the trade-in value, the cost after it, and the ship's limits.
-- Feedback goes through `Universe.Messages` ("Bought X", "Not enough credits", "No free weapon slot", "Too heavy for this ship").
+- **The spaceport's services are the bays.** `Spaceport` is unchanged (a description and a list of services); two services join Refuel, Repair and Undock: **`EquipmentBayService`** and **`StarshipBayService`**. Their stock is the catalogs
+  (every spaceport sells everything for now; a per-planet stock later would be a list handed to the service's constructor).
+- **A service with rows.** `SpaceportService` gets two virtual members, default "none": `Rows(universe)` (a list of text lines) and `Choose(universe, row)`. The equipment bay's rows are one line per catalog item ("Light Laser  150  mass 50  (1/2 weapons)"),
+  then one per carried item to sell back ("Sell Light Laser  150"); the starship bay's rows are one line per ship type with its list price, the trade-in and the cost after it. `Choose` just calls `BuyEquipment` / `SellEquipment` / `BuyShip` on the row's item (rebuilt from the
+  same catalog index) and the trade posts its own message. No row, page or offer classes.
+- **`SpaceportMenu`** needs one extra field: the service that is open (or none). While one is open the menu shows its rows instead of the service list; Up/Down/Select work the same way; `Back()` closes it (Escape calls it, and only leaves for the main menu
+  when nothing is open). There is no page stack because there is only ever one level.
+- **`SpaceportOverlay`** draws whichever list the menu has (services, or the open service's rows) with the same row style, and shows credits in the header, as it does now.
 
 ## Steps
 
 1. **Credits.** `Ship.Credits` + helpers, new-player amount, NPC credits from the ship type and a seeded roll, HUD and spaceport-screen display. Tests: spend/earn/can't overspend; saved and loaded; NPC credits reproducible and in range; two NPCs differ.
 2. **Prices, kinds and limits.** `SlotLimit` on each kind of equipment, `Price` on equipment and ship types, `LoadoutLimits` and the values for `Shuttle`/`Runner`, the `Ship` helpers and `CheckInstall`. Tests: counts and mass per kind; each limit enforced and exactly-at-limit allowed; every built-in type's default loadout fits; unknown items cost nothing.
-3. **Purchase rules.** `PurchaseResult`, `BuyEquipment`, `BuyShip`, (`SellEquipment`). Tests: each failure leaves credits and equipment untouched; success spends, installs a separate object; trade-in math (new price minus ship and equipment value, including the case where the trade-in is worth more); the new ship has the default loadout, full hull/shield/fuel, kept position and credits; not docked is refused.
-4. **Bays and pages.** `EquipmentBay`, `StarshipBay`, the offers, the catalogs, `SpaceportPage` + the two pages, the `Open` hook on services, the page stack in `SpaceportMenu`. Tests for the page rows (affordable / not, with reasons), selection, back, and that the menu's old behavior is unchanged.
-5. **Overlay.** Draw pages and credits; Escape/Back handling in `PlayingScreen`. Drawing only compiled, so a manual check list.
+3. **Purchase rules.** `BuyEquipment`, `BuyShip`, `SellEquipment` (bool results, messages for refusals). Tests: each failure leaves credits and equipment untouched; success spends, installs a separate object; trade-in math (new price minus ship and equipment value, including the case where the trade-in is worth more); the new ship has the default loadout, full hull/shield/fuel, kept position and credits; not docked is refused.
+4. **Bays.** `EquipmentBayService` and `StarshipBayService`, `Rows`/`Choose` on `SpaceportService`, the open-service field and `Back()` in `SpaceportMenu`, the two services added to every spaceport. Tests: the rows (names, prices, what the player can sell), choosing a row buys or sells, Back, and that the old services and menu behave as before.
+5. **Overlay.** Draw the open service's rows (the credits are already there); Escape/Back handling in `PlayingScreen`. Drawing only compiled, so a manual check list.
 6. **Cleanup.** Architecture tests (no graphics types in the new data), docs, manual check list: buy a weapon, hit the weapon limit, hit the weight limit, buy a ship, check the trade-in, save and reload with the new ship and credits.
 
 ## Risks and notes
@@ -100,7 +99,5 @@ Otherwise a new ship's free default loadout would be an exploit.
 Placeholder prices: Shuttle 800 (list 1250), Runner 2500 (list 3900); equipment from 100 (Cargo Expander, Light Hull Plating) to 1500 (Military Shield Generator). They need balancing once credits can be earned.
 The Plasma Gun was in the Runner's default loadout but missing from the catalog's list, so a saved Runner would have loaded it as an unknown item; it is in the list now.
 
-Step 3 (purchase rules) is built, in `Universe` beside `Dock`/`Undock`, with no UI and no messages (the pages in step 4 will word the results). `TradeResult` is Ok, NotDocked, NotEnoughCredits, NoSlot, TooHeavy or NotCarried; anything but Ok changes nothing.
-- `BuyEquipment(EquipmentOffer)`: docked; credits checked first, then `CheckInstall`; spends the price and installs a new object from the offer (`EquipmentOffer` keeps a builder and a display template).
-- `BuyShip(ShipOffer)`: docked; cost = the offer's `ListPrice` minus `Player.ShipValue`; a negative cost pays the player. The new type replaces the old one through `AssignShipType` (default loadout, full hull/shield/fuel) and its art is requested. `ShipCostAfterTradeIn(offer)` is the number the screen will show.
-- `SellEquipment(item)`: docked; removes the item and pays its price.
+Step 3 (purchase rules) is built, in `Universe` beside `Dock`/`Undock`, with no UI and no new types: `BuyEquipment(item)`, `BuyShip(type)`, `SellEquipment(item)` return `true` when they went through and post the reason through
+`Messages` when they refuse; `ShipCostAfterTradeIn(type)` is the number the screen will show. (The first version had offer classes and a result enum; both were removed to keep the code small.)

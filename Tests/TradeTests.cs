@@ -1,8 +1,8 @@
+using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.EquipmentComponents;
-using Strange_Universe.Game.Components.PlanetComponents;
 using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Entities.ShipParts;
@@ -18,12 +18,14 @@ public class TradeTests
     {
         public Universe Universe { get; }
         public RecordingAssetRequests Assets { get; } = new();
+        public List<string> Messages { get; } = new();
         public Player Player => Universe.Player;
 
         public Docked(bool docked = true)
         {
             Universe = new Universe("Trader", "trade-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
             Universe.Generate(Assets);
+            Universe.Events.Subscribe<MessageRequested>(m => Messages.Add(m.Message));
             Player.Navigator.Clear();
 
             var planet = Enumerable.Range(0, 1000).Select(i => new Planet($"trade_Planet_{i}", 90f, 200f, 3000f, 9000f, 1 + i % 8, 8))
@@ -32,11 +34,18 @@ public class TradeTests
             Universe.ActiveStarSystem.Planets.Add(planet);
             Player.Position = planet.Position + new Vector2(planet.Radius + 20f, 0f);
             if (docked) Universe.Dock(planet);
+            Messages.Clear();
         }
     }
 
-    private static EquipmentOffer GunOffer(int price = 200, float mass = 10f) =>
-        new(() => { var gun = TestGear.Gun(); gun.Price = price; gun.Mass = mass; return gun; });
+    /// <summary>A new gun, as a stocked item is: a fresh object nobody holds.</summary>
+    private static WeaponComponent Gun(int price = 200, float mass = 10f)
+    {
+        var gun = TestGear.Gun();
+        gun.Price = price;
+        gun.Mass = mass;
+        return gun;
+    }
 
     /// <summary>Gives the player exactly this gear and these limits and credits, so the numbers do not depend on any ship type.</summary>
     private static void Prepare(Docked d, int credits, int weapons = 2, float maxMass = 1000f, params EquipmentComponent[] gear)
@@ -50,30 +59,30 @@ public class TradeTests
     // -- buying equipment -------------------------------------------------------------------
 
     [Fact]
-    public void BuyingEquipment_SpendsThePrice_AndInstallsANewItem()
+    public void BuyingEquipment_SpendsThePrice_AndInstallsTheItem()
     {
         var d = new Docked();
         Prepare(d, credits: 500);
-        var offer = GunOffer(price: 200);
+        var gun = Gun(price: 200);
 
-        var result = d.Universe.BuyEquipment(offer);
+        Assert.True(d.Universe.BuyEquipment(gun));
 
-        Assert.Equal(TradeResult.Ok, result);
         Assert.Equal(300, d.Player.Credits);
-        var bought = Assert.Single(d.Player.Equipment);
-        Assert.NotSame(offer.Template, bought); // the template on the shelf is not the item
+        Assert.Same(gun, Assert.Single(d.Player.Equipment));
+        Assert.Contains(d.Messages, m => m.Contains("Bought"));
         d.Universe.Dispose();
     }
 
     [Fact]
-    public void BuyingTheSameOfferTwice_GivesTwoSeparateItems()
+    public void ItemsFromTheCatalog_AreFreshEveryTime_SoBuyingTheSameOneTwiceGivesTwoSeparateItems()
     {
         var d = new Docked();
-        Prepare(d, credits: 1000, weapons: 2);
-        var offer = GunOffer();
+        Prepare(d, credits: 100000, weapons: 9, maxMass: 100000f);
+        var firstRead = EquipmentCatalog.All.First(item => item is WeaponComponent);
+        var secondRead = EquipmentCatalog.All.First(item => item is WeaponComponent);
 
-        d.Universe.BuyEquipment(offer);
-        d.Universe.BuyEquipment(offer);
+        Assert.True(d.Universe.BuyEquipment(firstRead));
+        Assert.True(d.Universe.BuyEquipment(secondRead));
 
         Assert.Equal(2, d.Player.Equipment.Count);
         Assert.NotSame(d.Player.Equipment[0], d.Player.Equipment[1]);
@@ -86,7 +95,7 @@ public class TradeTests
         var d = new Docked();
         Prepare(d, credits: 200);
 
-        Assert.Equal(TradeResult.Ok, d.Universe.BuyEquipment(GunOffer(price: 200)));
+        Assert.True(d.Universe.BuyEquipment(Gun(price: 200)));
 
         Assert.Equal(0, d.Player.Credits);
         d.Universe.Dispose();
@@ -98,11 +107,11 @@ public class TradeTests
         var d = new Docked();
         Prepare(d, credits: 199);
 
-        var result = d.Universe.BuyEquipment(GunOffer(price: 200));
+        Assert.False(d.Universe.BuyEquipment(Gun(price: 200)));
 
-        Assert.Equal(TradeResult.NotEnoughCredits, result);
         Assert.Equal(199, d.Player.Credits);
         Assert.Empty(d.Player.Equipment);
+        Assert.Contains(d.Messages, m => m.Contains("Not enough credits"));
         d.Universe.Dispose();
     }
 
@@ -110,13 +119,13 @@ public class TradeTests
     public void NoFreeSlot_RefusesAndChangesNothing()
     {
         var d = new Docked();
-        Prepare(d, credits: 1000, weapons: 1, gear: GunOffer().Create());
+        Prepare(d, credits: 1000, weapons: 1, gear: Gun());
 
-        var result = d.Universe.BuyEquipment(GunOffer());
+        Assert.False(d.Universe.BuyEquipment(Gun()));
 
-        Assert.Equal(TradeResult.NoSlot, result);
         Assert.Equal(1000, d.Player.Credits);
         Assert.Single(d.Player.Equipment);
+        Assert.Contains(d.Messages, m => m.Contains("No free slot"));
         d.Universe.Dispose();
     }
 
@@ -124,13 +133,14 @@ public class TradeTests
     public void TooHeavy_RefusesAndChangesNothing_ButExactlyTheLimitIsFine()
     {
         var d = new Docked();
-        Prepare(d, credits: 1000, weapons: 3, maxMass: 100f, gear: GunOffer(mass: 60f).Create());
+        Prepare(d, credits: 1000, weapons: 3, maxMass: 100f, gear: Gun(mass: 60f));
 
-        Assert.Equal(TradeResult.TooHeavy, d.Universe.BuyEquipment(GunOffer(mass: 41f)));
+        Assert.False(d.Universe.BuyEquipment(Gun(mass: 41f)));
         Assert.Equal(1000, d.Player.Credits);
         Assert.Single(d.Player.Equipment);
+        Assert.Contains(d.Messages, m => m.Contains("too heavy"));
 
-        Assert.Equal(TradeResult.Ok, d.Universe.BuyEquipment(GunOffer(mass: 40f))); // 100 of 100
+        Assert.True(d.Universe.BuyEquipment(Gun(mass: 40f))); // 100 of 100
         d.Universe.Dispose();
     }
 
@@ -140,7 +150,9 @@ public class TradeTests
         var d = new Docked();
         Prepare(d, credits: 10, weapons: 0); // cannot afford it and has no slot for it
 
-        Assert.Equal(TradeResult.NotEnoughCredits, d.Universe.BuyEquipment(GunOffer(price: 200)));
+        Assert.False(d.Universe.BuyEquipment(Gun(price: 200)));
+
+        Assert.Equal("Not enough credits", Assert.Single(d.Messages));
         d.Universe.Dispose();
     }
 
@@ -149,15 +161,15 @@ public class TradeTests
     {
         var d = new Docked(docked: false);
         Prepare(d, credits: 5000, weapons: 2);
-        var owned = GunOffer().Create();
+        var owned = Gun();
         d.Player.Equipment.Add(owned);
 
-        Assert.Equal(TradeResult.NotDocked, d.Universe.BuyEquipment(GunOffer()));
-        Assert.Equal(TradeResult.NotDocked, d.Universe.BuyShip(new ShipOffer(() => new Runner())));
-        Assert.Equal(TradeResult.NotDocked, d.Universe.SellEquipment(owned));
+        Assert.False(d.Universe.BuyEquipment(Gun()));
+        Assert.False(d.Universe.BuyShip(new Runner()));
+        Assert.False(d.Universe.SellEquipment(owned));
 
         Assert.Equal(5000, d.Player.Credits);
-        Assert.Single(d.Player.Equipment);
+        Assert.Same(owned, Assert.Single(d.Player.Equipment));
         d.Universe.Dispose();
     }
 
@@ -167,14 +179,14 @@ public class TradeTests
     public void SellingEquipment_RemovesIt_AndPaysItsPrice()
     {
         var d = new Docked();
-        var gun = GunOffer(price: 350).Create();
+        var gun = Gun(price: 350);
         Prepare(d, credits: 100, gear: gun);
 
-        var result = d.Universe.SellEquipment(gun);
+        Assert.True(d.Universe.SellEquipment(gun));
 
-        Assert.Equal(TradeResult.Ok, result);
         Assert.Equal(450, d.Player.Credits);
         Assert.Empty(d.Player.Equipment);
+        Assert.Contains(d.Messages, m => m.Contains("Sold"));
         d.Universe.Dispose();
     }
 
@@ -184,9 +196,8 @@ public class TradeTests
         var d = new Docked();
         Prepare(d, credits: 100);
 
-        var result = d.Universe.SellEquipment(GunOffer().Create());
+        Assert.False(d.Universe.SellEquipment(Gun()));
 
-        Assert.Equal(TradeResult.NotCarried, result);
         Assert.Equal(100, d.Player.Credits);
         d.Universe.Dispose();
     }
@@ -195,13 +206,12 @@ public class TradeTests
     public void SellingThenBuyingBack_CostsNothingInTheEnd_AndFreesTheSlotMeanwhile()
     {
         var d = new Docked();
-        var offer = GunOffer(price: 300);
-        var gun = offer.Create();
+        var gun = Gun(price: 300);
         Prepare(d, credits: 350, weapons: 1, gear: gun);
-        Assert.Equal(TradeResult.NoSlot, d.Universe.BuyEquipment(offer)); // full
+        Assert.False(d.Universe.BuyEquipment(Gun(price: 300))); // full
 
         d.Universe.SellEquipment(gun);
-        Assert.Equal(TradeResult.Ok, d.Universe.BuyEquipment(offer));
+        Assert.True(d.Universe.BuyEquipment(Gun(price: 300)));
 
         Assert.Equal(350, d.Player.Credits);
         d.Universe.Dispose();
@@ -215,16 +225,15 @@ public class TradeTests
         var d = new Docked();
         d.Player.AssignShipType(new Shuttle());
         d.Player.Equipment.Add(new UtilityComponent { EquipmentName = "Extra", Price = 90 }); // the equipment counts in the trade-in too
-        var offer = new ShipOffer(() => new Runner());
+        var type = new Runner();
         int worth = d.Player.ShipType.Price + d.Player.EquipmentValue;
-        int cost = offer.ListPrice - worth;
+        int cost = type.ListPrice - worth;
         Assert.True(cost > 0);
         d.Player.Credits = cost + 7;
-        Assert.Equal(cost, d.Universe.ShipCostAfterTradeIn(offer)); // the price shown is the price charged
+        Assert.Equal(cost, d.Universe.ShipCostAfterTradeIn(new Runner())); // the price shown is the price charged
 
-        var result = d.Universe.BuyShip(offer);
+        Assert.True(d.Universe.BuyShip(type));
 
-        Assert.Equal(TradeResult.Ok, result);
         Assert.Equal(7, d.Player.Credits);
         d.Universe.Dispose();
     }
@@ -238,10 +247,9 @@ public class TradeTests
         d.Player.Equipment.Add(new UtilityComponent { EquipmentName = "Old Extra" });
         string name = d.Player.Name;
         Vector2 where = d.Player.Position;
-        var offer = new ShipOffer(() => new Runner());
         d.Player.Credits = 100000;
 
-        d.Universe.BuyShip(offer);
+        d.Universe.BuyShip(new Runner());
 
         Assert.Equal("Runner", d.Player.ShipType.ShipTypeName);
         Assert.Equal(d.Player.ShipType.DefaultLoadout, d.Player.Equipment);           // the new ship's own default loadout, nothing of the old
@@ -263,7 +271,7 @@ public class TradeTests
         var runner = new Runner();
         d.Player.Credits = 100000;
 
-        d.Universe.BuyShip(new ShipOffer(() => new Runner()));
+        d.Universe.BuyShip(new Runner());
 
         Assert.Equal(runner.Limits.MaxMass, d.Player.ShipType.Limits.MaxMass);
         Assert.Equal(runner.Limits.MaxWeapons, d.Player.ShipType.Limits.MaxWeapons);
@@ -277,17 +285,16 @@ public class TradeTests
     {
         var d = new Docked();
         d.Player.AssignShipType(new Shuttle());
-        var offer = new ShipOffer(() => new Runner());
-        int cost = offer.ListPrice - d.Player.ShipValue;
+        int cost = d.Universe.ShipCostAfterTradeIn(new Runner());
         d.Player.Credits = cost - 1;
         var equipment = d.Player.Equipment.ToList();
 
-        var result = d.Universe.BuyShip(offer);
+        Assert.False(d.Universe.BuyShip(new Runner()));
 
-        Assert.Equal(TradeResult.NotEnoughCredits, result);
         Assert.Equal(cost - 1, d.Player.Credits);
         Assert.Equal("Shuttle", d.Player.ShipType.ShipTypeName);
         Assert.Equal(equipment, d.Player.Equipment);
+        Assert.Contains(d.Messages, m => m.Contains("Not enough credits"));
         d.Universe.Dispose();
     }
 
@@ -296,14 +303,12 @@ public class TradeTests
     {
         var d = new Docked();
         d.Player.AssignShipType(new Runner());
-        var offer = new ShipOffer(() => new Shuttle());
-        int cost = offer.ListPrice - d.Player.ShipValue;
+        int cost = d.Universe.ShipCostAfterTradeIn(new Shuttle());
         Assert.True(cost < 0);
         d.Player.Credits = 10;
 
-        var result = d.Universe.BuyShip(offer);
+        Assert.True(d.Universe.BuyShip(new Shuttle()));
 
-        Assert.Equal(TradeResult.Ok, result);
         Assert.Equal(10 - cost, d.Player.Credits);
         Assert.Equal("Shuttle", d.Player.ShipType.ShipTypeName);
         d.Universe.Dispose();
@@ -314,15 +319,14 @@ public class TradeTests
     {
         var d = new Docked();
         d.Player.AssignShipType(new Shuttle());
-        var offer = new ShipOffer(() => new Runner());
-        int costBefore = d.Universe.ShipCostAfterTradeIn(offer);
+        int costBefore = d.Universe.ShipCostAfterTradeIn(new Runner());
         d.Player.Credits = 1000;
         d.Player.ShipType.Limits.MaxWeapons = 5;
         d.Player.ShipType.Limits.MaxMass = 10000f;
-        Assert.Equal(TradeResult.Ok, d.Universe.BuyEquipment(GunOffer(price: 120)));
-        Assert.Equal(TradeResult.Ok, d.Universe.BuyEquipment(GunOffer(price: 120)));
+        Assert.True(d.Universe.BuyEquipment(Gun(price: 120)));
+        Assert.True(d.Universe.BuyEquipment(Gun(price: 120)));
 
-        Assert.Equal(costBefore - 240, d.Universe.ShipCostAfterTradeIn(offer));
+        Assert.Equal(costBefore - 240, d.Universe.ShipCostAfterTradeIn(new Runner()));
         d.Universe.Dispose();
     }
 
@@ -331,12 +335,11 @@ public class TradeTests
     {
         var d = new Docked();
         d.Player.AssignShipType(new Shuttle());
-        var offer = new ShipOffer(() => new Shuttle());
-        Assert.Equal(0, d.Universe.ShipCostAfterTradeIn(offer)); // an unmodified ship trades for an identical new one at no cost
+        Assert.Equal(0, d.Universe.ShipCostAfterTradeIn(new Shuttle())); // an unmodified ship trades for an identical new one at no cost
         d.Player.Equipment.Add(new UtilityComponent { EquipmentName = "Extra", Price = 90 });
         d.Player.Credits = 0;
 
-        Assert.Equal(TradeResult.Ok, d.Universe.BuyShip(offer));
+        Assert.True(d.Universe.BuyShip(new Shuttle()));
 
         Assert.Equal(90, d.Player.Credits); // the extra item was worth 90, and the new ship's loadout has no extra
         Assert.DoesNotContain(d.Player.Equipment, item => item.EquipmentName == "Extra");

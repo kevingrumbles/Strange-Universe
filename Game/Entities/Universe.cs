@@ -1,6 +1,5 @@
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.EquipmentComponents;
-using Strange_Universe.Game.Components.PlanetComponents;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.NavSystem;
@@ -237,69 +236,80 @@ public class Universe : IDisposable
     }
 
     // -- Trading ---------------------------------------------------------------------
+    // Each returns true when it went through. A refusal changes nothing and says why through Messages, so whatever lists the stock
+    // (the spaceport screen) only has to try the trade.
 
     /// <summary>
-    /// Buys <paramref name="offer"/> for the docked player: the credits are spent and a new item is installed. Credits are checked first, then whether the
-    /// item fits (<see cref="Ship.CheckInstall"/>). Anything but <see cref="TradeResult.Ok"/> leaves the player's credits and equipment as they were.
+    /// Buys <paramref name="item"/> for the docked player: its price is spent and it is installed. <paramref name="item"/> must be a new object that no
+    /// ship holds (the catalog builds a fresh one with every read of <see cref="EquipmentCatalog.All"/>). Credits are checked first, then whether it fits
+    /// (<see cref="Ship.CheckInstall"/>).
     /// </summary>
-    public TradeResult BuyEquipment(EquipmentOffer offer)
+    public bool BuyEquipment(EquipmentComponent item)
     {
-        ArgumentNullException.ThrowIfNull(offer);
+        ArgumentNullException.ThrowIfNull(item);
         if (!IsDocked)
-            return TradeResult.NotDocked;
-        if (!Player.CanAfford(offer.Price))
-            return TradeResult.NotEnoughCredits;
+            return false;
+        if (!Player.CanAfford(item.Price))
+            return Refuse("Not enough credits");
 
-        var item = offer.Create();
         switch (Player.CheckInstall(item))
         {
-            case InstallCheck.NoSlot: return TradeResult.NoSlot;
-            case InstallCheck.TooHeavy: return TradeResult.TooHeavy;
+            case InstallCheck.NoSlot: return Refuse($"No free slot for {item.EquipmentName}");
+            case InstallCheck.TooHeavy: return Refuse($"{item.EquipmentName} is too heavy for this ship");
         }
 
-        Player.TrySpend(offer.Price);
+        Player.TrySpend(item.Price);
         Player.Install(item);
-        return TradeResult.Ok;
+        Messages.Post($"Bought {item.EquipmentName}");
+        return true;
     }
 
     /// <summary>
-    /// Buys the ship in <paramref name="offer"/> for the docked player. The ship costs its list price (the ship and the equipment it comes with) minus what the
-    /// player's current ship is worth (the ship and everything it carries); when the new one is worth less the player is paid the difference. The new ship
-    /// replaces the old one and comes equipped with its default loadout, full of hull, shield and fuel; the player's position, name and credits carry over.
+    /// Buys a ship of <paramref name="type"/> for the docked player. <paramref name="type"/> must be a new object (<see cref="ShipStats.BuiltIn"/> builds
+    /// them). The ship costs its list price (the ship and the equipment it comes with) minus what the player's current ship is worth (the ship and
+    /// everything it carries); when the new one is worth less the player is paid the difference. The new ship replaces the old one and comes equipped
+    /// with its default loadout, full of hull, shield and fuel; the player's position, name and credits carry over.
     /// </summary>
-    public TradeResult BuyShip(ShipOffer offer)
+    public bool BuyShip(ShipStats type)
     {
-        ArgumentNullException.ThrowIfNull(offer);
+        ArgumentNullException.ThrowIfNull(type);
         if (!IsDocked)
-            return TradeResult.NotDocked;
+            return false;
 
-        int cost = offer.ListPrice - Player.ShipValue;
+        int cost = ShipCostAfterTradeIn(type);
         if (cost > 0 && !Player.CanAfford(cost))
-            return TradeResult.NotEnoughCredits;
+            return Refuse("Not enough credits");
 
-        var type = offer.Create();
         if (cost >= 0) Player.TrySpend(cost);
         else Player.Earn(-cost);
 
         Player.AssignShipType(type);
         _assets.EnsureShipArt(type);
-        return TradeResult.Ok;
+        Messages.Post($"Bought a {type.ShipTypeName}");
+        return true;
     }
 
-    /// <summary>What buying the ship in <paramref name="offer"/> would cost the player now, after the trade-in. Negative when they would be paid.</summary>
-    public int ShipCostAfterTradeIn(ShipOffer offer) => offer.ListPrice - Player.ShipValue;
+    /// <summary>What buying a ship of <paramref name="type"/> would cost the player now, after the trade-in. Negative when they would be paid.</summary>
+    public int ShipCostAfterTradeIn(ShipStats type) => type.ListPrice - Player.ShipValue;
 
     /// <summary>Sells <paramref name="item"/>, which the docked player carries, back for its price.</summary>
-    public TradeResult SellEquipment(EquipmentComponent item)
+    public bool SellEquipment(EquipmentComponent item)
     {
         ArgumentNullException.ThrowIfNull(item);
         if (!IsDocked)
-            return TradeResult.NotDocked;
+            return false;
         if (!Player.Uninstall(item))
-            return TradeResult.NotCarried;
+            return Refuse("The ship does not carry that");
 
         Player.Earn(item.Price);
-        return TradeResult.Ok;
+        Messages.Post($"Sold {item.EquipmentName}");
+        return true;
+    }
+
+    private bool Refuse(string reason)
+    {
+        Messages.Post(reason);
+        return false;
     }
 
     /// <summary>
