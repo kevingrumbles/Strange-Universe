@@ -95,8 +95,76 @@ public class BayTests
     {
         var planet = PlanetWith(spaceport: true);
 
-        Assert.Equal(EquipmentCatalog.All.Select(item => item.EquipmentName), EquipmentBay(planet).Stock.Select(item => item.EquipmentName));
-        Assert.Equal(ShipStats.BuiltIn().Select(type => type.ShipTypeName), StarshipBay(planet).Stock.Select(type => type.ShipTypeName));
+        Assert.Equal(EquipmentCatalog.All.Select(item => item.EquipmentName).OrderBy(name => name), EquipmentBay(planet).Stock.Select(item => item.EquipmentName).OrderBy(name => name));
+        Assert.Equal(ShipStats.BuiltIn().Select(type => type.ShipTypeName).OrderBy(name => name), StarshipBay(planet).Stock.Select(type => type.ShipTypeName).OrderBy(name => name));
+    }
+
+    // -- grade and the order of the lists ---------------------------------------------------------------
+
+    [Fact]
+    public void EveryItemAndShipType_HasAGrade()
+    {
+        Assert.All(EquipmentCatalog.All, item => Assert.True(item.Grade >= 1, item.EquipmentName));
+        Assert.All(ShipStats.BuiltIn(), type => Assert.True(type.Grade >= 1, type.ShipTypeName));
+    }
+
+    [Fact]
+    public void AClonedItemOrShip_KeepsItsGrade()
+    {
+        foreach (var item in EquipmentCatalog.All)
+            Assert.Equal(item.Grade, item.Clone().Grade);
+        foreach (var type in ShipStats.BuiltIn())
+            Assert.Equal(type.Grade, type.Clone().Grade);
+    }
+
+    [Fact]
+    public void TheEquipmentBayLists_ByKindOfEquipmentFirst_ThenByGrade_TheHighestLast()
+    {
+        // Handed over in the worst order: the bay sorts them.
+        var jumbled = EquipmentCatalog.All.OrderByDescending(item => item.Grade).ThenByDescending(item => item.EquipmentType).ToList();
+
+        var stock = new EquipmentBayService(jumbled).Stock;
+
+        for (int i = 1; i < stock.Count; i++)
+        {
+            var before = stock[i - 1];
+            var after = stock[i];
+            Assert.True(before.EquipmentType <= after.EquipmentType, $"{before.EquipmentName} is listed before {after.EquipmentName}");
+            if (before.EquipmentType == after.EquipmentType)
+                Assert.True(before.Grade <= after.Grade, $"{before.EquipmentName} (grade {before.Grade}) is listed before {after.EquipmentName} (grade {after.Grade})");
+        }
+        Assert.Equal(jumbled.Count, stock.Count); // nothing lost or added
+    }
+
+    [Fact]
+    public void TheListsOnAPlanet_AreSortedToo_AndTheRowsFollowTheStock()
+    {
+        using var u = Docked(out var planet);
+        var bay = EquipmentBay(planet);
+        var rows = bay.Rows(u);
+
+        for (int i = 0; i < bay.Stock.Count; i++)
+            Assert.StartsWith(bay.Stock[i].EquipmentName, rows[i]);                  // row i is stock item i, so choosing row i buys it
+        Assert.Contains($"G{bay.Stock[0].Grade}", rows[0]);                          // and each row shows its grade
+
+        var ships = StarshipBay(planet).Stock;
+        for (int i = 1; i < ships.Count; i++)
+            Assert.True(ships[i - 1].Grade <= ships[i].Grade);
+    }
+
+    [Fact]
+    public void TheSellLines_AreInTheSameOrder()
+    {
+        using var u = Docked(out var planet);
+        var bay = EquipmentBay(planet);
+        var high = new ShieldComponent { EquipmentName = "High Shield", Grade = 3, Price = 10 };
+        var low = new ShieldComponent { EquipmentName = "Low Shield", Grade = 1, Price = 10 };
+        var gun = TestGear.Gun(); gun.EquipmentName = "Some Gun"; gun.Grade = 2;
+        TestGear.Arm(u.Player, high, low, gun);
+
+        var sell = bay.Rows(u).Skip(bay.Stock.Count).ToList();
+
+        Assert.Equal(new[] { "Sell Some Gun", "Sell Low Shield", "Sell High Shield" }, sell.Select(row => row.Substring(0, row.IndexOf("   ")).Trim()));
     }
 
     // -- the equipment bay ---------------------------------------------------------------------------------

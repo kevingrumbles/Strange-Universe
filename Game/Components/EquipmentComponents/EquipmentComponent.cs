@@ -36,6 +36,9 @@ public abstract class EquipmentComponent
 
     public float Mass { get; set; }
 
+    /// <summary>How advanced the item is, 1 and up. Spaceports list equipment by kind and then by grade, the highest last.</summary>
+    public int Grade { get; set; }
+
     /// <summary>What the item costs at a spaceport, and what it counts for in a trade-in or a sale.</summary>
     public int Price { get; set; }
 

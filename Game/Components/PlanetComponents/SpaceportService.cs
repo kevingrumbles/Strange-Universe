@@ -44,17 +44,21 @@ public abstract class SpaceportService
 /// </summary>
 public sealed class EquipmentBayService : SpaceportService
 {
-    public EquipmentBayService(IEnumerable<EquipmentComponent> stock) => Stock = stock.ToList();
+    public EquipmentBayService(IEnumerable<EquipmentComponent> stock) => Stock = Ordered(stock);
 
-    /// <summary>What is for sale. These are display copies; what a buyer gets is a clone.</summary>
+    /// <summary>What is for sale, by kind of equipment and then by grade, the highest last. These are display copies; what a buyer gets is a clone.</summary>
     public List<EquipmentComponent> Stock { get; }
+
+    /// <summary>The order equipment is listed in: by <see cref="EquipmentComponent.EquipmentType"/>, then <see cref="EquipmentComponent.Grade"/>, then price.</summary>
+    private static List<EquipmentComponent> Ordered(IEnumerable<EquipmentComponent> items) =>
+        items.OrderBy(item => item.EquipmentType).ThenBy(item => item.Grade).ThenBy(item => item.Price).ToList();
 
     public override string Name => "Equipment";
     public override bool OpensRows => true;
 
     /// <summary>The player's items that can be sold back (anything that is still a known item).</summary>
     private static List<EquipmentComponent> Sellable(Universe universe) =>
-        universe.Player.Equipment.Where(item => item is not UnknownComponent).ToList();
+        Ordered(universe.Player.Equipment.Where(item => item is not UnknownComponent));
 
     public override IReadOnlyList<string> Rows(Universe universe)
     {
@@ -63,7 +67,7 @@ public sealed class EquipmentBayService : SpaceportService
 
         foreach (var item in Stock)
         {
-            rows.Add($"{item.EquipmentName}   {item.Price} cr   mass {item.Mass:0}   [{universe.Player.CountLike(item)}/{item.SlotLimit(limits)}]");
+            rows.Add($"{item.EquipmentName}   G{item.Grade}   {item.Price} cr   mass {item.Mass:0}   [{universe.Player.CountLike(item)}/{item.SlotLimit(limits)}]");
         }
         foreach (var item in Sellable(universe))
             rows.Add($"Sell {item.EquipmentName}   {item.Price} cr");
@@ -93,9 +97,9 @@ public sealed class EquipmentBayService : SpaceportService
 /// </summary>
 public sealed class StarshipBayService : SpaceportService
 {
-    public StarshipBayService(IEnumerable<ShipStats> stock) => Stock = stock.ToList();
+    public StarshipBayService(IEnumerable<ShipStats> stock) => Stock = stock.OrderBy(type => type.Grade).ThenBy(type => type.ListPrice).ToList();
 
-    /// <summary>What is for sale. These are display copies; what a buyer gets is a clone.</summary>
+    /// <summary>What is for sale, by grade, the highest last. These are display copies; what a buyer gets is a clone.</summary>
     public List<ShipStats> Stock { get; }
 
     public override string Name => "Starships";
@@ -103,7 +107,7 @@ public sealed class StarshipBayService : SpaceportService
 
     public override IReadOnlyList<string> Rows(Universe universe) =>
         Stock.Select(type =>
-            $"{type.ShipTypeName}   {type.ListPrice} cr   trade-in {universe.Player.ShipValue} cr   cost {universe.ShipCostAfterTradeIn(type)} cr")
+            $"{type.ShipTypeName}   G{type.Grade}   {type.ListPrice} cr   trade-in {universe.Player.ShipValue} cr   cost {universe.ShipCostAfterTradeIn(type)} cr")
              .ToList();
 
     public override void Choose(Universe universe, int row)

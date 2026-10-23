@@ -34,6 +34,9 @@ public abstract class ShipStats
     /// </summary>
     public int TypicalCredits { get; protected set; }
 
+    /// <summary>How advanced the ship is, 1 and up. Spaceports list ships by grade, the highest last.</summary>
+    public int Grade { get; protected set; }
+
     /// <summary>What the ship itself costs, without any equipment. See <see cref="ListPrice"/> for what it sells for new.</summary>
     public int Price { get; protected set; }
 

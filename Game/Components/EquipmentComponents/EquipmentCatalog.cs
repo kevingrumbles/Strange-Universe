@@ -17,6 +17,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName       = "Light Laser",
         Price = 150,
+        Grade = 1,
         Damage              = 15,
         ProjectileSpeed     = 2000f,
         Range               = 1500f,
@@ -34,6 +35,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName       = "Heavy Laser",
         Price = 400,
+        Grade = 2,
         Damage              = 35,
         ProjectileSpeed     = 1800f,
         Range               = 2000f,
@@ -56,6 +58,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName       = "Pulse Cannon",
         Price = 300,
+        Grade = 1,
         Damage              = 20,
         ProjectileSpeed     = 1500f,
         Range               = 1200f,
@@ -78,6 +81,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName       = "Gatling Gun",
         Price = 350,
+        Grade = 2,
         Damage              = 8,
         ProjectileSpeed     = 2500f,
         Range               = 1000f,
@@ -100,6 +104,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Plasma Gun",
         Price = 450,
+        Grade = 3,
         Damage = 35,
         ProjectileSpeed = 1800f,
         Range = 2000f,
@@ -132,6 +137,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName       = "Plasma Beam",
         Price = 700,
+        Grade = 3,
         Damage              = 50,
         Range               = 2500f,
         EnergyCost          = 40f,
@@ -152,6 +158,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName       = "Mining Beam",
         Price = 200,
+        Grade = 1,
         Damage              = 5,
         Range               = 800f,
         EnergyCost          = 15f,
@@ -172,6 +179,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName   = "Light Missile",
         Price = 300,
+        Grade = 2,
         Damage          = 80,
         ProjectileSpeed = 500f,
         Range           = 3000f,
@@ -184,6 +192,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName   = "Heavy Torpedo",
         Price = 800,
+        Grade = 3,
         Damage          = 200,
         ProjectileSpeed = 300f,
         Range           = 5000f,
@@ -198,6 +207,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Basic Shield Generator",
         Price = 200,
+        Grade = 1,
         ShieldStrength = 25f,
         RechargeRate   = 5f,
         RechargeDelay  = 5f,
@@ -209,6 +219,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Advanced Shield Generator",
         Price = 600,
+        Grade = 2,
         ShieldStrength = 60f,
         RechargeRate   = 10f,
         RechargeDelay  = 3f,
@@ -220,6 +231,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Military Shield Generator",
         Price = 1500,
+        Grade = 3,
         ShieldStrength = 125f,
         RechargeRate   = 16f,
         RechargeDelay  = 2f,
@@ -233,6 +245,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Light Hull Plating",
         Price = 100,
+        Grade = 1,
         HullStrength  = 25f,
         Mass          = 150f,
     };
@@ -241,6 +254,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Reinforced Hull",
         Price = 350,
+        Grade = 2,
         HullStrength  = 65f,
         Mass          = 400f,
     };
@@ -249,6 +263,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Military Armor",
         Price = 900,
+        Grade = 3,
         HullStrength  = 125f,
         Mass          = 800f,
     };
@@ -259,6 +274,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Standard Engine",
         Price = 300,
+        Grade = 1,
         EngineThrust  = 1000f,
         FuelLevel     = 100f,
         Mass          = 300f,
@@ -268,6 +284,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "High-Performance Engine",
         Price = 800,
+        Grade = 3,
         EngineThrust  = 2000f,
         FuelLevel     = 80f,
         Mass          = 450f,
@@ -277,6 +294,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Efficient Engine",
         Price = 500,
+        Grade = 2,
         EngineThrust  = 1200f,
         FuelLevel     = 150f,
         Mass          = 350f,
@@ -288,6 +306,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Cargo Expander",
         Price = 100,
+        Grade = 1,
         Mass          = 100f,
     };
 
@@ -295,6 +314,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Sensor Array",
         Price = 150,
+        Grade = 1,
         EnergyCost    = 5f,
         Mass          = 75f,
     };
@@ -303,6 +323,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName = "Auto-Repair Module",
         Price = 400,
+        Grade = 2,
         EnergyCost    = 15f,
         Mass          = 150f,
     };

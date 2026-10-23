@@ -20,6 +20,7 @@ spaceport screen, which is only compiled (see the check list at the end).
 ## Credits, limits and trading
 
 - **Credits.** `Ship.Credits` (saved; old saves read 0) with `CanAfford`, `TrySpend`, `Earn`. A new player starts with `Universe.StartingCredits` (1000). An NPC gets credits when made: its type's `TypicalCredits` (Shuttle 100, Runner 250) times 0.5-1.5, rolled from its id (`Nonplayer.RollCredits`).
+- **Grade.** `EquipmentComponent.Grade` and `ShipStats.Grade` (1 and up) say how advanced something is; the stores sort by it (below).
 - **Prices and limits.** `EquipmentComponent.Price`, `ShipStats.Price` (the ship alone) and `ListPrice` (ship plus its default loadout). `ShipStats.Limits` (`LoadoutLimits`): the most items of each kind and the most equipment mass
   (Shuttle 1 of each kind, mass 450; Runner 2 weapons, 2 utilities, 1 of the rest, mass 900). Each kind of equipment (its class; all weapons are one kind) names its own limit with `SlotLimit(limits)`; an unknown item has none.
   `Ship.CheckInstall` returns `InstallCheck` (Ok, NoSlot, TooHeavy); `Install` adds only if it fits. Limits are checked only when adding: a default loadout or a loaded save is never trimmed. Equipment mass is a payload limit; it does not change flight.
@@ -27,7 +28,8 @@ spaceport screen, which is only compiled (see the check list at the end).
   The new ship replaces the old through `AssignShipType` (default loadout, full hull/shield/fuel), keeping position, name and credits. `SellEquipment(item)` pays the item's price. `ShipCostAfterTradeIn(type)` is the number shown.
 - **Services and stores.** A `SpaceportService` has a `Name`, `IsAvailable(universe)` and `Perform(universe)`: Refuel (only while fuel is missing), Repair (only while the hull is damaged), Equipment, Starships, Undock.
   A store (`OpensRows`) also has `Rows` and `Choose`. `EquipmentBayService` and `StarshipBayService` each keep a `Stock` list (the catalogs for now) and give a buyer `Clone()` of the stock item (`EquipmentComponent.Clone`, `ShipStats.Clone`).
-  Equipment rows show price, mass and `[carried/limit]`, then "Sell X" lines; ship rows show list price, trade-in and cost. `SpaceportMenu` holds the open store and `Back()` leaves it.
+  Each store keeps its stock sorted: equipment by `EquipmentType` (projectile weapons, beams, missiles, shields, plating, engines, utilities), then grade, then price, the highest grade last; ships by grade. The "Sell X" lines use the same order.
+  Equipment rows show grade (`G1`), price, mass and `[carried/limit]`, then the sell lines; ship rows show grade, list price, trade-in and cost. `SpaceportMenu` holds the open store and `Back()` leaves it.
 
 ## Numbers to tune
 
