@@ -48,7 +48,7 @@ public sealed class PlayingScreen : IScreen
             new DebugRenderer(_ctx.Render, _camera, _ctx.Settings), _ctx.Settings);
         _hudRenderer = new HudRenderer(_ctx.Render, _ctx.Font);
         _galaxyMap = new GalaxyMapOverlay(_ctx.Font, _ctx.GraphicsDevice, _ctx.Render);
-        _spaceportOverlay = new SpaceportOverlay(_ctx.Render, _ctx.Font);
+        _spaceportOverlay = new SpaceportOverlay(_ctx.Render, _ctx.Font, _ctx.GraphicsDevice);
 
         _universe.Settings = _ctx.Settings;
         _deathMonitor = new PlayerDeathMonitor(_universe.Events, _universe.Player);
@@ -81,6 +81,8 @@ public sealed class PlayingScreen : IScreen
         _sprites?.ImpactEffects.Disconnect();
         _universe.Dispose();
         _galaxyMap?.Dispose();
+        _spaceportOverlay?.Dispose();
+        _spaceportOverlay = null;
         _services?.Dispose();
         _galaxyMap = null;
         _services = null;

@@ -1,11 +1,16 @@
+using System;
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Systems;
 
 namespace Strange_Universe.Game.UI;
 
-/// <summary>Draws the docked screen: the planet's name, the spaceport's description and the menu of services (see <see cref="SpaceportMenu"/>).</summary>
-public sealed class SpaceportOverlay
+/// <summary>
+/// Draws the docked screen: a picture of the planet's type, its name, the spaceport's description and the menu of services
+/// (see <see cref="SpaceportMenu"/>). The pictures are loaded from the Art folder the first time each type is shown, and are released by <see cref="Dispose"/>.
+/// </summary>
+public sealed class SpaceportOverlay : IDisposable
 {
     private static readonly Color Panel     = new(0, 5, 18);
     private static readonly Color Border    = new(60, 90, 130);
@@ -19,14 +24,20 @@ public sealed class SpaceportOverlay
     private const int   PanelWidth = 520;
     private const int   Padding    = 28;
     private const int   RowHeight  = 34;
+    private const int   ImageGap   = 14;
+    private const int   MinImage   = 120;
+    private const int   ScreenMargin = 30;
 
     private readonly RenderService _render;
     private readonly SpriteFont _font;
+    private readonly GraphicsDevice _graphicsDevice;
+    private readonly Dictionary<PlanetType, Texture2D> _art = new(); // a null value is a picture that could not be loaded
 
-    public SpaceportOverlay(RenderService render, SpriteFont font)
+    public SpaceportOverlay(RenderService render, SpriteFont font, GraphicsDevice graphicsDevice)
     {
         _render = render;
         _font = font;
+        _graphicsDevice = graphicsDevice;
     }
 
     public void Draw(SpaceportMenu menu, int screenWidth, int screenHeight)
@@ -40,7 +51,18 @@ public sealed class SpaceportOverlay
         Vector2 titleSize = _font.MeasureString(title) * TitleScale;
         Vector2 descriptionSize = _font.MeasureString(description);
 
-        int panelHeight = Padding * 2 + (int)titleSize.Y + 12 + (int)descriptionSize.Y + 28 + items.Count * RowHeight + 28 + 20;
+        int textHeight = Padding * 2 + (int)titleSize.Y + 12 + (int)descriptionSize.Y + 28 + items.Count * RowHeight + 28 + 20;
+
+        // The picture is as wide as the panel's text area, shrunk when the screen is too short to fit it as well.
+        Texture2D art = ArtFor(menu.Planet.Type);
+        int imageSize = 0;
+        if (art != null)
+        {
+            imageSize = Math.Min(PanelWidth - Padding * 2, screenHeight - ScreenMargin * 2 - textHeight - ImageGap);
+            if (imageSize < MinImage) imageSize = 0; // no room: leave it out rather than squash the menu
+        }
+
+        int panelHeight = textHeight + (imageSize > 0 ? imageSize + ImageGap : 0);
         int left = (screenWidth - PanelWidth) / 2;
         int top = (screenHeight - panelHeight) / 2;
 
@@ -48,6 +70,12 @@ public sealed class SpaceportOverlay
         DrawBorder(sb, left, top, PanelWidth, panelHeight, 1, Border);
 
         float y = top + Padding;
+        if (imageSize > 0)
+        {
+            sb.Draw(art, new Rectangle(left + (PanelWidth - imageSize) / 2, (int)y, imageSize, imageSize), Color.White);
+            y += imageSize + ImageGap;
+        }
+
         sb.DrawString(_font, title, new Vector2(left + (PanelWidth - titleSize.X) / 2f, y), Title, 0f, Vector2.Zero, TitleScale, SpriteEffects.None, 0f);
         y += titleSize.Y + 12;
         sb.DrawString(_font, description, new Vector2(left + (PanelWidth - descriptionSize.X) / 2f, y), Body);
@@ -67,6 +95,25 @@ public sealed class SpaceportOverlay
         Vector2 hintSize = _font.MeasureString(hint) * 0.7f;
         sb.DrawString(_font, hint, new Vector2(left + (PanelWidth - hintSize.X) / 2f, top + panelHeight - Padding - hintSize.Y + 8),
                       Hint, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
+    }
+
+    /// <summary>The picture for a planet type, loaded on first use. Null when the file is missing (the screen is then drawn without one).</summary>
+    private Texture2D ArtFor(PlanetType type)
+    {
+        if (!_art.TryGetValue(type, out var texture))
+        {
+            string path = SpaceportArt.PathFor(type);
+            texture = path == null ? null : ArtLoader.TryLoad(_graphicsDevice, path);
+            _art[type] = texture;
+        }
+        return texture;
+    }
+
+    public void Dispose()
+    {
+        foreach (var texture in _art.Values)
+            texture?.Dispose();
+        _art.Clear();
     }
 
     private void DrawRect(SpriteBatch sb, int x, int y, int w, int h, Color color) =>
