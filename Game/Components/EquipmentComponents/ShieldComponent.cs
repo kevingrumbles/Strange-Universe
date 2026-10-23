@@ -8,6 +8,9 @@ namespace Strange_Universe.Game.Components.EquipmentComponents;
 /// </summary>
 public sealed class ShieldComponent : EquipmentComponent
 {
+    /// <summary>The ship type's limit for this kind of equipment.</summary>
+    public override int SlotLimit(Strange_Universe.Game.Components.ShipComponents.LoadoutLimits limits) => limits.MaxShields;
+
     private float? _strength; // null until it is first used: a new generator is at full strength
     private float _rechargeDelayLeft;
 

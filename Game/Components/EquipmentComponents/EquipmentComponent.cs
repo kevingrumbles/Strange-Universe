@@ -38,17 +38,11 @@ public abstract class EquipmentComponent
     /// <summary>What the item costs at a spaceport, and what it counts for in a trade-in or a sale.</summary>
     public int Price { get; set; }
 
-    /// <summary>Which of a ship's equipment limits the item counts against; null for an item that is no longer a known item.</summary>
-    public SlotKind? Slot => EquipmentType switch
-    {
-        EquipmentType.FixedProjectile or EquipmentType.TurretProjectile or EquipmentType.FixedBeam or
-        EquipmentType.TurretBeam or EquipmentType.FixedMissile or EquipmentType.TurretMissile => SlotKind.Weapon,
-        EquipmentType.Shield  => SlotKind.Shield,
-        EquipmentType.Hull    => SlotKind.Plating,
-        EquipmentType.Engine  => SlotKind.Engine,
-        EquipmentType.Utility => SlotKind.Utility,
-        _ => null,
-    };
+    /// <summary>
+    /// How many items of this kind (this class) a ship with <paramref name="limits"/> can carry. Each kind of equipment names its own limit; an item
+    /// that is no longer a known item has none, so it can never be installed.
+    /// </summary>
+    public virtual int SlotLimit(Strange_Universe.Game.Components.ShipComponents.LoadoutLimits limits) => 0;
 
     private protected EquipmentComponent(EquipmentType type)
     {

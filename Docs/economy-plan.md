@@ -24,11 +24,11 @@ The HUD stats area and the spaceport screen show the player's credits.
 ### 2. Prices and loadout limits (data)
 
 - `EquipmentComponent.Price` (int) set in the catalog beside `Mass`. `ShipStats.Price` (int) on the type.
-- Slot kinds. Equipment falls in five kinds for limits: **weapon** (all six weapon kinds), **shield**, **plating**, **engine**, **utility**. `SlotKind` is a small enum, with `EquipmentComponent.SlotKind` giving an item's kind
-  (an `UnknownComponent` counts as none and costs nothing).
+- Slot kinds need no enum: each kind of equipment is its own class (`WeaponComponent` for all six weapon kinds, `ShieldComponent`, `PlatingComponent`, `EngineComponent`, `UtilityComponent`), and each names the limit that applies to it with `EquipmentComponent.SlotLimit(limits)` (an unknown item has none). Items are counted by class.
+
 - A new `ShipStats` part, `LoadoutLimits` (next to `Flight`/`Durability`): `MaxWeapons`, `MaxShields`, `MaxPlating`, `MaxEngines`, `MaxUtilities` and `MaxMass` (total equipment mass),
-  exposed as `ShipStats.Limits`, with `MaxOf(SlotKind)`. Each ship type sets its own.
-- On `Ship`: `EquipmentMass`, `EquipmentValue` (sum of prices), `ShipValue` (type price + equipment value), `CountOf(SlotKind)`, and `CheckInstall(item)` returning `Ok`, `NoSlot` (that kind is full) or `TooHeavy` (mass would pass the limit),
+  exposed as `ShipStats.Limits`. Each ship type sets its own.
+- On `Ship`: `EquipmentMass`, `EquipmentValue` (sum of prices), `ShipValue` (type price + equipment value), `CountOf<T>()` (for example `CountOf<WeaponComponent>()`), and `CheckInstall(item)` returning `Ok`, `NoSlot` (that kind is full) or `TooHeavy` (mass would pass the limit),
   and `Install(item)`/`Uninstall(item)` that apply the check. Limits are enforced only when installing: a loaded save or a default loadout is never trimmed.
 - Every ship type's default loadout must fit its own limits (a test over all built-in types, so a new type or a changed loadout cannot break it).
 - Equipment mass stays a payload limit only; it does not change flight (a possible later step: add it to the ship's mass for acceleration).
@@ -59,7 +59,7 @@ Kept in `Universe` beside `Dock`/`Undock`, returning a `PurchaseResult` (`Ok`, `
 ## Steps
 
 1. **Credits.** `Ship.Credits` + helpers, new-player amount, NPC credits from the ship type and a seeded roll, HUD and spaceport-screen display. Tests: spend/earn/can't overspend; saved and loaded; NPC credits reproducible and in range; two NPCs differ.
-2. **Prices, kinds and limits.** `SlotKind`, `Price` on equipment and ship types, `LoadoutLimits` and the values for `Shuttle`/`Runner`, the `Ship` helpers and `CheckInstall`. Tests: counts and mass per kind; each limit enforced and exactly-at-limit allowed; every built-in type's default loadout fits; unknown items cost nothing.
+2. **Prices, kinds and limits.** `SlotLimit` on each kind of equipment, `Price` on equipment and ship types, `LoadoutLimits` and the values for `Shuttle`/`Runner`, the `Ship` helpers and `CheckInstall`. Tests: counts and mass per kind; each limit enforced and exactly-at-limit allowed; every built-in type's default loadout fits; unknown items cost nothing.
 3. **Purchase rules.** `PurchaseResult`, `BuyEquipment`, `BuyShip`, (`SellEquipment`). Tests: each failure leaves credits and equipment untouched; success spends, installs a separate object; trade-in math (new price minus ship and equipment value, including the case where the trade-in is worth more); the new ship has the default loadout, full hull/shield/fuel, kept position and credits; not docked is refused.
 4. **Bays and pages.** `EquipmentBay`, `StarshipBay`, the offers, the catalogs, `SpaceportPage` + the two pages, the `Open` hook on services, the page stack in `SpaceportMenu`. Tests for the page rows (affordable / not, with reasons), selection, back, and that the menu's old behavior is unchanged.
 5. **Overlay.** Draw pages and credits; Escape/Back handling in `PlayingScreen`. Drawing only compiled, so a manual check list.
@@ -69,7 +69,7 @@ Kept in `Universe` beside `Dock`/`Undock`, returning a `PurchaseResult` (`Ok`, `
 
 - **Existing tests** that build ships with the default loadout or count equipment keep working (limits are only checked when installing). Tests that need a certain loadout already use `TestGear`; new limits tests should give the ship their own `LoadoutLimits` rather than depend on the Shuttle's numbers.
 - **Saves:** `Credits` is a new field (old saves read 0, so give old saves the starting amount only if the field is missing: `int?` on load or a `Credits` default; decided in the open list).
-- **Unknown/retired items** in a save: no slot kind, no price, no mass counted, and never removed.
+- **Unknown/retired items** in a save: no slot limit (so never installable), no price, no mass counted, and never removed.
 - **Prices need balancing** once there is more than one source of credits; the first numbers are placeholders chosen so the loop can be tested (a new player can afford one useful upgrade).
 - A ship's drawn art, type name and `Flight` change with a purchase, so anything caching them per ship (`EnsureShipArt`, the HUD speed bar) is refreshed through `AssignShipType` and `EnsureShipArt`.
 
@@ -77,7 +77,7 @@ Kept in `Universe` beside `Dock`/`Undock`, returning a `PurchaseResult` (`Ok`, `
 
 All the defaults were accepted:
 
-1. Slot kinds weapon / shield / plating / engine / utility. Limits: Shuttle 1 weapon, 1 shield, 1 plating, 1 engine, 1 utility, mass 450; Runner 2 weapons, 1 shield, 1 plating, 1 engine, 2 utilities, mass 900.
+1. Limits per kind of equipment (weapon / shield / plating / engine / utility). Limits: Shuttle 1 weapon, 1 shield, 1 plating, 1 engine, 1 utility, mass 450; Runner 2 weapons, 1 shield, 1 plating, 1 engine, 2 utilities, mass 900.
 2. A new player starts with 1000 credits. NPCs carry about 100 (Shuttle) or 250 (Runner), between half and one and a half times that.
 3. If the trade-in is worth more than the new ship, the difference is paid to the player.
 4. Equipment can be sold back at its full price, from the Equipment Bay.
@@ -90,8 +90,8 @@ All the defaults were accepted:
 Step 1 (credits) is built: `Ship.Credits` with `CanAfford`, `TrySpend`, `Earn`; `Universe.StartingCredits`; `ShipStats.TypicalCredits` and `Nonplayer.RollCredits`;
 credits on the HUD and at the top of the spaceport screen. The sample save now has `"Credits": 120`, and a test removes it to check an old save loads with 0.
 
-Step 2 (prices, slot kinds and limits) is built: `SlotKind` and `EquipmentComponent.Slot`/`Price`; `LoadoutLimits` as `ShipStats.Limits` (values as decided above);
-`ShipStats.Price` (the ship alone) and `ListPrice` (the ship plus its default loadout); `Ship.CountOf`, `EquipmentMass`, `EquipmentValue`, `ShipValue`, `CheckInstall` (an `InstallCheck`: Ok, NoSlot, TooHeavy), `Install`, `Uninstall`.
+Step 2 (prices, kinds and limits) is built: `EquipmentComponent.Price` and `SlotLimit(limits)` (no enum: the kind is the equipment class); `LoadoutLimits` as `ShipStats.Limits` (values as decided above);
+`ShipStats.Price` (the ship alone) and `ListPrice` (the ship plus its default loadout); `Ship.CountOf<T>`, `EquipmentMass`, `EquipmentValue`, `ShipValue`, `CheckInstall` (an `InstallCheck`: Ok, NoSlot, TooHeavy), `Install`, `Uninstall`.
 `ShipStats.BuiltIn()` lists every ship type (`FromName` uses it too).
 
 **One refinement for step 3:** `ShipStats.Price` is the ship without equipment, so buying a ship costs its **`ListPrice`** (ship plus the default loadout it arrives with) minus the player's `ShipValue` (current ship plus current equipment).

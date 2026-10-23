@@ -87,16 +87,17 @@ public abstract class Ship
     /// <summary>What the ship is worth, for a trade-in: the ship itself plus everything it carries.</summary>
     [JsonIgnore] public int ShipValue => ShipType.Price + EquipmentValue;
 
-    /// <summary>How many items of <paramref name="kind"/> the ship carries.</summary>
-    public int CountOf(SlotKind kind) => Equipment.Count(item => item.Slot == kind);
+    /// <summary>How many items of one kind of equipment (<c>CountOf&lt;WeaponComponent&gt;()</c>) the ship carries.</summary>
+    public int CountOf<T>() where T : EquipmentComponent => Equipment.OfType<T>().Count();
 
     /// <summary>
-    /// Whether <paramref name="item"/> can be installed: there must be a free slot of its kind (<see cref="InstallCheck.NoSlot"/> otherwise, also for an
-    /// item with no slot kind), and its mass must fit in what the ship can still carry (<see cref="InstallCheck.TooHeavy"/>). The slot is checked first.
+    /// Whether <paramref name="item"/> can be installed: there must be a free slot of its kind, meaning fewer of that class than its
+    /// <see cref="EquipmentComponent.SlotLimit"/> (<see cref="InstallCheck.NoSlot"/> otherwise, always for an unknown item), and its mass must fit in what the ship can still carry (<see cref="InstallCheck.TooHeavy"/>). The slot is checked first.
     /// </summary>
     public InstallCheck CheckInstall(EquipmentComponent item)
     {
-        if (item.Slot is not { } kind || CountOf(kind) >= ShipType.Limits.MaxOf(kind))
+        int carried = Equipment.Count(other => other.GetType() == item.GetType());
+        if (carried >= item.SlotLimit(ShipType.Limits))
             return InstallCheck.NoSlot;
         if (EquipmentMass + item.Mass > ShipType.Limits.MaxMass)
             return InstallCheck.TooHeavy;

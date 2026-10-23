@@ -11,6 +11,9 @@ namespace Strange_Universe.Game.Components.EquipmentComponents;
 /// </summary>
 public sealed class WeaponComponent : EquipmentComponent
 {
+    /// <summary>All weapons share one limit, whatever kind of weapon they are (missiles included).</summary>
+    public override int SlotLimit(Strange_Universe.Game.Components.ShipComponents.LoadoutLimits limits) => limits.MaxWeapons;
+
     private float _cooldown;
 
     public WeaponComponent(EquipmentType kind) : base(RequireWeaponKind(kind))
