@@ -345,4 +345,34 @@ public class TradeTests
         Assert.DoesNotContain(d.Player.Equipment, item => item.EquipmentName == "Extra");
         d.Universe.Dispose();
     }
+
+    // -- what is saved -------------------------------------------------------------------------
+
+    [Fact]
+    public void AfterBuyingAShipAndEquipment_TheCreditsShipAndEquipmentSurviveASaveAndLoad()
+    {
+        string path = System.IO.Path.Combine(System.IO.Path.GetTempPath(), $"su-trade-{System.Guid.NewGuid():N}.json");
+        try
+        {
+            var d = new Docked();
+            d.Player.Credits = 100000;
+            Assert.True(d.Universe.BuyShip(ShipStats.BuiltIn().First(type => type.ShipTypeName == "Runner")));
+            d.Player.Equipment.Clear();
+            d.Player.ShipType.Limits.MaxMass = 100000f;
+            d.Player.ShipType.Limits.MaxUtilities = 2;
+            Assert.True(d.Universe.BuyEquipment(EquipmentCatalog.All.First(item => item is UtilityComponent)));
+            var names = d.Player.Equipment.Select(item => item.EquipmentName).ToList();
+            int credits = d.Player.Credits;
+            new FileSaveService(path).Save(d.Universe); // docking saves, and so does quitting
+            d.Universe.Dispose();
+
+            var loaded = new FileSaveService(path).LoadAll().Single();
+
+            Assert.Equal(credits, loaded.Player.Credits);
+            Assert.Equal("Runner", loaded.Player.ShipType.ShipTypeName);
+            Assert.Equal(names, loaded.Player.Equipment.Select(item => item.EquipmentName));
+            Assert.DoesNotContain(loaded.Player.Equipment, item => item is UnknownComponent);
+        }
+        finally { if (System.IO.File.Exists(path)) System.IO.File.Delete(path); }
+    }
 }

@@ -87,8 +87,8 @@ public abstract class Ship
     /// <summary>What the ship is worth, for a trade-in: the ship itself plus everything it carries.</summary>
     [JsonIgnore] public int ShipValue => ShipType.Price + EquipmentValue;
 
-    /// <summary>How many items of one kind of equipment (<c>CountOf&lt;WeaponComponent&gt;()</c>) the ship carries.</summary>
-    public int CountOf<T>() where T : EquipmentComponent => Equipment.OfType<T>().Count();
+    /// <summary>How many items of the same kind as <paramref name="item"/> (the same class: every weapon is one kind) the ship carries.</summary>
+    public int CountLike(EquipmentComponent item) => Equipment.Count(other => other.GetType() == item.GetType());
 
     /// <summary>
     /// Whether <paramref name="item"/> can be installed: there must be a free slot of its kind, meaning fewer of that class than its
@@ -96,8 +96,7 @@ public abstract class Ship
     /// </summary>
     public InstallCheck CheckInstall(EquipmentComponent item)
     {
-        int carried = Equipment.Count(other => other.GetType() == item.GetType());
-        if (carried >= item.SlotLimit(ShipType.Limits))
+        if (CountLike(item) >= item.SlotLimit(ShipType.Limits))
             return InstallCheck.NoSlot;
         if (EquipmentMass + item.Mass > ShipType.Limits.MaxMass)
             return InstallCheck.TooHeavy;

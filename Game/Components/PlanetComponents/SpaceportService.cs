@@ -22,8 +22,8 @@ public abstract class SpaceportService
     /// </summary>
     public virtual bool IsAvailable(Universe universe) => true;
 
-    /// <summary>Carries the service out for the docked player.</summary>
-    public abstract void Perform(Universe universe);
+    /// <summary>Carries the service out for the docked player. A store (<see cref="OpensRows"/>) does nothing here.</summary>
+    public virtual void Perform(Universe universe) { }
 
     /// <summary>
     /// True for a service that opens a list when chosen (a store) instead of doing something at once. The docked menu then shows its
@@ -51,7 +51,6 @@ public sealed class EquipmentBayService : SpaceportService
 
     public override string Name => "Equipment";
     public override bool OpensRows => true;
-    public override void Perform(Universe universe) { }
 
     /// <summary>The player's items that can be sold back (anything that is still a known item).</summary>
     private static List<EquipmentComponent> Sellable(Universe universe) =>
@@ -64,8 +63,7 @@ public sealed class EquipmentBayService : SpaceportService
 
         foreach (var item in Stock)
         {
-            int carried = universe.Player.Equipment.Count(other => other.GetType() == item.GetType());
-            rows.Add($"{item.EquipmentName}   {item.Price} cr   mass {item.Mass:0}   [{carried}/{item.SlotLimit(limits)}]");
+            rows.Add($"{item.EquipmentName}   {item.Price} cr   mass {item.Mass:0}   [{universe.Player.CountLike(item)}/{item.SlotLimit(limits)}]");
         }
         foreach (var item in Sellable(universe))
             rows.Add($"Sell {item.EquipmentName}   {item.Price} cr");
@@ -102,7 +100,6 @@ public sealed class StarshipBayService : SpaceportService
 
     public override string Name => "Starships";
     public override bool OpensRows => true;
-    public override void Perform(Universe universe) { }
 
     public override IReadOnlyList<string> Rows(Universe universe) =>
         Stock.Select(type =>

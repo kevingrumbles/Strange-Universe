@@ -74,9 +74,9 @@ public class LoadoutLimitsTests
         var ship = TestGear.Arm(new Nonplayer("count"), Gun(mass: 30f, price: 100), Gun(mass: 20f, price: 150), Shield(mass: 50f, price: 200),
                                 new UnknownComponent("Retired Gizmo"));
 
-        Assert.Equal(2, ship.CountOf<WeaponComponent>());
-        Assert.Equal(1, ship.CountOf<ShieldComponent>());
-        Assert.Equal(0, ship.CountOf<EngineComponent>());
+        Assert.Equal(2, ship.Equipment.OfType<WeaponComponent>().Count());
+        Assert.Equal(1, ship.Equipment.OfType<ShieldComponent>().Count());
+        Assert.Equal(0, ship.Equipment.OfType<EngineComponent>().Count());
         Assert.Equal(100f, ship.EquipmentMass);
         Assert.Equal(450, ship.EquipmentValue);
         Assert.Equal(ship.ShipType.Price + 450, ship.ShipValue);
@@ -93,7 +93,7 @@ public class LoadoutLimitsTests
         Assert.Equal(InstallCheck.Ok, ship.Install(Gun()));   // exactly at the limit is allowed
         Assert.Equal(InstallCheck.NoSlot, ship.Install(Gun()));
 
-        Assert.Equal(2, ship.CountOf<WeaponComponent>());       // the refused one was not added
+        Assert.Equal(2, ship.Equipment.OfType<WeaponComponent>().Count());       // the refused one was not added
     }
 
     [Fact]
@@ -152,7 +152,7 @@ public class LoadoutLimitsTests
 
         Assert.True(ship.Uninstall(gun));
 
-        Assert.Equal(0, ship.CountOf<WeaponComponent>());
+        Assert.Equal(0, ship.Equipment.OfType<WeaponComponent>().Count());
         Assert.Equal(InstallCheck.Ok, ship.CheckInstall(Gun(mass: 90f)));
         Assert.False(ship.Uninstall(gun)); // it is not there any more
     }
@@ -164,7 +164,7 @@ public class LoadoutLimitsTests
         var ship = TestGear.Arm(new Nonplayer("overfull"), Gun(), Gun(), Gun());
         ship.ShipType.Limits.MaxWeapons = 1;
 
-        Assert.Equal(3, ship.CountOf<WeaponComponent>());
+        Assert.Equal(3, ship.Equipment.OfType<WeaponComponent>().Count());
         Assert.Equal(InstallCheck.NoSlot, ship.CheckInstall(Gun()));
     }
 

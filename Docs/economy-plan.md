@@ -103,3 +103,17 @@ Step 3 (purchase rules) is built, in `Universe` beside `Dock`/`Undock`, with no 
 `Messages` when they refuse; `ShipCostAfterTradeIn(type)` is the number the screen will show. (The first version had offer classes and a result enum; both were removed to keep the code small.)
 
 Steps 4 and 5 are built: the two bays with their `Stock` lists, `Clone()` on equipment and ship types, rows and choosing, the open-store state and `Back()` in `SpaceportMenu`, and the overlay and Escape handling. The drawing and the keys have only been compiled, not played; see the manual check list.
+
+## Done (step 6)
+
+All six steps are built. The cleanup removed two things nothing needed: `CountOf<T>` became `Ship.CountLike(item)`, which both the install check and the bay rows use, and `SpaceportService.Perform` is an empty virtual so the two stores need no empty override.
+A test buys a ship and equipment, saves and loads, and checks the credits, the ship type and the equipment come back. The architecture tests still pass: nothing in the new data uses a graphics type.
+
+**Manual check list** (the store screen is only compiled so far; none of this has been played):
+
+1. Dock at a planet with a spaceport. The panel shows "Credits: 1000" at the top right; the list reads Equipment, Starships, Undock (and Refuel/Repair only when needed).
+2. Open Equipment: a wide panel with a heading, one line per item with price, mass and `[carried/limit]`; the highlight scrolls the list. Buy a weapon you have no slot for: "No free slot for ..."; buy one you cannot afford: "Not enough credits".
+3. Buy the heaviest item with the weapon slot free: "... is too heavy for this ship" when over the mass limit. Sell an item: it leaves the ship, the credits rise, and it appears in the sell lines at the bottom.
+4. Escape in a store goes back to the list with the highlight on the store; Escape on the list goes to the main menu.
+5. Open Starships: each line shows list price, trade-in and cost. Buy the Runner from a Shuttle: credits drop by the cost, the ship changes (new art after undocking), the loadout is the Runner's default. Buy a Shuttle from a Runner: credits go up.
+6. Undock, dock again at once (the numbers are the same), quit to the menu while docked and load: the ship, equipment and credits are as left. Fly with L/Tab as before.
