@@ -27,7 +27,12 @@ internal static class EquipmentCatalog
         Accuracy            = 1.0f,
         Visual = new ProjectileVisual
         {
-            BurstDuration = 0.16f, BurstRadius = 16f,
+            CoreColor = new Color(255, 245, 200), CoreLength = 22, CoreWidth = 3,
+            GlowColor = new Color(255, 200, 60), GlowRadius = 10, GlowIntensity = 0.8f,
+            TrailLength = 30, TrailWidth = 5, TrailAlpha = 0.45f,
+            PulseSpeed = 8f, PulseAmount = 0.18f,
+            ParticleCount = 12,
+            BurstDuration = 0.16f, BurstRadius = 16f, BurstParticleCount = 10, BurstParticleSpeed = 120f,
         },
     };
 
@@ -45,8 +50,8 @@ internal static class EquipmentCatalog
         Accuracy            = 0.85f,
         Visual = new ProjectileVisual
         {
-            CoreLength = 30, CoreWidth = 5,
-            GlowRadius = 14, GlowIntensity = 0.9f,
+            CoreColor = new Color(255, 245, 200), CoreLength = 30, CoreWidth = 5,
+            GlowColor = new Color(255, 200, 60), GlowRadius = 14, GlowIntensity = 0.9f,
             TrailLength = 40, TrailWidth = 8, TrailAlpha = 0.5f,
             PulseSpeed = 6f, PulseAmount = 0.22f,
             ParticleCount = 16,
@@ -137,7 +142,7 @@ internal static class EquipmentCatalog
     {
         EquipmentName       = "Plasma Beam",
         Price = 700,
-        Grade = 3,
+        Grade = 4,
         Damage              = 50,
         Range               = 2500f,
         EnergyCost          = 40f,
