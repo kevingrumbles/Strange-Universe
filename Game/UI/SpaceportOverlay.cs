@@ -9,11 +9,11 @@ namespace Strange_Universe.Game.UI;
 /// <summary>
 /// Draws the docked screen: a picture of the planet's type, its name, the spaceport's description and the menu of services
 /// (see <see cref="SpaceportMenu"/>). The pictures are loaded from the Art folder the first time each type is shown, and are released by <see cref="Dispose"/>.
+/// Each picture's edges fade into the panel colour (<see cref="SpaceportArt.EdgeFade"/>), so it blends in whatever its own background is.
 /// </summary>
 public sealed class SpaceportOverlay : IDisposable
 {
-    /// <summary>The panel is this colour exactly (fully opaque), so art whose background is the same colour blends into it without a seam.</summary>
-    private static readonly Color Panel     = new(5, 10, 51);
+    private static readonly Color Panel     = new(0, 5, 18);
     private static readonly Color Border    = new(60, 90, 130);
     private static readonly Color Title     = new(255, 255, 255);
     private static readonly Color Body      = new(170, 180, 190);
@@ -33,6 +33,7 @@ public sealed class SpaceportOverlay : IDisposable
     private readonly SpriteFont _font;
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Dictionary<PlanetType, Texture2D> _art = new(); // a null value is a picture that could not be loaded
+    private Texture2D _fadeMask; // the panel colour, opaque at the edges and clear inside: laid over a picture so it ends in the panel colour
 
     public SpaceportOverlay(RenderService render, SpriteFont font, GraphicsDevice graphicsDevice)
     {
@@ -67,13 +68,15 @@ public sealed class SpaceportOverlay : IDisposable
         int left = (screenWidth - PanelWidth) / 2;
         int top = (screenHeight - panelHeight) / 2;
 
-        DrawRect(sb, left, top, PanelWidth, panelHeight, Panel);
+        DrawRect(sb, left, top, PanelWidth, panelHeight, Panel * 0.95f);
         DrawBorder(sb, left, top, PanelWidth, panelHeight, 1, Border);
 
         float y = top + Padding;
         if (imageSize > 0)
         {
-            sb.Draw(art, new Rectangle(left + (PanelWidth - imageSize) / 2, (int)y, imageSize, imageSize), Color.White);
+            var imageRect = new Rectangle(left + (PanelWidth - imageSize) / 2, (int)y, imageSize, imageSize);
+            sb.Draw(art, imageRect, Color.White);
+            sb.Draw(FadeMask(), imageRect, Color.White); // fades the picture's edges into the panel, whatever its background is
             y += imageSize + ImageGap;
         }
 
@@ -98,6 +101,31 @@ public sealed class SpaceportOverlay : IDisposable
                       Hint, 0f, Vector2.Zero, 0.7f, SpriteEffects.None, 0f);
     }
 
+    private const int FadeMaskSize = 128;
+
+    /// <summary>
+    /// A small square texture of the panel colour (premultiplied) whose opacity is <see cref="SpaceportArt.EdgeFade"/>. Stretched over a picture it
+    /// leaves the middle untouched and blends the edges into the panel.
+    /// </summary>
+    private Texture2D FadeMask()
+    {
+        if (_fadeMask != null) return _fadeMask;
+
+        var pixels = new Color[FadeMaskSize * FadeMaskSize];
+        for (int py = 0; py < FadeMaskSize; py++)
+        {
+            for (int px = 0; px < FadeMaskSize; px++)
+            {
+                float alpha = SpaceportArt.EdgeFade((px + 0.5f) / FadeMaskSize, (py + 0.5f) / FadeMaskSize);
+                pixels[py * FadeMaskSize + px] = Panel * alpha; // premultiplied: colour and opacity scale together
+            }
+        }
+
+        _fadeMask = new Texture2D(_graphicsDevice, FadeMaskSize, FadeMaskSize);
+        _fadeMask.SetData(pixels);
+        return _fadeMask;
+    }
+
     /// <summary>The picture for a planet type, loaded on first use. Null when the file is missing (the screen is then drawn without one).</summary>
     private Texture2D ArtFor(PlanetType type)
     {
@@ -115,6 +143,8 @@ public sealed class SpaceportOverlay : IDisposable
         foreach (var texture in _art.Values)
             texture?.Dispose();
         _art.Clear();
+        _fadeMask?.Dispose();
+        _fadeMask = null;
     }
 
     private void DrawRect(SpriteBatch sb, int x, int y, int w, int h, Color color) =>
