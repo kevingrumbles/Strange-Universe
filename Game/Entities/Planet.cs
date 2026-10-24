@@ -1,10 +1,11 @@
 using Microsoft.Xna.Framework;
-using Strange_Universe;
-using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.PlanetComponents;
+using Strange_Universe.Game.Components.ShipComponents;
+using Strange_Universe.Game.Components.EquipmentComponents;
+using Strange_Universe.Game.Entities.ShipParts;
 using System;
 using System.Text.Json.Serialization;
-using static Strange_Universe.NameGenerator;
 
 namespace Strange_Universe.Game.Entities;
 
@@ -47,6 +48,33 @@ public class Planet
     public string Id { get; }
     public GravityWell GravityWell { get; private set; }
 
+    /// <summary>What a docked ship can do here; null when the planet has no spaceport and cannot be docked at. Never set on a gas giant.</summary>
+    public Spaceport Spaceport { get; }
+
+    /// <summary>The chance that a planet that can have a spaceport (anything but a gas giant) has one.</summary>
+    public const float SpaceportChance = 0.5f;
+
+    /// <summary>How close to the planet's surface (not its centre) a ship has to be to dock.</summary>
+    public const float DockRange = 300f;
+
+    /// <summary>The fastest a ship can be moving and still dock, in units per second: stopped, or almost.</summary>
+    public const float MaxDockSpeed = 20f;
+
+    /// <summary>
+    /// Whether <paramref name="ship"/> can dock here now. The planet decides this alone: it needs a spaceport, the ship within <see cref="DockRange"/>
+    /// of its surface and moving no faster than <see cref="MaxDockSpeed"/>. Range is checked before speed.
+    /// </summary>
+    public DockingCheck CheckDocking(Ship ship)
+    {
+        if (Spaceport == null)
+            return DockingCheck.NoSpaceport;
+        if (Vector2.Distance(ship.Position, Position) - Radius > DockRange)
+            return DockingCheck.OutOfRange;
+        if (ship.Speed > MaxDockSpeed)
+            return DockingCheck.TooFast;
+        return DockingCheck.Ok;
+    }
+
     public Planet(string planetId, float minPlanetRadius, float maxPlanetRadius, float minOrbit, float maxOrbit, int planetNumber, int totalPlanets)
     {
         Id = planetId;
@@ -88,6 +116,31 @@ public class Planet
         float wellRadius = Radius * MathHelper.Lerp(8f, 15f, (float)planetRng.NextDouble());
         float wellStrength = MathHelper.Lerp(0.3f, 0.6f, (float)planetRng.NextDouble()) * densityMultiplier;
         GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);
+
+        Spaceport = RollSpaceport();
+    }
+
+    /// <summary>
+    /// A planet other than a gas giant has a spaceport with probability <see cref="SpaceportChance"/>. The roll has its own seeded generator, so it
+    /// does not disturb the draws that generate the planet itself.
+    /// </summary>
+    private Spaceport RollSpaceport()
+    {
+        if (Type == PlanetType.GasGiant)
+            return null;
+
+        var rng = new Random(ProceduralHelpers.SeedHash($"{Id}_spaceport"));
+        if (rng.NextDouble() >= SpaceportChance)
+            return null;
+
+        return new Spaceport("Landing pads, a fuel dock and a repair yard.",
+            new SpaceportService[]
+            {
+                new RefuelService(), new RepairService(),
+                new EquipmentBayService(EquipmentCatalog.All),
+                new StarshipBayService(ShipStats.BuiltIn()),
+                new UndockService(),
+            });
     }
 
 }

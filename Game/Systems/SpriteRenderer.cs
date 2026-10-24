@@ -201,6 +201,76 @@ public class SpriteRenderer
             rotation, origin, scale, SpriteEffects.None, 0f);
     }
 
+    /// <summary>
+    /// Targeting brackets around a targeted ship, sized to the sprite that is drawn for it (not its collision radius, which is smaller).
+    /// </summary>
+    public void DrawTargetIndicator(Ship ship) =>
+        DrawTargetBrackets(ship.Position, ship.Radius * ShipSpriteHalfExtent * ship.ShipType.Appearance.SpriteScale);
+
+    /// <summary>Targeting brackets around a planet targeted for landing, sized to the planet as drawn.</summary>
+    public void DrawTargetIndicator(Planet planet) => DrawTargetBrackets(planet.Position, planet.Radius);
+
+    /// <summary>A ship sprite is drawn <c>radius * 2.2 * SpriteScale</c> wide, so half of that from its centre.</summary>
+    private const float ShipSpriteHalfExtent = 1.1f;
+
+    private static readonly Color TargetColor = new(170, 215, 255);
+
+    /// <summary>
+    /// The targeting brackets: <paramref name="halfExtent"/> is how far the target's drawn size reaches from its centre, and the brackets sit a small margin
+    /// outside it. Each of the four corners is a chamfered bracket drawn twice, an inner line and, just outside it, a fainter outer line, like the
+    /// targeting overlay of a starship's viewscreen. Line widths and gaps keep the same size on screen at any zoom.
+    /// </summary>
+    private void DrawTargetBrackets(Vector2 position, float halfExtent)
+    {
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
+
+        float zoom = Math.Max(_camera.Zoom, 0.01f);
+        float inner = halfExtent + 8f / zoom;
+        float outer = inner + 4f / zoom;
+
+        DrawBrackets(position, inner, armFraction: 0.34f, TargetColor * 0.28f, 1.6f / zoom);
+        DrawBrackets(position, outer, armFraction: 0.34f, TargetColor * 0.14f, 1.1f / zoom);
+    }
+
+    /// <summary>The four corner brackets of a square of half-size <paramref name="half"/>, each an arm, a diagonal cut across the corner, and an arm.</summary>
+    private void DrawBrackets(Vector2 center, float half, float armFraction, Color color, float thickness)
+    {
+        float arm = half * 2f * armFraction;
+        float cut = arm * 0.3f; // how far the diagonal cuts into the corner along each side
+
+        for (int sx = -1; sx <= 1; sx += 2)
+        {
+            for (int sy = -1; sy <= 1; sy += 2)
+            {
+                Vector2 P(float x, float y) => center + new Vector2(sx * x, sy * y);
+
+                var armEndA   = P(half, half - arm);
+                var cutStartA = P(half, half - cut);
+                var cutEndB   = P(half - cut, half);
+                var armEndB   = P(half - arm, half);
+
+                DrawWorldLine(armEndA, cutStartA, color, thickness);
+                DrawWorldLine(cutStartA, cutEndB, color, thickness);
+                DrawWorldLine(cutEndB, armEndB, color, thickness);
+            }
+        }
+    }
+
+    /// <summary>A straight line segment in world space, a little longer than its ends so joined segments leave no gap.</summary>
+    private void DrawWorldLine(Vector2 from, Vector2 to, Color color, float thickness)
+    {
+        Vector2 delta = to - from;
+        float length = delta.Length();
+        if (length < 0.0001f) return;
+
+        float angle = MathF.Atan2(delta.Y, delta.X);
+        Vector2 direction = delta / length;
+        Vector2 start = from - direction * (thickness * 0.5f);
+
+        _spriteBatch.Draw(_pixel, start, null, color, angle, new Vector2(0f, 0.5f),
+            new Vector2(length + thickness, thickness), SpriteEffects.None, 0f);
+    }
+
     public void DrawStar(Star star) =>
         DrawEntity(star.Id, star.Position, 0f, star.Radius);
 
@@ -435,6 +505,8 @@ public class SpriteRenderer
         {
             // A small round disc with a dark center pixel, so planets read as round bodies and cannot be mistaken for the solid square dots of ships
             Vector2 planetMap = WorldToMap(planet.Position);
+            if (ReferenceEquals(planet, universe.Player.DockTarget))
+                Disc(planetMap, 5.5f, new Color(80, 255, 220) * 0.8f); // halo around the spaceport targeted for docking
             Disc(planetMap, 2f, ProceduralHelpers.PlanetMinimapColor(planet.Type));
             Dot(planetMap, 1, new Color(0, 5, 18));
         }
@@ -562,8 +634,20 @@ public class SpriteRenderer
         DrawDivider(currentY);
         currentY += SectionSpacing;
 
-        // -- Jump Target Display (no label) -----------------------------------
-        if (universe.JumpRoute.Count > 0)
+        // -- Target Display (no label) ------------------------------------------
+        // A planet targeted for docking takes this place and shows its name (in the colour of its minimap halo);
+        // otherwise it shows the jump target.
+        if (universe.Player.DockTarget is { } dockTarget)
+        {
+            string planetName = dockTarget.Name;
+            Vector2 nameSize = _font.MeasureString(planetName) * FontScale;
+            Vector2 namePos = new Vector2(
+                mapLeft + (MapSize - nameSize.X) * 0.5f,
+                currentY);
+            _spriteBatch.DrawString(_font, planetName, namePos, new Color(80, 255, 220), 0f, Vector2.Zero, FontScale, SpriteEffects.None, 0f);
+            currentY += (int)nameSize.Y + SectionSpacing;
+        }
+        else if (universe.JumpRoute.Count > 0)
         {
             string targetSystemId = universe.JumpRoute[0];
             var targetNode = universe.Galaxy.FindById(targetSystemId);
@@ -671,6 +755,7 @@ public class SpriteRenderer
         // -- Player Stats Display (no label) ----------------------------------
         string[] stats = new[]
         {
+            $"Credits: {universe.Player.Credits}",
             "Speed: 450 m/s",
             "Mass: 12.5 t",
             "Thrust: 260 N"

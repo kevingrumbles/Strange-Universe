@@ -9,6 +9,9 @@ namespace Strange_Universe.Game.Components.EquipmentComponents;
 /// </summary>
 public sealed class ProjectileVisual
 {
+    /// <summary>A separate copy with the same values.</summary>
+    public ProjectileVisual Clone() => (ProjectileVisual)MemberwiseClone();
+
     // -- Core bolt ---------------------------------------------------------------
 
     /// <summary>Colour of the bright central bolt.</summary>

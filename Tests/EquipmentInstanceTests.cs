@@ -91,6 +91,7 @@ public class EquipmentInstanceTests
         var ship = ShipWithGuns(new Microsoft.Xna.Framework.Vector2(0, 500), accuracy: 0.8f);
         var shots = new System.Collections.Generic.List<Projectile>();
         var guns = ship.Equipment.OfType<WeaponComponent>().ToList();
+        float arc = WeaponComponent.SpreadAngle(guns[0].Accuracy, 0f, positive: true) + 1e-5f; // the widest spread the guns allow
 
         for (int i = 0; i < 50; i++)
         {
@@ -98,7 +99,7 @@ public class EquipmentInstanceTests
             foreach (var gun in guns) gun.UpdateCooldown(10f);
             ship.Weapons.Fire(ship, shots);
             for (int g = 0; g < shots.Count; g++)
-                Assert.Equal(guns[g].LastSpreadAngle, shots[g].Rotation, 4); // facing = ship facing (0) + that shot's spread
+                Assert.InRange(shots[g].Rotation, -arc, arc); // facing = ship facing (0) + that shot's spread: inside the weapon's arc, nothing from the ship's motion
         }
     }
 
@@ -132,10 +133,10 @@ public class EquipmentInstanceTests
         for (int i = 0; i < 2000; i++)
         {
             gun.UpdateCooldown(10f);
-            gun.TryFire(ship);
-            Assert.InRange(gun.LastSpreadAngle, -arc - 1e-5f, arc + 1e-5f);
-            if (gun.LastSpreadAngle > 0f) positive++;
-            if (gun.LastSpreadAngle < 0f) negative++;
+            float spread = gun.TryFire(ship).Rotation; // the ship faces 0, so the projectile's facing is the spread
+            Assert.InRange(spread, -arc - 1e-5f, arc + 1e-5f);
+            if (spread > 0f) positive++;
+            if (spread < 0f) negative++;
         }
 
         Assert.InRange(positive, 800, 1200);

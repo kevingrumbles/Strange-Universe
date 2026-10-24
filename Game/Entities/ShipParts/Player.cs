@@ -56,6 +56,7 @@ public class Player : Ship
         HandleRetrograde(deltaTime, input);
         HandleThrust(deltaTime, input);
         HandleJump(deltaTime, input);
+        HandleDock(input);
         HandleTargeting(input);
         HandleFirePrimaryWeapons(input);
 
@@ -128,6 +129,47 @@ public class Player : Ship
             {
                 StarSystem.Universe.Messages.Post("Insufficient fuel for jump!");
             }
+        }
+    }
+
+    // -- Docking (L) ---------------------------------------------------------------
+    // L with no spaceport targeted targets the nearest one in the system. L with one targeted starts the docking process:
+    // the planet decides whether the ship can dock now (Planet.CheckDocking) and the ship docks, or is told why not.
+
+    private Planet _dockTarget;
+
+    /// <summary>The planet with a spaceport the player has targeted for docking; null when none (or when it is not in the player's current system). Not saved.</summary>
+    [JsonIgnore]
+    public Planet DockTarget =>
+        _dockTarget != null && StarSystem != null && StarSystem.Planets.Contains(_dockTarget) ? _dockTarget : null;
+
+    public void ClearDockTarget() => _dockTarget = null;
+
+    private void HandleDock(InputState input)
+    {
+        if (!input.Dock || HasActiveNavTask || StarSystem == null) return;
+
+        var messages = StarSystem.Universe.Messages;
+        var target = DockTarget;
+
+        if (target == null)
+        {
+            _dockTarget = StarSystem.NearestSpaceport(Position);
+            messages.Post(_dockTarget != null ? $"Targeted {_dockTarget.Name}" : "No spaceport in this system");
+            return;
+        }
+
+        switch (target.CheckDocking(this))
+        {
+            case DockingCheck.Ok:
+                StarSystem.Universe.Dock(target);
+                break;
+            case DockingCheck.TooFast:
+                messages.Post("Too fast to dock");
+                break;
+            default:
+                messages.Post($"{target.Name} is out of docking range");
+                break;
         }
     }
 

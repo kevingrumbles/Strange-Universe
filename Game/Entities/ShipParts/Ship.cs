@@ -44,11 +44,76 @@ public abstract class Ship
     }
 
     public string Name { get; set; }
+
+    /// <summary>
+    /// The money this ship carries. The player spends it at spaceports; an NPC has some from the moment it is made, for the player to loot later.
+    /// Saved with the player (a save from before credits existed reads as 0).
+    /// </summary>
+    public int Credits { get; set; }
+
+    public bool CanAfford(int amount) => amount >= 0 && Credits >= amount;
+
+    /// <summary>Takes <paramref name="amount"/> from the ship's credits. Returns false, changing nothing, when it has less than that.</summary>
+    public bool TrySpend(int amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        if (Credits < amount)
+            return false;
+
+        Credits -= amount;
+        return true;
+    }
+
+    /// <summary>Adds <paramref name="amount"/> to the ship's credits.</summary>
+    public void Earn(int amount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(amount);
+        Credits += amount;
+    }
     public int? CurrentHullStrength   { get => Durability.Hull;   set => Durability.Hull = value; }
     public int? CurrentShieldStrength { get => Durability.Shield; set => Durability.Shield = value; }
     public int? CurrentFuelLevel      { get => Durability.Fuel;   set => Durability.Fuel = value; }
     [JsonConverter(typeof(EquipmentListConverter))]
     public List<EquipmentComponent> Equipment { get; set; } = new();
+
+    // -- Equipment limits and value ------------------------------------------
+
+    /// <summary>The total mass of the equipment the ship carries.</summary>
+    [JsonIgnore] public float EquipmentMass => Equipment.Sum(item => item.Mass);
+
+    /// <summary>What the equipment the ship carries is worth (the sum of the item prices).</summary>
+    [JsonIgnore] public int EquipmentValue => Equipment.Sum(item => item.Price);
+
+    /// <summary>What the ship is worth, for a trade-in: the ship itself plus everything it carries.</summary>
+    [JsonIgnore] public int ShipValue => ShipType.Price + EquipmentValue;
+
+    /// <summary>How many items of the same kind as <paramref name="item"/> (the same class: every weapon is one kind) the ship carries.</summary>
+    public int CountLike(EquipmentComponent item) => Equipment.Count(other => other.GetType() == item.GetType());
+
+    /// <summary>
+    /// Whether <paramref name="item"/> can be installed: there must be a free slot of its kind, meaning fewer of that class than its
+    /// <see cref="EquipmentComponent.SlotLimit"/> (<see cref="InstallCheck.NoSlot"/> otherwise, always for an unknown item), and its mass must fit in what the ship can still carry (<see cref="InstallCheck.TooHeavy"/>). The slot is checked first.
+    /// </summary>
+    public InstallCheck CheckInstall(EquipmentComponent item)
+    {
+        if (CountLike(item) >= item.SlotLimit(ShipType.Limits))
+            return InstallCheck.NoSlot;
+        if (EquipmentMass + item.Mass > ShipType.Limits.MaxMass)
+            return InstallCheck.TooHeavy;
+        return InstallCheck.Ok;
+    }
+
+    /// <summary>Adds <paramref name="item"/> to the ship's equipment if it fits (see <see cref="CheckInstall"/>); returns what the check said.</summary>
+    public InstallCheck Install(EquipmentComponent item)
+    {
+        var check = CheckInstall(item);
+        if (check == InstallCheck.Ok)
+            Equipment.Add(item);
+        return check;
+    }
+
+    /// <summary>Takes <paramref name="item"/> off the ship. Returns false when the ship does not carry it.</summary>
+    public bool Uninstall(EquipmentComponent item) => Equipment.Remove(item);
     [JsonIgnore] public string Id { get; set; }
     [JsonIgnore] public Ship Target { get => Sensors.Target; set => Sensors.Target = value; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Position);
@@ -228,6 +293,9 @@ public abstract class Ship
 
     /// <inheritdoc cref="ShipDurability.ApplyDamage"/>
     public void ApplyDamage(int damage, Ship source = null) => Durability.ApplyDamage(damage, source);
+
+    /// <summary>Recharges every shield generator to full at once.</summary>
+    public void RefillShield() => Durability.Shield = Durability.MaxShield;
 
     [JsonIgnore] public bool IsDestroyed => Durability.IsDestroyed;
 

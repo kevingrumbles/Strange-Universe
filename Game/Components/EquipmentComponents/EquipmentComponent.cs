@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components.ShipComponents;
 using System;
 
 namespace Strange_Universe.Game.Components.EquipmentComponents;
@@ -34,6 +35,24 @@ public abstract class EquipmentComponent
     public EquipmentType EquipmentType { get; private protected set; }
 
     public float Mass { get; set; }
+
+    /// <summary>How advanced the item is, 1 and up. Spaceports list equipment by kind and then by grade, the highest last.</summary>
+    public int Grade { get; set; }
+
+    /// <summary>What the item costs at a spaceport, and what it counts for in a trade-in or a sale.</summary>
+    public int Price { get; set; }
+
+    /// <summary>
+    /// How many items of this kind (this class) a ship with <paramref name="limits"/> can carry. Each kind of equipment names its own limit; an item
+    /// that is no longer a known item has none, so it can never be installed.
+    /// </summary>
+    public virtual int SlotLimit(LoadoutLimits limits) => 0;
+
+    /// <summary>
+    /// A copy of this item for a new owner, as if freshly made: the same name, price, mass and stats, and no use behind it (a weapon is ready to fire,
+    /// a shield full). A spaceport keeps one item of each kind it sells and hands each buyer a copy.
+    /// </summary>
+    public virtual EquipmentComponent Clone() => (EquipmentComponent)MemberwiseClone();
 
     private protected EquipmentComponent(EquipmentType type)
     {

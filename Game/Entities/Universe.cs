@@ -1,4 +1,5 @@
 using Strange_Universe.Game.Components;
+using Strange_Universe.Game.Components.EquipmentComponents;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.NavSystem;
@@ -57,6 +58,7 @@ public class Universe : IDisposable
         _activeStarSystem = system;
         Player.StarSystem = _activeStarSystem;
         Player.CurrentStarSystemID = node.SystemId;
+        Player.RefillShield(); // shields are always full when the player loads into a system
         WaitForNebula(_activeStarSystem.NebulaId);
         Events.Publish(new SystemEntered(_activeStarSystem));
         return _activeStarSystem;
@@ -144,6 +146,9 @@ public class Universe : IDisposable
         }
     }
 
+    /// <summary>The credits a new player starts with.</summary>
+    public const int StartingCredits = 1000;
+
     public Universe() { Messages = new BusMessageSink(Events); }
     public Universe(string name, string seed = null) : this()
     {
@@ -153,14 +158,177 @@ public class Universe : IDisposable
         Id = id;
         Name = name;
         Seed = seed ?? id.ToString();
-        Player = new Player(name, new Runner());
+        Player = new Player(name, new Runner()) { Credits = StartingCredits };
     }
 
     public void Update(float deltaTime, InputState input)
     {
         UploadFinishedNebulae();
 
+        if (IsDocked)
+            return; // nothing is simulated while docked: there is no active star system
+
         ActiveStarSystem.Update(deltaTime, input);
+    }
+
+    // -- Docking -----------------------------------------------------------------
+
+    /// <summary>The planet the player is docked at; null when flying. Runtime only: it is not saved, so a loaded game starts in the ship.</summary>
+    [JsonIgnore] public Planet DockedAt { get; private set; }
+
+    [JsonIgnore] public bool IsDocked => DockedAt != null;
+
+    /// <summary>
+    /// Docks the player at <paramref name="planet"/>, which must have a spaceport. The active star system is cleared (nothing in it survives; it is
+    /// rebuilt on <see cref="Undock"/>), the player stops and keeps the position in the system they are saved with, and <see cref="PlayerDocked"/> is
+    /// published (the playing screen saves on it). Does nothing when already docked.
+    /// </summary>
+    public void Dock(Planet planet)
+    {
+        ArgumentNullException.ThrowIfNull(planet);
+        if (planet.Spaceport == null)
+            throw new ArgumentException("That planet has no spaceport.", nameof(planet));
+        if (IsDocked)
+            return;
+
+        Player.Navigator.Clear();
+        Player.Velocity = Vector2.Zero;
+        Player.ClearDockTarget();
+
+        DockedAt = planet;
+        _activeStarSystem = null;
+        Player.StarSystem = null;
+
+        Events.Publish(new PlayerDocked(planet));
+    }
+
+    /// <summary>
+    /// Leaves the spaceport: the player's system is built again and they are put back where they docked, at rest, with full shields.
+    /// Does nothing when not docked.
+    /// </summary>
+    public void Undock()
+    {
+        if (!IsDocked)
+            return;
+
+        var planet = DockedAt;
+        Vector2 where = Player.Position;
+        StarSystemNode node = ResolveStartNode();
+
+        DockedAt = null;
+        EnterSystem(node);
+        Player.Position = where;
+        Player.Velocity = Vector2.Zero;
+
+        Events.Publish(new PlayerUndocked(planet));
+    }
+
+    /// <summary>
+    /// Makes the selected galaxy-map route the player's target: when a route is selected, the spaceport targeted for landing is dropped, so the HUD shows the
+    /// route. A targeted ship is not touched. Called when the map is opened and when it is closed. With no route selected, nothing changes.
+    /// </summary>
+    public void TargetJumpRoute()
+    {
+        if (JumpRoute.Count == 0)
+            return;
+
+        Player.ClearDockTarget();
+    }
+
+    // -- Trading ---------------------------------------------------------------------
+    // Each returns true when it went through. A refusal changes nothing and says why through Messages, so whatever lists the stock
+    // (the spaceport screen) only has to try the trade.
+
+    /// <summary>
+    /// Buys <paramref name="item"/> for the docked player: its price is spent and it is installed. <paramref name="item"/> must be a new object that no
+    /// ship holds (the catalog builds a fresh one with every read of <see cref="EquipmentCatalog.All"/>). Credits are checked first, then whether it fits
+    /// (<see cref="Ship.CheckInstall"/>).
+    /// </summary>
+    public bool BuyEquipment(EquipmentComponent item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!IsDocked)
+            return false;
+        if (!Player.CanAfford(item.Price))
+            return Refuse("Not enough credits");
+
+        switch (Player.Install(item)) // adds it only if it fits
+        {
+            case InstallCheck.NoSlot: return Refuse($"No free slot for {item.EquipmentName}");
+            case InstallCheck.TooHeavy: return Refuse($"{item.EquipmentName} is too heavy for this ship");
+        }
+
+        Player.Credits -= item.Price;
+        Messages.Post($"Bought {item.EquipmentName}");
+        return true;
+    }
+
+    /// <summary>
+    /// Buys a ship of <paramref name="type"/> for the docked player. <paramref name="type"/> must be a new object (<see cref="ShipStats.BuiltIn"/> builds
+    /// them). The ship costs its list price (the ship and the equipment it comes with) minus what the player's current ship is worth (the ship and
+    /// everything it carries); when the new one is worth less the player is paid the difference. The new ship replaces the old one and comes equipped
+    /// with its default loadout, full of hull, shield and fuel; the player's position, name and credits carry over.
+    /// </summary>
+    public bool BuyShip(ShipStats type)
+    {
+        ArgumentNullException.ThrowIfNull(type);
+        if (!IsDocked)
+            return false;
+
+        int cost = ShipCostAfterTradeIn(type);
+        if (cost > 0 && !Player.CanAfford(cost))
+            return Refuse("Not enough credits");
+
+        Player.Credits -= cost; // a negative cost pays the player
+
+        Player.AssignShipType(type);
+        _assets.EnsureShipArt(type);
+        Messages.Post($"Bought a {type.ShipTypeName}");
+        return true;
+    }
+
+    /// <summary>What buying a ship of <paramref name="type"/> would cost the player now, after the trade-in. Negative when they would be paid.</summary>
+    public int ShipCostAfterTradeIn(ShipStats type) => type.ListPrice - Player.ShipValue;
+
+    /// <summary>Sells <paramref name="item"/>, which the docked player carries, back for its price.</summary>
+    public bool SellEquipment(EquipmentComponent item)
+    {
+        ArgumentNullException.ThrowIfNull(item);
+        if (!IsDocked)
+            return false;
+        if (!Player.Uninstall(item))
+            return Refuse("The ship does not carry that");
+
+        Player.Earn(item.Price);
+        Messages.Post($"Sold {item.EquipmentName}");
+        return true;
+    }
+
+    private bool Refuse(string reason)
+    {
+        Messages.Post(reason);
+        return false;
+    }
+
+    /// <summary>
+    /// A hint for the HUD about the spaceport the player has targeted: "L: dock at X" when they can dock now, "Slow down to dock at X" when they are in
+    /// range but too fast. Null when nothing is targeted, the target is out of range, or the player is docked.
+    /// </summary>
+    public string DockingHint()
+    {
+        if (IsDocked)
+            return null;
+
+        var target = Player.DockTarget;
+        if (target == null)
+            return null;
+
+        return target.CheckDocking(Player) switch
+        {
+            DockingCheck.Ok => $"L: dock at {target.Name}",
+            DockingCheck.TooFast => $"Slow down to dock at {target.Name}",
+            _ => null,
+        };
     }
 
     /// <summary>

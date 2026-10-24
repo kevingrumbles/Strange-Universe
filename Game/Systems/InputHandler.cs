@@ -34,6 +34,10 @@ public class InputHandler
             TargetNearest = WasPressed(kb, Keys.R),
             CycleTarget   = WasPressed(kb, Keys.Tab),
             Fire          = kb.IsKeyDown(Keys.Space),
+            Dock          = WasPressed(kb, Keys.L),
+            MenuUp        = WasPressed(kb, Keys.Up)   || WasPressed(kb, Keys.W),
+            MenuDown      = WasPressed(kb, Keys.Down) || WasPressed(kb, Keys.S),
+            MenuSelect    = WasPressed(kb, Keys.Enter),
         };
 
         _prevKeys = kb;

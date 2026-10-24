@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Components.ShipComponents;
 using System;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Entities;
@@ -11,7 +12,18 @@ namespace Strange_Universe.Game.Components.EquipmentComponents;
 /// </summary>
 public sealed class WeaponComponent : EquipmentComponent
 {
+    /// <summary>All weapons share one limit, whatever kind of weapon they are (missiles included).</summary>
+    public override int SlotLimit(LoadoutLimits limits) => limits.MaxWeapons;
+
     private float _cooldown;
+
+    public override EquipmentComponent Clone()
+    {
+        var copy = (WeaponComponent)base.Clone();
+        copy._cooldown = 0f;
+        copy.Visual = Visual.Clone(); // each weapon has its own look
+        return copy;
+    }
 
     public WeaponComponent(EquipmentType kind) : base(RequireWeaponKind(kind))
     {
@@ -76,9 +88,6 @@ public sealed class WeaponComponent : EquipmentComponent
 
     public bool CanFire => _cooldown <= 0f;
 
-    /// <summary>The accuracy spread of the last shot, in radians (0 before the first shot).</summary>
-    public float LastSpreadAngle { get; private set; }
-
     /// <summary>Advances the weapon cooldown. Call every frame for weapons.</summary>
     public void UpdateCooldown(float deltaTime)
     {
@@ -113,8 +122,6 @@ public sealed class WeaponComponent : EquipmentComponent
 
         // Each shot rolls its own accuracy (0-100%) and its own side
         float spreadAngle = SpreadAngle(effectiveAccuracy, Random.Shared.NextSingle(), Random.Shared.Next(2) == 0);
-
-        LastSpreadAngle = spreadAngle;
 
         float cos = MathF.Cos(spreadAngle);
         float sin = MathF.Sin(spreadAngle);

@@ -25,6 +25,7 @@ public class Nonplayer : Ship
     public Nonplayer(string npcId, ShipStats shipType = null, string npcName = "NPC", bool jumpSpawn = false) : base(npcName, shipType ?? new Shuttle())
     {
         Id = npcId;
+        Credits = RollCredits(npcId, ShipType.TypicalCredits);
         if (jumpSpawn)
         {
             EnqueueNavTask(new JumpTask(this, startPhase: JumpTask.Phase.SystemTranslation));
@@ -33,6 +34,16 @@ public class Nonplayer : Ship
         {
             EnqueueNavTask(new SpawnTask(this));
         }
+    }
+
+    /// <summary>
+    /// An NPC's credits: between half and one and a half times the ship type's typical amount, rolled from its id so the same NPC always has the
+    /// same amount.
+    /// </summary>
+    public static int RollCredits(string npcId, int typicalCredits)
+    {
+        var rng = new Random(ProceduralHelpers.SeedHash($"{npcId}_credits"));
+        return (int)Math.Round(typicalCredits * (0.5 + rng.NextDouble()));
     }
 
     /// <summary>Used by System.Text.Json when loading a saved universe.</summary>

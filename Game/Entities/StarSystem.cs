@@ -98,6 +98,29 @@ public class StarSystem : IWorldContext
     /// <summary>Gravity, safe-location and entry-point queries for this system.</summary>
     [JsonIgnore] public SystemSpatialQueries Spatial { get; }
 
+    /// <summary>
+    /// The planet with a spaceport nearest <paramref name="position"/> (by distance to its surface), wherever it is in the system; null when no planet
+    /// here has a spaceport.
+    /// </summary>
+    public Planet NearestSpaceport(Vector2 position)
+    {
+        Planet nearest = null;
+        float nearestSurface = float.MaxValue;
+
+        foreach (var planet in Planets)
+        {
+            if (planet.Spaceport == null) continue;
+
+            float surface = Vector2.Distance(position, planet.Position) - planet.Radius;
+            if (surface < nearestSurface)
+            {
+                nearest = planet;
+                nearestSurface = surface;
+            }
+        }
+        return nearest;
+    }
+
     public void Update(float deltaTime, InputState input)
     {
         ActivePlayer.Update(deltaTime, input);
