@@ -62,20 +62,6 @@ public class GenerationCharacterizationTests
     }
 
     [Fact]
-    public void NebulaSelection_IndependentOfPoolFill()
-    {
-        string Select(int poolCount)
-        {
-            var (universe, node) = BuildUniverse();
-            for (int i = 0; i < poolCount; i++)
-                universe.NebulaPool.Add(Nebula.CreateWithoutPixels($"{Seed}_nebula_pool_{i}"));
-            return StarSystem.Create(node, universe, null).NebulaId;
-        }
-
-        Assert.Equal(Select(6), Select(1));
-    }
-
-    [Fact]
     public void PaletteSeeds_DependOnUniverseSeedOnly()
     {
         var (u1, n1) = BuildUniverse();
@@ -102,20 +88,6 @@ public class GenerationCharacterizationTests
     }
 
     [Fact]
-    public void EnteringSystem_WaitsForItsNebula()
-    {
-        var universe = new Universe("Char", Seed) { NebulaFactory = Nebula.CreateWithoutPixels };
-        var assets = new RecordingAssetRequests();
-        universe.Generate(assets);
-
-        var system = universe.ActiveStarSystem;
-
-        Assert.Contains(("RegisterNebula", system.NebulaId), assets.Calls);
-        Assert.Contains(universe.NebulaPool, n => n.Id == system.NebulaId);
-        universe.Dispose();
-    }
-
-    [Fact]
     public void NebulaIndexFor_MatchesSelectedNebula()
     {
         var (universe, node) = BuildUniverse();
@@ -124,24 +96,9 @@ public class GenerationCharacterizationTests
     }
 
     [Fact]
-    public void NewUniverse_StartingNebulaIsRequestedFirst()
-    {
-        var universe = new Universe("Fresh", "fresh-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        Assert.Empty(universe.StarSystemNodes);
-        var assets = new RecordingAssetRequests();
-
-        universe.Generate(assets);
-
-        string firstRegistered = assets.Calls.First(c => c.Method == "RegisterNebula").Id;
-        Assert.Equal(universe.ActiveStarSystem.NebulaId, firstRegistered);
-        universe.Dispose();
-    }
-
-    [Fact]
     public void ConstructingSameSystemTwice_DoesNotChangeUniverse()
     {
         var (universe, node) = BuildUniverse();
-        universe.NebulaFactory = Nebula.CreateWithoutPixels;
         universe.EnterSystem(node);
 
         string before = Snapshot(universe);

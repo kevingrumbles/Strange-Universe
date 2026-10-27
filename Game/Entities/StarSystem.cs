@@ -20,7 +20,7 @@ public class StarSystem : IWorldContext
     [JsonIgnore] public StarSystemNode Node { get; }
     [JsonIgnore] public Player ActivePlayer => Universe?.Player;
     [JsonIgnore] public Universe Universe { get; }
-    /// <summary>Render-side art requests. Never null (<see cref="NullAssetRequests"/> when headless).</summary>
+    /// <summary>Render-side art requests; null when the system is built without a render side (tests).</summary>
     [JsonIgnore] public IAssetRequests Assets { get; }
     [JsonIgnore] public string DisplayName { get { return Node.DisplayName; } }
     [JsonIgnore] public bool Discovered { get { return Node.Discovered; } }
@@ -65,7 +65,7 @@ public class StarSystem : IWorldContext
         Node = node;
         Universe = universe;
         Layout = layout;
-        Assets = assets ?? NullAssetRequests.Instance;
+        Assets = assets;
         _collision = new CollisionSystem(universe?.Settings);
 
         Stars = new List<Star>(layout.Stars);
@@ -85,13 +85,13 @@ public class StarSystem : IWorldContext
     /// <summary>Requests the textures this system's stars, planets and asteroids need from the asset service.</summary>
     internal void AttachAssets()
     {
-        foreach (var star in Stars) Assets.EnsureStarTexture(star);
-        foreach (var planet in Planets) Assets.EnsurePlanetTexture(planet);
+        foreach (var star in Stars) Assets?.EnsureStarTexture(star);
+        foreach (var planet in Planets) Assets?.EnsurePlanetTexture(planet);
 
         // Palette art is a universe-wide resource, so its seed comes from the universe seed,
         // not from whichever system happens to request it first.
         for (int i = 0; i < StarSystemGenerator.AsteroidPaletteSize; i++)
-            Assets.EnsureAsteroidTexture(StarSystemGenerator.AsteroidPaletteId(i),
+            Assets?.EnsureAsteroidTexture(StarSystemGenerator.AsteroidPaletteId(i),
                 ProceduralHelpers.SeedHash($"{Universe.Seed}_asteroid_tex_{i}"));
     }
 
@@ -206,7 +206,7 @@ public class StarSystem : IWorldContext
     public void AddNpc(Nonplayer npc)
     {
         npc.StarSystem = this;
-        Assets.EnsureShipArt(npc.ShipType);
+        Assets?.EnsureShipArt(npc.ShipType);
         Npcs.Add(npc);
     }
 }

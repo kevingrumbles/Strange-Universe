@@ -12,8 +12,8 @@ public class NavTaskCompletionTests
 {
     private static (Universe universe, StarSystemNode target) Setup()
     {
-        var universe = new Universe("Nav", "nav-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        universe.Generate(new RecordingAssetRequests());
+        var universe = new Universe("Nav", "nav-seed");
+        universe.Generate(null);
         var target = universe.Galaxy.FindById(universe.ActiveStarSystem.SystemConnectionIds.First());
         universe.Player.CurrentFuelLevel = 5;
         universe.JumpRoute.Add(target.SystemId);

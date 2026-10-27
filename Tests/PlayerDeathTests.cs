@@ -14,8 +14,8 @@ public class PlayerDeathTests
 {
     private static Universe Started(string seed = "death-seed")
     {
-        var u = new Universe("Death", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
+        var u = new Universe("Death", seed);
+        u.Generate(null);
         u.Player.Equipment.Clear(); // no shield: an active shield would absorb even a huge hit, so one big shot is lethal
         u.Player.CurrentShieldStrength = 0;
         return u;

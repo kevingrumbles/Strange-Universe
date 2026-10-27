@@ -36,8 +36,8 @@ public sealed class NavSim : IDisposable
 
     public NavSim(string seed = "sim-seed", string shipId = "sim")
     {
-        Universe = new Universe("NavSim", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
-        Universe.Generate(new RecordingAssetRequests());
+        Universe = new Universe("NavSim", seed);
+        Universe.Generate(null);
         System = Universe.ActiveStarSystem;
 
         // A gun of the test's own, so the ship's behavior does not depend on the ship type's default loadout or the catalog's numbers.

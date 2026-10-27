@@ -6,9 +6,7 @@ namespace Strange_Universe.Game.Components;
 
 /// <summary>
 /// Requests the simulation makes to the render side when it needs art for something.
-/// Implemented by the render-side asset service; may be <c>null</c>
-/// (tests, headless), in which case callers must behave as if every request succeeded.
-/// Contains no graphics types so the simulation stays graphics-free.
+/// Implemented by the render-side asset service. Contains no graphics types so the simulation stays graphics-free.
 /// </summary>
 public interface IAssetRequests
 {
@@ -32,15 +30,4 @@ public interface IAssetRequests
 
     /// <summary>Uploads <paramref name="nebula"/> pixels to a texture. Main thread only.</summary>
     void RegisterNebula(Nebula nebula);
-}
-
-/// <summary>Ignores all asset requests. Used headless (tests) and before Generate supplies real services.</summary>
-public sealed class NullAssetRequests : IAssetRequests
-{
-    public static readonly NullAssetRequests Instance = new();
-    public void EnsureShipArt(ShipStats shipType) { }
-    public void EnsureAsteroidTexture(string paletteId, int seed) { }
-    public void EnsurePlanetTexture(Planet planet) { }
-    public void EnsureStarTexture(Star star) { }
-    public void RegisterNebula(Nebula nebula) => nebula.ReleasePixels();
 }

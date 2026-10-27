@@ -13,7 +13,7 @@ public class StarSystemConstructionTests
 {
     private static (Universe universe, StarSystemNode node) BuildUniverse(string seed)
     {
-        var universe = new Universe("Test", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
+        var universe = new Universe("Test", seed);
         var node = new StarSystemNode(seed, Vector2.Zero, existingNodes: universe.StarSystemNodes);
         universe.StarSystemNodes.Add(node);
         universe.Player.CurrentStarSystemID = node.SystemId;

@@ -161,8 +161,8 @@ public class NavigatorTests
 
     private static Universe StartedUniverse()
     {
-        var u = new Universe("Input", "input-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
+        var u = new Universe("Input", "input-seed");
+        u.Generate(null);
         // Let the opening spawn task finish so the test controls what is active.
         for (int i = 0; i < 5; i++) u.Player.Update(0.016f, new InputState());
         return u;

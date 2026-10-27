@@ -13,8 +13,8 @@ public class EventBusTests
 {
     private static Universe Started()
     {
-        var u = new Universe("Bus", "bus-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
+        var u = new Universe("Bus", "bus-seed");
+        u.Generate(null);
         return u;
     }
 
@@ -68,8 +68,8 @@ public class EventBusTests
     [Fact]
     public void Messages_AreEventsOnTheBus()
     {
-        var u = new Universe("Msg", "msg-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
+        var u = new Universe("Msg", "msg-seed");
+        u.Generate(null);
         var seen = new List<MessageRequested>();
         u.Events.Subscribe<MessageRequested>(seen.Add);
 

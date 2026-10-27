@@ -10,7 +10,7 @@ public class PureGenerationTests
 {
     private static (Universe universe, StarSystemNode node) Build(string seed = "pure-seed")
     {
-        var universe = new Universe("Pure", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
+        var universe = new Universe("Pure", seed);
         var node = new StarSystemNode(seed, Vector2.Zero, existingNodes: universe.StarSystemNodes);
         universe.StarSystemNodes.Add(node);
         universe.Player.CurrentStarSystemID = node.SystemId;

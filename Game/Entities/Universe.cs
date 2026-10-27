@@ -59,7 +59,8 @@ public class Universe : IDisposable
         Player.StarSystem = _activeStarSystem;
         Player.CurrentStarSystemID = node.SystemId;
         Player.RefillShield(); // shields are always full when the player loads into a system
-        WaitForNebula(_activeStarSystem.NebulaId);
+        if (_assets != null)
+            WaitForNebula(_activeStarSystem.NebulaId);
         Events.Publish(new SystemEntered(_activeStarSystem));
         return _activeStarSystem;
     }
@@ -96,8 +97,8 @@ public class Universe : IDisposable
     /// <summary>Texture id of nebula <paramref name="index"/> in the pool of the universe with <paramref name="seed"/>.</summary>
     public static string NebulaPoolId(string seed, int index) => $"{seed}_nebula_pool_{index}";
 
-    // Runtime services; a no-op until Generate(...) supplies the real ones.
-    private IAssetRequests _assets = NullAssetRequests.Instance;
+    // Runtime services; null until Generate(...) supplies them.
+    private IAssetRequests _assets;
 
     /// <summary>Shows a short message on the HUD (the playing screen listens for <see cref="MessageRequested"/>).</summary>
     public void Post(string message, int durationSeconds = 3) => Events.Publish(new MessageRequested(message, durationSeconds));
@@ -111,9 +112,6 @@ public class Universe : IDisposable
     private readonly Task<Nebula>[] _nebulaTasks = new Task<Nebula>[NebulaPoolSize];
     private readonly bool[] _nebulaUploaded = new bool[NebulaPoolSize];
     private volatile bool _disposed;
-
-    /// <summary>Creates nebula pixel data. Test seam: tests swap in a cheap factory.</summary>
-    internal Func<string, Nebula> NebulaFactory { get; set; } = id => new Nebula(id);
 
     /// <summary>Shared nebula textures generated once per universe launch. Each StarSystem samples a crop of one of these.</summary>
     [JsonIgnore]
@@ -279,7 +277,7 @@ public class Universe : IDisposable
         Player.Credits -= cost; // a negative cost pays the player
 
         Player.AssignShipType(type);
-        _assets.EnsureShipArt(type);
+        _assets?.EnsureShipArt(type);
         Post($"Bought a {type.ShipTypeName}");
         return true;
     }
@@ -334,7 +332,6 @@ public class Universe : IDisposable
     /// </summary>
     public void Generate(IAssetRequests assets)
     {
-        assets ??= NullAssetRequests.Instance;
 
         // A new asset owner (new session) or a disposed universe needs its nebulae uploaded again;
         // uploaded pixels were released, so they are regenerated.
@@ -345,9 +342,10 @@ public class Universe : IDisposable
         _assets = assets;
 
         StarSystemNode start = ResolveStartNode();
-        GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
+        if (assets != null)
+            GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
         Player.Generate();
-        _assets.EnsureShipArt(Player.ShipType);
+        _assets?.EnsureShipArt(Player.ShipType);
         EnterSystem(start);
 
         // A player with no location has never been placed (a new universe, including one that was saved before it was first
@@ -391,8 +389,7 @@ public class Universe : IDisposable
     private Task<Nebula> StartNebula(int index)
     {
         string id = NebulaPoolId(Seed, index);
-        var factory = NebulaFactory;
-        var created = new Task<Nebula>(() => factory(id));
+        var created = new Task<Nebula>(() => new Nebula(id));
         var existing = Interlocked.CompareExchange(ref _nebulaTasks[index], created, null);
         if (existing != null) return existing;
         created.Start(TaskScheduler.Default);
