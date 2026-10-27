@@ -18,7 +18,7 @@ public sealed class PlayingScreen : IScreen
     private readonly Universe _universe;
     private readonly HudMessageService _hud = new();
 
-    private GameServices _services;
+    private AssetService _assets;
     private Camera _camera;
     private InputHandler _input;
     private SpriteRenderer _sprites;
@@ -40,21 +40,21 @@ public sealed class PlayingScreen : IScreen
 
     public void OnEnter()
     {
-        _services = new GameServices(_ctx.GraphicsDevice);
+        _assets = new AssetService(_ctx.GraphicsDevice);
         _camera = new Camera(_ctx.ScreenWidth, _ctx.ScreenHeight);
         _input = _ctx.Input;
         _input.Rebaseline();
-        _sprites = new SpriteRenderer(_ctx.Font, _services, _ctx.Render, _camera);
+        _sprites = new SpriteRenderer(_ctx.Font, _assets, _ctx.Render, _camera);
         _world = new WorldRenderer(_sprites, _projectileRenderer,
             new DebugRenderer(_ctx.Render, _camera, _ctx.Settings), _ctx.Settings);
         _hudRenderer = new HudRenderer(_ctx.Render, _ctx.Font);
         _galaxyMap = new GalaxyMapOverlay(_ctx.Font, _ctx.GraphicsDevice, _ctx.Render);
-        _spaceportOverlay = new SpaceportOverlay(_ctx.Render, _ctx.Font, _ctx.GraphicsDevice);
+        _spaceportOverlay = new SpaceportOverlay(_ctx.Render, _ctx.Font, _assets);
 
         _universe.Settings = _ctx.Settings;
         _deathMonitor = new PlayerDeathMonitor(_universe.Events, _universe.Player);
         _sprites.ImpactEffects.Connect(_universe.Events);
-        _universe.Generate(_services.Assets);
+        _universe.Generate(_assets);
         _hudSubscription = _universe.Events.Subscribe<MessageRequested>(m => _hud.Post(m.Message, m.DurationSeconds));
 
         // Docking is a persist point: the player's position in the system is saved the moment they dock.
@@ -87,9 +87,9 @@ public sealed class PlayingScreen : IScreen
         _galaxyMap?.Dispose();
         _spaceportOverlay?.Dispose();
         _spaceportOverlay = null;
-        _services?.Dispose();
+        _assets?.Dispose();
         _galaxyMap = null;
-        _services = null;
+        _assets = null;
     }
 
     public void Update(GameTime gameTime)

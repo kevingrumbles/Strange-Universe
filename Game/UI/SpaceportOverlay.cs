@@ -32,15 +32,15 @@ public sealed class SpaceportOverlay : IDisposable
 
     private readonly RenderService _render;
     private readonly SpriteFont _font;
-    private readonly GraphicsDevice _graphicsDevice;
+    private readonly AssetService _assets;
     private readonly Dictionary<PlanetType, Texture2D> _art = new(); // a null value is a picture that could not be loaded
     private Texture2D _fadeMask; // the panel colour, opaque at the edges and clear inside: laid over a picture so it ends in the panel colour
 
-    public SpaceportOverlay(RenderService render, SpriteFont font, GraphicsDevice graphicsDevice)
+    public SpaceportOverlay(RenderService render, SpriteFont font, AssetService assets)
     {
         _render = render;
         _font = font;
-        _graphicsDevice = graphicsDevice;
+        _assets = assets;
     }
 
     public void Draw(SpaceportMenu menu, int screenWidth, int screenHeight)
@@ -141,7 +141,7 @@ public sealed class SpaceportOverlay : IDisposable
             }
         }
 
-        _fadeMask = new Texture2D(_graphicsDevice, FadeMaskSize, FadeMaskSize);
+        _fadeMask = new Texture2D(_render.Pixel.GraphicsDevice, FadeMaskSize, FadeMaskSize);
         _fadeMask.SetData(pixels);
         return _fadeMask;
     }
@@ -152,7 +152,7 @@ public sealed class SpaceportOverlay : IDisposable
         if (!_art.TryGetValue(type, out var texture))
         {
             string path = SpaceportArt.PathFor(type);
-            texture = path == null ? null : ArtLoader.TryLoad(_graphicsDevice, path);
+            texture = path == null ? null : _assets.LoadArt(path);
             _art[type] = texture;
         }
         return texture;
