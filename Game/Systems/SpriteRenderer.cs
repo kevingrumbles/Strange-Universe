@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.UI;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
 using System;
@@ -269,6 +270,20 @@ public class SpriteRenderer
 
         _spriteBatch.Draw(_pixel, start, null, color, angle, new Vector2(0f, 0.5f),
             new Vector2(length + thickness, thickness), SpriteEffects.None, 0f);
+    }
+
+    private static readonly Color HudMessageColor = new(255, 140, 0);
+
+    /// <summary>Draws the HUD's timed message centred near the bottom of the screen, fading out over its last second.</summary>
+    public void DrawMessage(HudMessageService hud, int screenWidth, int screenHeight)
+    {
+        if (hud.Remaining <= 0f || string.IsNullOrEmpty(hud.Message)) return;
+
+        _renderService.Begin(BatchMode.ScreenAlpha);
+        float alpha = hud.Remaining < 1f ? hud.Remaining : 1f;
+        Vector2 size = _font.MeasureString(hud.Message);
+        _spriteBatch.DrawString(_font, hud.Message,
+            new Vector2((screenWidth - size.X) / 2f, screenHeight - size.Y - 40f), HudMessageColor * alpha);
     }
 
     public void DrawStar(Star star) =>
