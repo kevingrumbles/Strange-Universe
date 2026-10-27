@@ -114,8 +114,8 @@ public class CreditsTests
         string old = System.Text.RegularExpressions.Regex.Replace(json, @"\s*""Credits"": \d+,", "");
         Assert.DoesNotContain("Credits", old);
 
-        var withCredits = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(json, Persistence._readOptions);
-        var without = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(old, Persistence._readOptions);
+        var withCredits = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(json, FileSaveService.ReadOptions);
+        var without = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(old, FileSaveService.ReadOptions);
 
         Assert.All(withCredits, u => Assert.Equal(120, u.Player.Credits));
         Assert.All(without, u => Assert.Equal(0, u.Player.Credits));

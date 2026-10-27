@@ -44,7 +44,7 @@ public sealed class AssetService : IAssetRequests, IDisposable
     /// </summary>
     public Texture2D LoadArt(string relativePath)
     {
-        string fullPath = Strange_Universe.Persistence.ResolveDataPath(relativePath);
+        string fullPath = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, relativePath));
 
         if (!File.Exists(fullPath))
         {

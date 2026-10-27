@@ -17,7 +17,7 @@ public sealed class ScreenContext
     public required RenderService Render { get; init; }
     public required SpriteFont Font { get; init; }
     public required GameSettings Settings { get; init; }
-    public required ISaveService Saves { get; init; }
+    public required SaveService Saves { get; init; }
     /// <summary>Shared keyboard reader for gameplay; call <see cref="InputHandler.Rebaseline"/> when a screen takes over.</summary>
     public required InputHandler Input { get; init; }
     public required List<Universe> Universes { get; init; }

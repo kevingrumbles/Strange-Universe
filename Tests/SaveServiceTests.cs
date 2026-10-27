@@ -6,10 +6,10 @@ using Xunit;
 
 namespace Strange_Universe.Tests;
 
-/// <summary>Round 2, Phase 6: saving goes through <see cref="ISaveService"/>.</summary>
+/// <summary>Round 2, Phase 6: saving goes through <see cref="SaveService"/>.</summary>
 public class SaveServiceTests
 {
-    private static void ExerciseContract(ISaveService saves)
+    private static void ExerciseContract(SaveService saves)
     {
         var a = new Universe("A", "seed-a");
         var b = new Universe("B", "seed-b");

@@ -18,7 +18,7 @@ public class PersistenceRoundTripTests
     public void Sample_Deserializes()
     {
         var universes = JsonSerializer.Deserialize<List<Universe>>(
-            File.ReadAllText(SamplePath), Persistence._readOptions);
+            File.ReadAllText(SamplePath), FileSaveService.ReadOptions);
 
         Assert.NotNull(universes);
         Assert.Single(universes);
@@ -32,8 +32,8 @@ public class PersistenceRoundTripTests
     {
         string original = File.ReadAllText(SamplePath);
 
-        var universes = JsonSerializer.Deserialize<List<Universe>>(original, Persistence._readOptions);
-        string reserialized = JsonSerializer.Serialize(universes, Persistence._writeOptions);
+        var universes = JsonSerializer.Deserialize<List<Universe>>(original, FileSaveService.ReadOptions);
+        string reserialized = JsonSerializer.Serialize(universes, FileSaveService.WriteOptions);
 
         var expected = JsonNode.Parse(original);
         var actual = JsonNode.Parse(reserialized);
@@ -49,10 +49,10 @@ public class PersistenceRoundTripTests
         try
         {
             var universes = JsonSerializer.Deserialize<List<Universe>>(
-                File.ReadAllText(SamplePath), Persistence._readOptions);
+                File.ReadAllText(SamplePath), FileSaveService.ReadOptions);
 
-            Persistence.Persist(universes[0], tmp);
-            var loaded = Persistence.LoadExisting(tmp);
+            new FileSaveService(tmp).Save(universes[0]);
+            var loaded = new FileSaveService(tmp).LoadAll();
 
             Assert.Single(loaded);
             Assert.Equal(universes[0].Id, loaded[0].Id);
@@ -76,10 +76,10 @@ public class PersistenceRoundTripTests
             const string garbage = "[{ \"Name\": broken";
             File.WriteAllText(file, garbage);
 
-            Assert.Empty(Persistence.LoadExisting(file));
+            Assert.Empty(new FileSaveService(file).LoadAll());
             Assert.Single(Directory.GetFiles(dir, "*.corrupt-*.bak"));
 
-            Persistence.Persist(new Universe("X"), file);
+            new FileSaveService(file).Save(new Universe("X"));
             Assert.Equal(garbage, File.ReadAllText(file));
         }
         finally
