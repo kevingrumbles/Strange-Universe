@@ -76,3 +76,24 @@ which then also removes `Transform`/`PhysicsBody` plumbing from `ShipPhysics`. *
 6. **Point 4** (the shared body base class): biggest, last, on its own commit.
 
 Done in that order: about **22 types removed** (148 to about 126) and several hundred lines, with the tests updated as each step goes. Each step is its own commit and runs the full suite.
+
+## Done
+
+All six points were carried out, in this order, each as its own commit with the full suite passing (401 tests):
+
+| # | Commit | What was done | Types |
+|---|---|---|---|
+| 1 | Refactor 1 | `NullEventBus`, `IMessageSink`, `BusMessageSink`, `NullMessageSink` removed: `Universe.Post(text, seconds)` publishes `MessageRequested` and `PlayingScreen` forwards it to the HUD (`Generate` lost its `messages` parameter). `WeaponBonuses` became a named tuple. | -5 |
+| 2 | Refactor 2 | `ArtLoader`, `ProceduralTextureCache` and `GameServices` folded into `AssetService` (it keeps the textures by id, loads art with `LoadArt`, and is `IDisposable`). | -3 |
+| 3 | Refactor 3 | `HudRenderer` became `SpriteRenderer.DrawMessage`; `WorldRenderer` became `PlayingScreen.DrawWorld`; `PlayerDeathMonitor` became `Player.IsDestroyed` (the hull never recovers once it reaches zero, so the flag was the same thing); `GalaxyMapInput` merged into `GalaxyMapOverlay`. | -4 |
+| 4 | Refactor 4 | `SystemEvent`, `EventType` and the four event classes became static methods of `EventController` with one shared `SpawnPatrol`. A before/after run of the controller over 5 systems, with and without test mode, gave identical ships, names, messages and random-draw counts. | -6 |
+| 5 | Refactor 5 | `Persistence`, `ISaveService` and `SaveServiceExtensions` became one abstract `SaveService` (with `CreateUniverse` and `ReloadInto`) and `FileSaveService` (which now holds the file reading and writing). | -2 |
+| 6 | Refactor 6 | `Star`, `Planet` and `Asteroid` derive from `Transform` instead of each wrapping one with 20 lines of pass-through properties. | 0 (about -75 lines) |
+
+**Result:** 148 types down to 128 (20 fewer); `Game/` is about 450 lines shorter and the tests about 30. The plan expected about 22 types; two fewer came out because point 6 turned out smaller than estimated
+(see below) and because `Persistence` and the save extensions became one type, not two.
+
+**Point 4 as built, and why it is smaller than planned.** `ShipPhysics` has to keep its own position, rotation and velocity (its tests build one without a ship), so `Ship` still holds a `Transform` and a `PhysicsBody` through it. A shared base class for ships as well would have meant
+changing those tests and the physics class's ownership; the stars, planets and asteroids were the duplicated part, so only they changed. `Transform` was kept as the base (rather than adding a new `WorldBody`), which is why this step removes lines but not a type.
+
+**Not done, still open:** `ProceduralHelpers` (a 360-line grab bag), `SpriteRenderer` (773 lines) and the enums that sit in unrelated helper files are as they were; splitting them would add types, which was not the goal of this review.
