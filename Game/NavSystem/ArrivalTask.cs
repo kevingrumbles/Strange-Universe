@@ -59,10 +59,11 @@ namespace Strange_Universe.Game.NavSystem
             if (Owner is Player)
             {
                 // Builds the new system, attaches the player and updates CurrentStarSystemID.
-                World.EnterSystem(_targetSystemId);
+                var universe = World.Universe;
+                universe.EnterSystem(universe.Galaxy.FindById(_targetSystemId));
             }
 
-            Owner.Position = World.GetSystemEdgeEntryPosition(_originGalaxyPosition, RandomFor("arrival"));
+            Owner.Position = World.Spatial.GetSystemEdgeEntryPosition(_originGalaxyPosition, RandomFor("arrival"));
 
             Vector2 inward = MathHelpers.SafeNormalize(-Owner.Position, -Vector2.UnitX);
 

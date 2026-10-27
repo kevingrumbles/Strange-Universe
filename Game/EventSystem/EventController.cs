@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Entities;
 using System;
 using System.Linq;
 using Strange_Universe.Game.Components;
@@ -21,14 +22,14 @@ public class EventController
     private const double ScoutedProbability = 100;
     private const double MerchantProbability = 100;
 
-    private readonly IWorldContext _owner;
+    private readonly StarSystem _owner;
     private float? _standardEventThreshold = null;
     private float _timeSinceLastEvent = 0f;
     private readonly Random _random;
     private const int MinEventThreshold = 60;
     private const int MaxEventThreshold = 61;
 
-    public EventController(IWorldContext owner)
+    public EventController(StarSystem owner)
     {
         _random = new Random(ProceduralHelpers.SeedHash($"{owner.SystemId}:Events"));
         _owner = owner;
@@ -59,7 +60,7 @@ public class EventController
     private Random NextEventRandom() => new Random(_random.Next());
 
     /// <summary>Share of system spawns (percent) taken by the NPC test event: always 100 in test mode, otherwise <c>NpcTestProbability</c> (0).</summary>
-    private double CurrentNpcTestProbability => _owner.TestMode ? 100 : NpcTestProbability;
+    private double CurrentNpcTestProbability => _owner.Universe.Settings.TestMode ? 100 : NpcTestProbability;
 
     public void SpawnEvent()
     {
@@ -74,12 +75,12 @@ public class EventController
         }
         else if (roll < DefendedProbability)
         {
-            _owner.PostMessage($"A Defended System has been discovered! {roll}/{DefendedProbability}");
+            _owner.Universe.Post($"A Defended System has been discovered! {roll}/{DefendedProbability}");
             SpawnDefended(_owner, NextEventRandom());
         }
         else if (roll < ScoutedProbability)
         {
-            _owner.PostMessage($"A Scouted System has been discovered! {roll}/{ScoutedProbability}");
+            _owner.Universe.Post($"A Scouted System has been discovered! {roll}/{ScoutedProbability}");
             SpawnScouted(_owner, NextEventRandom());
         }
     }
@@ -95,20 +96,20 @@ public class EventController
     // -- The events -----------------------------------------------------------------
 
     /// <summary>A shuttle that patrols between all the planets, to try things on.</summary>
-    public static void SpawnNpcTest(IWorldContext world)
+    public static void SpawnNpcTest(StarSystem world)
     {
         var patrolPoints = world.Planets.Select(planet => planet.Position).ToList();
-        var npc = new Nonplayer(npcId: $"Npc_test_{world.NpcCount + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Testing Shuttle");
+        var npc = new Nonplayer(npcId: $"Npc_test_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Testing Shuttle");
         npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));
         world.AddNpc(npc);
     }
 
     /// <summary>A guard orbiting every planet, and five patrols.</summary>
-    public static void SpawnDefended(IWorldContext world, Random random)
+    public static void SpawnDefended(StarSystem world, Random random)
     {
         foreach (var planet in world.Planets)
         {
-            var guard = new Nonplayer(npcId: $"Npc_defender_{world.NpcCount + 1}", shipType: new Shuttle(), jumpSpawn: false, npcName: "Defending Shuttle");
+            var guard = new Nonplayer(npcId: $"Npc_defender_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: false, npcName: "Defending Shuttle");
             guard.EnqueueNavTask(new GuardTask(guard, planet.Position, planet.Radius * 2));
             world.AddNpc(guard);
         }
@@ -117,27 +118,27 @@ public class EventController
     }
 
     /// <summary>One patrol.</summary>
-    public static void SpawnScouted(IWorldContext world, Random random) => SpawnPatrol(world, random);
+    public static void SpawnScouted(StarSystem world, Random random) => SpawnPatrol(world, random);
 
     /// <summary>A merchant that arrives, docks at a planet and leaves again. Does nothing in a system with no planets.</summary>
-    public static void MerchantMission(IWorldContext world, Random random)
+    public static void MerchantMission(StarSystem world, Random random)
     {
         if (world.Planets.Count == 0)
             return;
 
-        var merchant = new Nonplayer(npcId: $"Npc_merchant_{world.NpcCount + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Merchant Shuttle");
+        var merchant = new Nonplayer(npcId: $"Npc_merchant_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Merchant Shuttle");
         merchant.EnqueueNavTask(new DockTask(merchant, world.Planets[random.Next(0, world.Planets.Count)].Position));
         merchant.EnqueueNavTask(new JumpTask(merchant));
         world.AddNpc(merchant);
-        world.PostMessage("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
+        world.Universe.Post("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
     }
 
     /// <summary>A shuttle arriving by jump that patrols three to five random points outside the asteroid belt. The count is rolled once, before the points.</summary>
-    private static void SpawnPatrol(IWorldContext world, Random random)
+    private static void SpawnPatrol(StarSystem world, Random random)
     {
-        var npc = new Nonplayer(npcId: $"Npc_patroler_{world.NpcCount + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Patrolling Shuttle");
+        var npc = new Nonplayer(npcId: $"Npc_patroler_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Patrolling Shuttle");
         int pointCount = random.Next(3, 6);
-        var patrolPoints = Enumerable.Range(0, pointCount).Select(_ => world.GetRandomSafeLocationOutsideAsteroidBelt(random)).ToList();
+        var patrolPoints = Enumerable.Range(0, pointCount).Select(_ => world.Spatial.GetRandomSafeLocationOutsideAsteroidBelt(random)).ToList();
         npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));
         world.AddNpc(npc);
     }

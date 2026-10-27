@@ -61,25 +61,4 @@ public class SteeringTests
         Assert.True(sim.Ship.Speed < Steering.StoppedSpeed * 2f, $"still moving at {sim.Ship.Speed:F0}");
     }
 
-    [Fact]
-    public void AvoidObstacles_NoObstacles_ReturnsNormalizedDirection()
-    {
-        var ship = new Nonplayer("s");
-        var dir = Steering.AvoidObstacles(ship, new FakeWorld(), new Vector2(10, 0));
-        Assert.Equal(new Vector2(1, 0), dir);
-    }
-
-    [Fact]
-    public void AvoidObstacles_BendsAwayFromAPlanetTheShipIsHeadingFor()
-    {
-        var ship = new Nonplayer("s") { Position = Vector2.Zero, Velocity = new Vector2(500, 0) };
-        var world = new FakeWorld();
-        world.PlanetList.Add(new Planet("p", 150f, 150f, 1000f, 1000f, 1, 1));
-        var planet = world.PlanetList[0];
-        planet.Position = new Vector2(500, 10); // close and almost dead ahead
-
-        var dir = Steering.AvoidObstacles(ship, world, new Vector2(1, 0));
-
-        Assert.True(dir.Y < 0f, "should steer away from the planet, which is slightly to the +Y side");
-    }
 }

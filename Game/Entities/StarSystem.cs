@@ -11,7 +11,7 @@ using Strange_Universe.Game.Entities.ShipParts;
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>Owns all game entities and drives the frame update.</summary>
-public class StarSystem : IWorldContext
+public class StarSystem
 {
     [JsonIgnore] public string SystemId { get { return Node.SystemId;  }  }
     [JsonIgnore] public HashSet<string> SystemConnectionIds { get { return Node.SystemConnectionIds; } }
@@ -182,25 +182,12 @@ public class StarSystem : IWorldContext
         }
     }
 
-    // -- IWorldContext ---------------------------------------------------------
-    IReadOnlyList<Planet> IWorldContext.Planets => Planets;
-    bool IWorldContext.TestMode => Universe?.Settings?.TestMode ?? false;
-    int IWorldContext.NpcCount => Npcs.Count;
-    IEnumerable<Ship> IWorldContext.Ships => AllShips();
-
-    private IEnumerable<Ship> AllShips()
+    /// <summary>Every ship in the system: the player and all NPCs.</summary>
+    public IEnumerable<Ship> AllShips()
     {
         if (ActivePlayer != null) yield return ActivePlayer;
         foreach (var npc in Npcs) yield return npc;
     }
-    Vector2 IWorldContext.GetRandomSafeLocationOutsideAsteroidBelt(Random random) => Spatial.GetRandomSafeLocationOutsideAsteroidBelt(random);
-    void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Post(message, durationSeconds);
-    IReadOnlyList<Star> IWorldContext.Stars => Stars;
-    Vector2 IWorldContext.GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition, Random random) => Spatial.GetSystemEdgeEntryPosition(fromGalaxyPosition, random);
-    Vector2 IWorldContext.GetSafeEntryPosition(Random random) => Spatial.GetSafeEntryPosition(random: random);
-    bool IWorldContext.SystemExists(string systemId) => Universe?.Galaxy.FindById(systemId) != null;
-    void IWorldContext.RemoveFromJumpRoute(string systemId) => Universe?.JumpRoute.Remove(systemId);
-    void IWorldContext.EnterSystem(string systemId) => Universe.EnterSystem(Universe.Galaxy.FindById(systemId));
 
     /// <summary>Adds an NPC to this system and attaches the system to it.</summary>
     public void AddNpc(Nonplayer npc)

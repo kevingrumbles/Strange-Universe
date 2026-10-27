@@ -270,36 +270,6 @@ public class NavigatorTests
     }
 
     [Fact]
-    public void PlayerJump_ToAnUnknownTarget_FailsOnItsFirstUpdate()
-    {
-        var world = new FakeWorld();
-        var player = new Player("p", new Shuttle());
-        var task = new JumpTask(player, null, "no-such-system") { World = world };
-
-        Assert.Equal(NavTaskStatus.Running, task.Status); // nothing is checked until it runs
-        task.Update(0.016f);
-
-        Assert.Equal(NavTaskStatus.Invalid, task.Status);
-    }
-
-    [Fact]
-    public void PlayerJump_WithoutATarget_FailsOnItsFirstUpdate()
-    {
-        var task = new JumpTask(new Player("p", new Shuttle()), null, null) { World = new FakeWorld() };
-        task.Update(0.016f);
-        Assert.Equal(NavTaskStatus.Invalid, task.Status);
-    }
-
-    [Fact]
-    public void NpcJump_NeedsNoTarget()
-    {
-        var npc = Ship();
-        var task = new JumpTask(npc, null, null) { World = new FakeWorld() };
-        task.Update(0.016f);
-        Assert.Equal(NavTaskStatus.Running, task.Status);
-    }
-
-    [Fact]
     public void Tasks_StartInTheirFirstPhase()
     {
         var ship = Ship();

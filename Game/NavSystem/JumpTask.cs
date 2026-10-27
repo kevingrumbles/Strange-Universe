@@ -89,7 +89,7 @@ namespace Strange_Universe.Game.NavSystem
             var system = World;
             if (system == null || system.SystemId != _targetSystemId) return;
 
-            system.RemoveFromJumpRoute(_targetSystemId);
+            system.Universe.JumpRoute.Remove(_targetSystemId);
             Owner.CurrentFuelLevel--;
         }
 
@@ -98,7 +98,7 @@ namespace Strange_Universe.Game.NavSystem
         /// world the task actually runs in; an unknown or missing target fails the task. NPCs jump out without a target.
         /// </summary>
         private bool TargetIsValid() =>
-            Owner is not Player || (_targetSystemId != null && World?.SystemExists(_targetSystemId) == true);
+            Owner is not Player || (_targetSystemId != null && World?.Universe.Galaxy.FindById(_targetSystemId) != null);
 
         public override void Update(float deltaTime)
         {
@@ -114,8 +114,6 @@ namespace Strange_Universe.Game.NavSystem
                 }
             }
 
-            // Stages use the same world as the jump (the owner's own system unless one was assigned).
-            _stage.World = AssignedWorld;
             _stage.Update(deltaTime);
 
             if (_stage.Status == NavTaskStatus.Invalid)

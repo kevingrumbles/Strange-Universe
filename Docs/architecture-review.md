@@ -99,3 +99,8 @@ All six points were carried out, in this order, each as its own commit with the 
 **Test-only hooks removed in the same pass:** `ShipStats.FlightTuning`/`FinishSetup` and `TuningOverride`, `EventController.NpcTestProbabilityOverride`, `Universe.WaitForAllNebulae` (tests play `Update` frames until the pool is full), `Nonplayer.RollCredits` is private again,
 and `GetSafeEntryTransform` became `GetSafeEntryPosition` (nothing used the rotation or scale). Types: 128 to 127 (`PhysicsBody` and `Transform` out, `WorldBody` in, one fewer than the first pass).
 **Not done, still open:** `ProceduralHelpers` (a 360-line grab bag), `SpriteRenderer` (773 lines) and the enums that sit in unrelated helper files are as they were; splitting them would add types, which was not the goal of this review.
+
+**Third pass: the test seams.** The nebula factory (`Universe.NebulaFactory`, `Nebula.CreateWithoutPixels`), `NullAssetRequests` and `IWorldContext` (with its `FakeWorld`) are gone.
+A null asset service now means "headless": `Generate(null)` and systems built without assets skip nebula generation and art requests, and `EnterSystem` does not wait for a nebula when there is no render side.
+Nav tasks, `Steering` and `EventController` take the `StarSystem` itself (`NavTask.World` is just the owner's system). Tests that needed the fakes or the nebula upload were deleted (31 tests: the `FakeWorld` event and nav-task tests,
+the nebula pool and upload tests, and the asset-request assertions during `Generate`); 370 tests remain. Types: 127 to 125 (`IWorldContext` and `NullAssetRequests`).

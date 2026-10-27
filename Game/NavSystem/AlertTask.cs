@@ -137,8 +137,7 @@ namespace Strange_Universe.Game.NavSystem
         private void Flee(float deltaTime)
         {
             _flee ??= Previous is JumpTask { IsFinished: false } jump ? jump : new JumpTask(Owner);
-            _flee.World = AssignedWorld;
-            _flee.Update(deltaTime);
+                _flee.Update(deltaTime);
 
             if (_flee.IsFinished)
                 Complete(); // the ship has jumped away
@@ -151,7 +150,7 @@ namespace Strange_Universe.Game.NavSystem
 
             Ship nearest = null;
             float nearestDistance = float.MaxValue;
-            foreach (var ship in World.Ships.ToList())
+            foreach (var ship in World.AllShips().ToList())
             {
                 if (!Owner.IsHostileTo(ship)) continue;
 

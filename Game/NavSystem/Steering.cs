@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Entities;
 using System;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components;
@@ -91,7 +92,7 @@ namespace Strange_Universe.Game.NavSystem
         /// Bends <paramref name="desiredDirection"/> away from stars and planets the ship is about to hit.
         /// Returns the normalized desired direction when nothing is in the way.
         /// </summary>
-        public static Vector2 AvoidObstacles(Ship ship, IWorldContext world, Vector2 desiredDirection, float avoidanceRadius = 2000f)
+        public static Vector2 AvoidObstacles(Ship ship, StarSystem world, Vector2 desiredDirection, float avoidanceRadius = 2000f)
         {
             Vector2 desired = Vector2.Normalize(desiredDirection);
             if (world == null)

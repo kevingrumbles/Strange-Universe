@@ -19,7 +19,7 @@ namespace Strange_Universe.Game.NavSystem
         {
             if (Owner == null) return;
 
-            Owner.Position = World.GetSafeEntryPosition(RandomFor("spawn"));
+            Owner.Position = World.Spatial.GetSafeEntryPosition(random: RandomFor("spawn"));
             Owner.Velocity = Vector2.Zero; // Reset velocity after spawning
             Complete();
         }
