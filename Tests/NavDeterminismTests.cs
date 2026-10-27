@@ -56,7 +56,7 @@ public class NavDeterminismTests
         var world = new FakeWorld();
         var mine = new Random(5);
 
-        new ScoutedSystemSpawn { random = mine }.ExcuteEvent(world);
+        EventController.SpawnScouted(world, mine);
 
         Assert.NotEmpty(world.RandomsUsed);
         Assert.All(world.RandomsUsed, r => Assert.Same(mine, r));
@@ -72,7 +72,7 @@ public class NavDeterminismTests
             var rng = new Random(seed);
             int expected = new Random(seed).Next(3, 6);
 
-            new ScoutedSystemSpawn { random = rng }.ExcuteEvent(world);
+            EventController.SpawnScouted(world, rng);
 
             Assert.Equal(expected, world.RandomsUsed.Count);
         }

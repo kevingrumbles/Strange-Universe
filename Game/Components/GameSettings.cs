@@ -7,7 +7,7 @@ public sealed class GameSettings
     public bool ShowDebug { get; set; }
 
     /// <summary>
-    /// Test mode: the system spawn event is always the NPC test event (see <c>NpcTestEvent</c>), so every system
+    /// Test mode: the system spawn event is always the NPC test event (see <c>EventController.SpawnNpcTest</c>), so every system
     /// has test NPCs to try things on. Set from <c>Launcher.TestMode</c>.
     /// </summary>
     public bool TestMode { get; set; }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
@@ -20,7 +21,7 @@ public class WorldContextTests
         var world = new FakeWorld();
         world.PlanetList.Add(NewPlanet(1));
 
-        new MerchantMissionEvent().ExcuteEvent(world);
+        EventController.MerchantMission(world, new Random(0));
 
         Assert.Single(world.Added);
         Assert.Single(world.Messages);
@@ -30,7 +31,7 @@ public class WorldContextTests
     public void MerchantEvent_WithoutPlanets_DoesNothing()
     {
         var world = new FakeWorld();
-        new MerchantMissionEvent().ExcuteEvent(world);
+        EventController.MerchantMission(world, new Random(0));
         Assert.Empty(world.Added);
         Assert.Empty(world.Messages);
     }
@@ -42,7 +43,7 @@ public class WorldContextTests
         world.PlanetList.Add(NewPlanet(1));
         world.PlanetList.Add(NewPlanet(2));
 
-        new DefendedSystemSpawn().ExcuteEvent(world);
+        EventController.SpawnDefended(world, new Random(0));
 
         Assert.Equal(2 + 5, world.Added.Count);
     }
