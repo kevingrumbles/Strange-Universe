@@ -9,38 +9,8 @@ using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
-public class Planet
+public class Planet : Transform
 {
-    private Transform Transform    { get; } = new();
-    /// <summary>Current ship position in world space.</summary>
-    [JsonIgnore]
-    public Vector2 Position
-    {
-        get => Transform.Position;
-        set => Transform.Position = value;
-    }
-
-    /// <summary>Current ship heading (rotation in radians).</summary>
-    [JsonIgnore]
-    public float Rotation
-    {
-        get => Transform.Rotation;
-        set => Transform.Rotation = value;
-    }
-
-    [JsonIgnore]
-    public float Scale
-    {
-        get => Transform.Scale;
-        set => Transform.Scale = value;
-    }
-
-    /// <summary>Forward direction vector based on current rotation.</summary>
-    [JsonIgnore]
-    public Vector2 Forward
-    {
-        get => Transform.Forward;
-    }
 
     public float     Radius       { get; set; }
     public string    Name         { get; set; } = string.Empty;
@@ -90,10 +60,10 @@ public class Planet
         orbit = Math.Clamp(orbit, minOrbit, maxOrbit);
         float angle = (float)(planetRng.NextDouble() * MathHelper.TwoPi);
 
-        Transform.Position = new Vector2(
+        Position = new Vector2(
             (float)Math.Cos(angle) * orbit,
             (float)Math.Sin(angle) * orbit);
-        Transform.Scale = 1f;
+        Scale = 1f;
 
         // Create gravity well based on planet type and size
         // Maximum gravity force is a percentage of player thrust (dynamic)
@@ -115,7 +85,7 @@ public class Planet
         // Planets are weaker than stars (30-60% of max force at center) and vary by density
         float wellRadius = Radius * MathHelper.Lerp(8f, 15f, (float)planetRng.NextDouble());
         float wellStrength = MathHelper.Lerp(0.3f, 0.6f, (float)planetRng.NextDouble()) * densityMultiplier;
-        GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);
+        GravityWell = new GravityWell(Position, wellRadius, wellStrength);
 
         Spaceport = RollSpaceport();
     }
