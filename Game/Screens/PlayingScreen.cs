@@ -150,8 +150,12 @@ public sealed class PlayingScreen : IScreen
         var input = _input.GetState();
         if (input.Exit)
         {
-            if (!_spaceportMenu.Back()) // Escape closes an open store first, and leaves for the main menu from the services
-                _ctx.ShowMenu();
+            if (!_spaceportMenu.Back()) // Escape closes an open store first, and undocks from the services
+            {
+                _universe.Undock();
+                _spaceportMenu = null;
+                _input.Rebaseline();
+            }
             return;
         }
 

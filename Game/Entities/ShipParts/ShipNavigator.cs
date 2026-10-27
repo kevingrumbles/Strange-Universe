@@ -61,13 +61,6 @@ public class ShipNavigator
         _queue.Enqueue(task);
     }
 
-    /// <summary>Drops the active task without completing it; the next queued task starts on the next update. If that was an alert, the task it interrupted is dropped too.</summary>
-    public void CancelActive()
-    {
-        ActiveTask = null;
-        _alertPending = false;
-    }
-
     /// <summary>Drops the active task and everything queued behind it. No completion or failure hooks run.</summary>
     public void Clear()
     {

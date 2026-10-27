@@ -41,12 +41,6 @@ namespace Strange_Universe.Game.NavSystem
             ArriveInSystem,
         }
 
-        /// <summary>Speed on arrival, as a multiple of the ship's normal maximum speed.</summary>
-        public const float ArrivalSpeedMultiplier = ArrivalTask.SpeedMultiplier;
-
-        /// <summary>Arrival speed has tapered to normal at this fraction of the system radius (0.5 = halfway to the center).</summary>
-        public const float ArrivalTaperEndFraction = ArrivalTask.TaperEndFraction;
-
         public JumpTask(Ship owner, Vector2? originGalaxyPosition = null, string targetSystemId = null, Phase? startPhase = null) : base(owner)
         {
             _targetSystemId = targetSystemId;

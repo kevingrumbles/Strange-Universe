@@ -66,26 +66,6 @@ public class NavigatorTests
     }
 
     [Fact]
-    public void CancelActive_DropsOnlyTheActiveTask_WithoutHooks()
-    {
-        var ship = Ship();
-        ship.Navigator.Clear();
-        var first = new ProbeTask(ship);
-        var second = new ProbeTask(ship);
-        ship.Navigator.Enqueue(first);
-        ship.Navigator.Enqueue(second);
-        Step(ship);
-
-        ship.Navigator.CancelActive();
-
-        Assert.False(ship.Navigator.HasActiveTask);
-        Assert.Equal(1, ship.Navigator.QueuedCount);
-        Step(ship);
-        Assert.Same(second, ship.Navigator.ActiveTask);
-        Assert.Equal((0, 0), (first.Completed, first.Failed));
-    }
-
-    [Fact]
     public void Clear_DropsActiveAndQueued_WithoutHooks()
     {
         var ship = Ship();

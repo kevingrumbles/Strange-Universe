@@ -53,17 +53,6 @@ public abstract class Ship : WorldBody
 
     public bool CanAfford(int amount) => amount >= 0 && Credits >= amount;
 
-    /// <summary>Takes <paramref name="amount"/> from the ship's credits. Returns false, changing nothing, when it has less than that.</summary>
-    public bool TrySpend(int amount)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(amount);
-        if (Credits < amount)
-            return false;
-
-        Credits -= amount;
-        return true;
-    }
-
     /// <summary>Adds <paramref name="amount"/> to the ship's credits.</summary>
     public void Earn(int amount)
     {
