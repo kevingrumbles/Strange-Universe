@@ -14,9 +14,9 @@ namespace Strange_Universe.Game.Entities.ShipParts;
 /// Base class for all ships (player and NPCs). A facade over small components:
 /// <see cref="ShipPhysics"/>, <see cref="ShipDurability"/>, <see cref="ShipSensors"/>,
 /// <see cref="WeaponSystem"/> and <see cref="ShipNavigator"/>.
-/// The public/JSON surface is unchanged.
+/// It is a <see cref="WorldBody"/>: position, rotation, scale and velocity are the ship's own.
 /// </summary>
-public abstract class Ship
+public abstract class Ship : WorldBody
 {
     /// <summary>
     /// This ship's type. Only its name is saved (see <see cref="ShipStatsConverter"/>). Set it with <see cref="AssignShipType"/>,
@@ -33,7 +33,7 @@ public abstract class Ship
     public void AssignShipType(ShipStats shipType)
     {
         ShipType = shipType ?? throw new ArgumentNullException(nameof(shipType));
-        Physics.Body.Mass = shipType.Flight.Mass;
+        Mass = shipType.Flight.Mass;
 
         Equipment = new List<EquipmentComponent>(shipType.DefaultLoadout);
 
@@ -127,27 +127,6 @@ public abstract class Ship
     [JsonIgnore] public WeaponSystem   Weapons    { get; }
     [JsonIgnore] public ShipNavigator  Navigator  { get; }
 
-    public virtual Vector2 Position
-    {
-        get => Physics.Transform.Position;
-        set => Physics.Transform.Position = value;
-    }
-    public float Rotation
-    {
-        get => Physics.Transform.Rotation;
-        set => Physics.Transform.Rotation = value;
-    }
-    public float Scale
-    {
-        get => Physics.Transform.Scale;
-        set => Physics.Transform.Scale = value;
-    }
-    public Vector2 Velocity
-    {
-        get => Physics.Body.Velocity;
-        set => Physics.Body.Velocity = value;
-    }
-    [JsonIgnore] public Vector2 Forward => Physics.Transform.Forward;
     [JsonIgnore] public float Speed => Velocity.Length();
     [JsonIgnore] public float MaxSpeed => ShipType.Flight.MaxSpeed;
     [JsonIgnore] public int MaxHullStrength => Durability.MaxHull;
@@ -156,7 +135,7 @@ public abstract class Ship
     [JsonIgnore] public float CurrentHullPercentage => Durability.HullPercentage;
     [JsonIgnore] public float CurrentShieldPercentage => Durability.ShieldPercentage;
     [JsonIgnore] public float CurrentFuelPercentage => Durability.FuelPercentage;
-    [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.Flight.ThrustForce / Physics.Body.Mass : 0f;
+    [JsonIgnore] public float MaxAcceleration => Mass > 0f ? ShipType.Flight.ThrustForce / Mass : 0f;
     [JsonIgnore] public float MandevilleRadius => StarSystem == null ? 0f : StarSystem.MandevilleRadius;
     [JsonIgnore] public float DistanceFromSystemCenter => DistanceTo(Vector2.Zero);
 
@@ -172,7 +151,7 @@ public abstract class Ship
     /// </summary>
     protected Ship()
     {
-        Physics    = new ShipPhysics(() => ShipType.Flight);
+        Physics    = new ShipPhysics(this, () => ShipType.Flight);
         Durability = new ShipDurability(() => ShipType.Durability, () => Equipment);
         Sensors    = new ShipSensors(this);
         Weapons    = new WeaponSystem(() => Equipment);
@@ -188,7 +167,7 @@ public abstract class Ship
     {
         // Mass depends on ShipType, which is not available to the JSON constructor,
         // so it is (re)computed once everything is populated.
-        Physics.Body.Mass = ShipType.Flight.Mass;
+        Mass = ShipType.Flight.Mass;
     }
 
     /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>

@@ -34,7 +34,7 @@ public sealed class FakeWorld : IWorldContext
     public Vector2 GetRandomSafeLocationOutsideAsteroidBelt(Random random = null) { RandomsUsed.Add(random); return new(100, 100); }
     public void PostMessage(string message, int durationSeconds = 3) => Messages.Add(message);
     public Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null, Random random = null) { RandomsUsed.Add(random); return EdgeEntry; }
-    public Transform GetSafeEntryTransform(Random random = null) { RandomsUsed.Add(random); return new() { Position = SafeEntry }; }
+    public Vector2 GetSafeEntryPosition(Random random = null) { RandomsUsed.Add(random); return SafeEntry; }
     public bool SystemExists(string systemId) => KnownSystems.Contains(systemId);
     public void RemoveFromJumpRoute(string systemId) => RemovedFromRoute.Add(systemId);
     public void EnterSystem(string systemId) { Entered.Add(systemId); SystemId = systemId; }

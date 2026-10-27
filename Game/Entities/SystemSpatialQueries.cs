@@ -67,26 +67,13 @@ public class SystemSpatialQueries
         return entryDirection * entryDistance;
     }
 
-    /// <summary>
-    /// A position just inside the Mandeville radius, facing the system centre.
-    /// </summary>
-    public Transform GetSafeEntryTransform(float? arrivalAngle = null, Random random = null)
+    /// <summary>A position just inside the Mandeville radius, at <paramref name="arrivalAngle"/> (or a random angle).</summary>
+    public Vector2 GetSafeEntryPosition(float? arrivalAngle = null, Random random = null)
     {
         Random rng = random ?? _random;
         float angle = arrivalAngle ?? (float)(rng.NextDouble() * Math.PI * 2);
 
-        Vector2 outwardDirection = new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle));
-        Vector2 entryPosition = outwardDirection * (_system.MandevilleRadius * 0.9f);
-
-        Vector2 inwardDirection = -outwardDirection;
-        float rotation = (float)Math.Atan2(inwardDirection.Y, inwardDirection.X);
-
-        return new Transform
-        {
-            Position = entryPosition,
-            Rotation = rotation,
-            Scale = 1f
-        };
+        return new Vector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * (_system.MandevilleRadius * 0.9f);
     }
 
     /// <summary>

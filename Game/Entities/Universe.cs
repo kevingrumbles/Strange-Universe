@@ -416,14 +416,6 @@ public class Universe : IDisposable
         }
     }
 
-    /// <summary>Test hook: waits for every pool slot and uploads it. Main thread only.</summary>
-    internal void WaitForAllNebulae()
-    {
-        for (int i = 0; i < NebulaPoolSize; i++)
-            StartNebula(i).Wait();
-        UploadFinishedNebulae();
-    }
-
     /// <summary>Uploads nebulae whose background generation has finished. Main thread only.</summary>
     private void UploadFinishedNebulae()
     {

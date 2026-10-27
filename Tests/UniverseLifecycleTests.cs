@@ -12,6 +12,16 @@ namespace Strange_Universe.Tests;
 /// <summary>Round 2, Phase 2: explicit system entry, nebula pool lifecycle, detached ships.</summary>
 public class UniverseLifecycleTests
 {
+    /// <summary>The nebulae are built on background threads and uploaded by Update, so a test plays frames until the pool is full.</summary>
+    private static void WaitForNebulae(Universe universe)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (universe.NebulaPool.Count < Universe.NebulaPoolSize && DateTime.UtcNow < deadline)
+        {
+            universe.Update(1f / 60f, new InputState());
+            System.Threading.Thread.Sleep(5);
+        }
+    }
     private static Universe NewUniverse(string seed = "life-seed") =>
         new("Life", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
 
@@ -95,7 +105,7 @@ public class UniverseLifecycleTests
             var next = universe.Galaxy.FindById(universe.ActiveStarSystem.SystemConnectionIds.First());
             universe.EnterSystem(next);
         }
-        universe.WaitForAllNebulae();
+        WaitForNebulae(universe);
 
         Assert.Equal(Universe.NebulaPoolSize, created);
         Assert.Equal(Universe.NebulaPoolSize, universe.NebulaPool.Select(n => n.Id).Distinct().Count());
@@ -109,13 +119,13 @@ public class UniverseLifecycleTests
         var universe = NewUniverse();
         var first = new RecordingAssetRequests();
         universe.Generate(first);
-        universe.WaitForAllNebulae();
+        WaitForNebulae(universe);
         universe.Dispose();
 
         // Exit to menu and re-enter: a new texture cache must receive the nebulae again.
         var second = new RecordingAssetRequests();
         universe.Generate(second);
-        universe.WaitForAllNebulae();
+        WaitForNebulae(universe);
 
         Assert.Equal(Universe.NebulaPoolSize, second.Calls.Count(c => c.Method == "RegisterNebula"));
         Assert.Equal(Universe.NebulaPoolSize, universe.NebulaPool.Count);

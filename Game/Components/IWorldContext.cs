@@ -38,7 +38,7 @@ public interface IWorldContext
     Vector2 GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition = null, Random random = null);
 
     /// <summary>A clear position and heading for a ship appearing in the system.</summary>
-    Transform GetSafeEntryTransform(Random random = null);
+    Vector2 GetSafeEntryPosition(Random random = null);
 
     /// <summary>True when a system with this id exists in the galaxy (a valid jump target).</summary>
     bool SystemExists(string systemId);

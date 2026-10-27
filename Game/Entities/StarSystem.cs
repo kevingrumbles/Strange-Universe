@@ -197,7 +197,7 @@ public class StarSystem : IWorldContext
     void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Post(message, durationSeconds);
     IReadOnlyList<Star> IWorldContext.Stars => Stars;
     Vector2 IWorldContext.GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition, Random random) => Spatial.GetSystemEdgeEntryPosition(fromGalaxyPosition, random);
-    Transform IWorldContext.GetSafeEntryTransform(Random random) => Spatial.GetSafeEntryTransform(random: random);
+    Vector2 IWorldContext.GetSafeEntryPosition(Random random) => Spatial.GetSafeEntryPosition(random: random);
     bool IWorldContext.SystemExists(string systemId) => Universe?.Galaxy.FindById(systemId) != null;
     void IWorldContext.RemoveFromJumpRoute(string systemId) => Universe?.JumpRoute.Remove(systemId);
     void IWorldContext.EnterSystem(string systemId) => Universe.EnterSystem(Universe.Galaxy.FindById(systemId));

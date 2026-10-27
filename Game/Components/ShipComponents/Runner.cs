@@ -35,6 +35,5 @@ public sealed class Runner : ShipStats
         Limits.MaxUtilities = 2;
         Limits.MaxMass = 900f;
 
-        FinishSetup();
     }
 }

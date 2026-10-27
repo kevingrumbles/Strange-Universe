@@ -40,7 +40,7 @@ public class Nonplayer : Ship
     /// An NPC's credits: between half and one and a half times the ship type's typical amount, rolled from its id so the same NPC always has the
     /// same amount.
     /// </summary>
-    public static int RollCredits(string npcId, int typicalCredits)
+    private static int RollCredits(string npcId, int typicalCredits)
     {
         var rng = new Random(ProceduralHelpers.SeedHash($"{npcId}_credits"));
         return (int)Math.Round(typicalCredits * (0.5 + rng.NextDouble()));

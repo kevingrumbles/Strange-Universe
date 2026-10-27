@@ -93,7 +93,9 @@ All six points were carried out, in this order, each as its own commit with the 
 **Result:** 148 types down to 128 (20 fewer); `Game/` is about 450 lines shorter and the tests about 30. The plan expected about 22 types; two fewer came out because point 6 turned out smaller than estimated
 (see below) and because `Persistence` and the save extensions became one type, not two.
 
-**Point 4 as built, and why it is smaller than planned.** `ShipPhysics` has to keep its own position, rotation and velocity (its tests build one without a ship), so `Ship` still holds a `Transform` and a `PhysicsBody` through it. A shared base class for ships as well would have meant
-changing those tests and the physics class's ownership; the stars, planets and asteroids were the duplicated part, so only they changed. `Transform` was kept as the base (rather than adding a new `WorldBody`), which is why this step removes lines but not a type.
+**Point 4 as built (second pass).** The first pass left `ShipPhysics` owning its own `Transform` and `PhysicsBody` only so its tests could build one without a ship. That was complexity for the tests' sake, so it was undone:
+`Transform` and `PhysicsBody` became one `WorldBody` (position, rotation, scale, velocity, spin, mass, force, integrate) that `Star`, `Planet`, `Asteroid` and `Ship` all derive from, and `ShipPhysics` moves the body it is given. The `ShipPhysics` tests now use a plain `WorldBody`.
 
+**Test-only hooks removed in the same pass:** `ShipStats.FlightTuning`/`FinishSetup` and `TuningOverride`, `EventController.NpcTestProbabilityOverride`, `Universe.WaitForAllNebulae` (tests play `Update` frames until the pool is full), `Nonplayer.RollCredits` is private again,
+and `GetSafeEntryTransform` became `GetSafeEntryPosition` (nothing used the rotation or scale). Types: 128 to 127 (`PhysicsBody` and `Transform` out, `WorldBody` in, one fewer than the first pass).
 **Not done, still open:** `ProceduralHelpers` (a 360-line grab bag), `SpriteRenderer` (773 lines) and the enums that sit in unrelated helper files are as they were; splitting them would add types, which was not the goal of this review.

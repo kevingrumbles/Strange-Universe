@@ -24,7 +24,7 @@ public class SystemSpatialQueriesTests
 
         Assert.Equal(a.Spatial.GetRandomSafeLocationOutsideAsteroidBelt(), b.Spatial.GetRandomSafeLocationOutsideAsteroidBelt());
         Assert.Equal(a.Spatial.GetSystemEdgeEntryPosition(), b.Spatial.GetSystemEdgeEntryPosition());
-        Assert.Equal(a.Spatial.GetSafeEntryTransform().Position, b.Spatial.GetSafeEntryTransform().Position);
+        Assert.Equal(a.Spatial.GetSafeEntryPosition(), b.Spatial.GetSafeEntryPosition());
     }
 
     [Fact]

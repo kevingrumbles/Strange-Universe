@@ -35,6 +35,5 @@ public sealed class Shuttle : ShipStats
         Limits.MaxUtilities = 1;
         Limits.MaxMass = 450f;
 
-        FinishSetup();
     }
 }

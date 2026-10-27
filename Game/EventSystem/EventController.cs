@@ -58,14 +58,8 @@ public class EventController
     /// <summary>A generator for the next event, drawn from the controller's own seeded stream.</summary>
     private Random NextEventRandom() => new Random(_random.Next());
 
-    /// <summary>
-    /// Share of system spawns (percent) taken by the NPC test event: always 100 in test mode, otherwise <c>NpcTestProbability</c> (0). Set it to
-    /// override (tests do).
-    /// </summary>
-    public double? NpcTestProbabilityOverride { get; set; }
-
-    private double CurrentNpcTestProbability =>
-        NpcTestProbabilityOverride ?? (_owner.TestMode ? 100 : NpcTestProbability);
+    /// <summary>Share of system spawns (percent) taken by the NPC test event: always 100 in test mode, otherwise <c>NpcTestProbability</c> (0).</summary>
+    private double CurrentNpcTestProbability => _owner.TestMode ? 100 : NpcTestProbability;
 
     public void SpawnEvent()
     {

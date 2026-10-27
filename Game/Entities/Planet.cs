@@ -9,7 +9,7 @@ using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
-public class Planet : Transform
+public class Planet : WorldBody
 {
 
     public float     Radius       { get; set; }

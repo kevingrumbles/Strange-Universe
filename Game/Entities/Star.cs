@@ -6,7 +6,7 @@ using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
-public class Star : Transform
+public class Star : WorldBody
 {
     public string    Id { get; }
 
