@@ -194,7 +194,7 @@ public class StarSystem : IWorldContext
         foreach (var npc in Npcs) yield return npc;
     }
     Vector2 IWorldContext.GetRandomSafeLocationOutsideAsteroidBelt(Random random) => Spatial.GetRandomSafeLocationOutsideAsteroidBelt(random);
-    void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Messages.Post(message, durationSeconds);
+    void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Post(message, durationSeconds);
     IReadOnlyList<Star> IWorldContext.Stars => Stars;
     Vector2 IWorldContext.GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition, Random random) => Spatial.GetSystemEdgeEntryPosition(fromGalaxyPosition, random);
     Transform IWorldContext.GetSafeEntryTransform(Random random) => Spatial.GetSafeEntryTransform(random: random);

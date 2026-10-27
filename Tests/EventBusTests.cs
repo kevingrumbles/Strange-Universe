@@ -11,12 +11,6 @@ namespace Strange_Universe.Tests;
 /// <summary>Round 2, Phase 7.1: typed in-process events.</summary>
 public class EventBusTests
 {
-    private sealed class CollectingSink : IMessageSink
-    {
-        public List<(string, int)> Posted { get; } = new();
-        public void Post(string message, int durationSeconds = 3) => Posted.Add((message, durationSeconds));
-    }
-
     private static Universe Started()
     {
         var u = new Universe("Bus", "bus-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
@@ -72,18 +66,17 @@ public class EventBusTests
     }
 
     [Fact]
-    public void Messages_FlowThroughBusToSink()
+    public void Messages_AreEventsOnTheBus()
     {
         var u = new Universe("Msg", "msg-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        var sink = new CollectingSink();
-        u.Generate(new RecordingAssetRequests(), sink);
+        u.Generate(new RecordingAssetRequests());
         var seen = new List<MessageRequested>();
         u.Events.Subscribe<MessageRequested>(seen.Add);
 
-        u.Messages.Post("hello", 5);
+        u.Post("hello", 5);
+        u.Post("again");
 
-        Assert.Equal(new[] { ("hello", 5) }, sink.Posted);
-        Assert.Single(seen);
+        Assert.Equal(new[] { new MessageRequested("hello", 5), new MessageRequested("again", 3) }, seen);
         u.Dispose();
     }
 

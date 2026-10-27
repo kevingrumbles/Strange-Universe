@@ -127,7 +127,7 @@ public class Player : Ship
             }
             else
             {
-                StarSystem.Universe.Messages.Post("Insufficient fuel for jump!");
+                StarSystem.Universe.Post("Insufficient fuel for jump!");
             }
         }
     }
@@ -149,13 +149,13 @@ public class Player : Ship
     {
         if (!input.Dock || HasActiveNavTask || StarSystem == null) return;
 
-        var messages = StarSystem.Universe.Messages;
+        var universe = StarSystem.Universe;
         var target = DockTarget;
 
         if (target == null)
         {
             _dockTarget = StarSystem.NearestSpaceport(Position);
-            messages.Post(_dockTarget != null ? $"Targeted {_dockTarget.Name}" : "No spaceport in this system");
+            universe.Post(_dockTarget != null ? $"Targeted {_dockTarget.Name}" : "No spaceport in this system");
             return;
         }
 
@@ -165,10 +165,10 @@ public class Player : Ship
                 StarSystem.Universe.Dock(target);
                 break;
             case DockingCheck.TooFast:
-                messages.Post("Too fast to dock");
+                universe.Post("Too fast to dock");
                 break;
             default:
-                messages.Post($"{target.Name} is out of docking range");
+                universe.Post($"{target.Name} is out of docking range");
                 break;
         }
     }

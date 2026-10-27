@@ -29,6 +29,7 @@ public sealed class PlayingScreen : IScreen
     private SpaceportOverlay _spaceportOverlay;
     private SpaceportMenu _spaceportMenu;
     private IDisposable _dockSaveSubscription;
+    private IDisposable _hudSubscription;
 
     public PlayingScreen(ScreenContext ctx, ProjectileRenderer projectileRenderer, Universe universe)
     {
@@ -53,7 +54,8 @@ public sealed class PlayingScreen : IScreen
         _universe.Settings = _ctx.Settings;
         _deathMonitor = new PlayerDeathMonitor(_universe.Events, _universe.Player);
         _sprites.ImpactEffects.Connect(_universe.Events);
-        _universe.Generate(_services.Assets, _hud);
+        _universe.Generate(_services.Assets);
+        _hudSubscription = _universe.Events.Subscribe<MessageRequested>(m => _hud.Post(m.Message, m.DurationSeconds));
 
         // Docking is a persist point: the player's position in the system is saved the moment they dock.
         _dockSaveSubscription = _universe.Events.Subscribe<PlayerDocked>(_ => _ctx.Saves.Save(_universe));
@@ -65,6 +67,8 @@ public sealed class PlayingScreen : IScreen
         // Decided before the monitor goes away: a ship destroyed in the same frame the window closes is not saved either.
         _dockSaveSubscription?.Dispose();
         _dockSaveSubscription = null;
+        _hudSubscription?.Dispose();
+        _hudSubscription = null;
         bool playerDestroyed = _deathMonitor?.PlayerDestroyed ?? false;
         _deathMonitor?.Dispose();
         _deathMonitor = null;

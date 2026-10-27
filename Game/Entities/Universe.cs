@@ -99,15 +99,12 @@ public class Universe : IDisposable
     // Runtime services; a no-op until Generate(...) supplies the real ones.
     private IAssetRequests _assets = NullAssetRequests.Instance;
 
-    /// <summary>Sink for on-screen notifications. Never null (no-op until Generate supplies one).</summary>
-    [JsonIgnore]
-    public IMessageSink Messages { get; }
+    /// <summary>Shows a short message on the HUD (the playing screen listens for <see cref="MessageRequested"/>).</summary>
+    public void Post(string message, int durationSeconds = 3) => Events.Publish(new MessageRequested(message, durationSeconds));
 
     /// <summary>Simulation events (damage, destruction, hits, system entry, messages). Never null.</summary>
     [JsonIgnore]
     public IEventBus Events { get; } = new EventBus();
-
-    private IDisposable _messageSubscription;
 
     // One background generation task per pool slot, started at most once per launch.
     // Results are uploaded on the main thread (UploadFinishedNebulae / WaitForNebula).
@@ -149,7 +146,7 @@ public class Universe : IDisposable
     /// <summary>The credits a new player starts with.</summary>
     public const int StartingCredits = 1000;
 
-    public Universe() { Messages = new BusMessageSink(Events); }
+    public Universe() { }
     public Universe(string name, string seed = null) : this()
     {
         Guid id = Guid.NewGuid();
@@ -236,7 +233,7 @@ public class Universe : IDisposable
     }
 
     // -- Trading ---------------------------------------------------------------------
-    // Each returns true when it went through. A refusal changes nothing and says why through Messages, so whatever lists the stock
+    // Each returns true when it went through. A refusal changes nothing and says why with a message (<see cref="Post"/>), so whatever lists the stock
     // (the spaceport screen) only has to try the trade.
 
     /// <summary>
@@ -259,7 +256,7 @@ public class Universe : IDisposable
         }
 
         Player.Credits -= item.Price;
-        Messages.Post($"Bought {item.EquipmentName}");
+        Post($"Bought {item.EquipmentName}");
         return true;
     }
 
@@ -283,7 +280,7 @@ public class Universe : IDisposable
 
         Player.AssignShipType(type);
         _assets.EnsureShipArt(type);
-        Messages.Post($"Bought a {type.ShipTypeName}");
+        Post($"Bought a {type.ShipTypeName}");
         return true;
     }
 
@@ -300,13 +297,13 @@ public class Universe : IDisposable
             return Refuse("The ship does not carry that");
 
         Player.Earn(item.Price);
-        Messages.Post($"Sold {item.EquipmentName}");
+        Post($"Sold {item.EquipmentName}");
         return true;
     }
 
     private bool Refuse(string reason)
     {
-        Messages.Post(reason);
+        Post(reason);
         return false;
     }
 
@@ -335,7 +332,7 @@ public class Universe : IDisposable
     /// Starts a play session: attaches runtime services, starts nebula generation (the starting
     /// system's nebula first) and enters the player's starting system.
     /// </summary>
-    public void Generate(IAssetRequests assets, IMessageSink messages = null)
+    public void Generate(IAssetRequests assets)
     {
         assets ??= NullAssetRequests.Instance;
 
@@ -346,9 +343,6 @@ public class Universe : IDisposable
         _disposed = false;
 
         _assets = assets;
-        _messageSubscription?.Dispose();
-        _messageSubscription = messages == null ? null
-            : Events.Subscribe<MessageRequested>(m => messages.Post(m.Message, m.DurationSeconds));
 
         StarSystemNode start = ResolveStartNode();
         GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
@@ -450,8 +444,6 @@ public class Universe : IDisposable
     public void Dispose()
     {
         _disposed = true;
-        _messageSubscription?.Dispose();
-        _messageSubscription = null;
 
         // Nebula textures are owned by the render-side texture cache; only drop data here.
         NebulaPool.Clear();
