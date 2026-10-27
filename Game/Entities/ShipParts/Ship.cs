@@ -12,7 +12,7 @@ namespace Strange_Universe.Game.Entities.ShipParts;
 
 /// <summary>
 /// Base class for all ships (player and NPCs). A facade over small components:
-/// <see cref="ShipPhysics"/>, <see cref="ShipDurability"/>, <see cref="ShipSensors"/>,
+/// <see cref="ShipPhysics"/>, <see cref="ShipDurability"/>, 
 /// <see cref="WeaponSystem"/> and <see cref="ShipNavigator"/>.
 /// It is a <see cref="WorldBody"/>: position, rotation, scale and velocity are the ship's own.
 /// </summary>
@@ -104,7 +104,7 @@ public abstract class Ship : WorldBody
     /// <summary>Takes <paramref name="item"/> off the ship. Returns false when the ship does not carry it.</summary>
     public bool Uninstall(EquipmentComponent item) => Equipment.Remove(item);
     [JsonIgnore] public string Id { get; set; }
-    [JsonIgnore] public Ship Target { get => Sensors.Target; set => Sensors.Target = value; }
+    [JsonIgnore] public Ship Target { get; set; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Position);
     [JsonIgnore] public float Radius => ShipType.Flight.Radius;
     [JsonIgnore] public StarSystem StarSystem { get; set; }
@@ -112,7 +112,6 @@ public abstract class Ship : WorldBody
     // -- Components ---------------------------------------------------------
     [JsonIgnore] public ShipPhysics    Physics    { get; }
     [JsonIgnore] public ShipDurability Durability { get; }
-    [JsonIgnore] public ShipSensors    Sensors    { get; }
     [JsonIgnore] public WeaponSystem   Weapons    { get; }
     [JsonIgnore] public ShipNavigator  Navigator  { get; }
 
@@ -142,7 +141,6 @@ public abstract class Ship : WorldBody
     {
         Physics    = new ShipPhysics(this, () => ShipType.Flight);
         Durability = new ShipDurability(() => ShipType.Durability, () => Equipment);
-        Sensors    = new ShipSensors(this);
         Weapons    = new WeaponSystem(() => Equipment);
         Navigator  = new ShipNavigator(this);
     }
@@ -181,8 +179,8 @@ public abstract class Ship : WorldBody
     /// </summary>
     public void Update(float deltaTime)
     {
-        if (Target != null && !Sensors.IsTargetValid(Target))
-            Sensors.ClearTarget();
+        if (Target != null && !IsTargetValid(Target))
+            ClearTarget();
 
         // Nav tasks all need a system; a detached ship keeps its queue until it is attached.
         if (StarSystem != null)
@@ -269,16 +267,66 @@ public abstract class Ship : WorldBody
 
     [JsonIgnore] public Ship LastDamageSource => Durability.LastDamageSource;
 
-    // -- Sensors / targeting -----------------------------------------------
+    // -- Targeting ----------------------------------------------------------
+
     public float DistanceTo(Vector2 position) => Vector2.Distance(Position, position);
 
-    public void SetTarget(Ship target) => Sensors.SetTarget(target);
-    public void ClearTarget() => Sensors.ClearTarget();
-    public Ship GetNearestTarget() => Sensors.GetNearestTarget();
-    public bool IsTargetValid(Ship target) => Sensors.IsTargetValid(target);
+    /// <summary>Sets the current target. Does not allow targeting self.</summary>
+    public void SetTarget(Ship target)
+    {
+        if (target != this)
+            Target = target;
+    }
 
+    public void ClearTarget() => Target = null;
+
+    /// <summary>True if the target is not null, not self, and still present in the system.</summary>
+    public bool IsTargetValid(Ship target) =>
+        target != null && target != this && StarSystem != null && StarSystem.AllShips().Contains(target);
+
+    /// <summary>The nearest ship in the current system, excluding self.</summary>
+    public Ship GetNearestTarget()
+    {
+        if (StarSystem == null)
+            return null;
+
+        Ship nearest = null;
+        float nearestDistance = float.MaxValue;
+        foreach (var ship in StarSystem.AllShips())
+        {
+            if (ship == this) continue;
+
+            float distance = DistanceTo(ship.Position);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = ship;
+            }
+        }
+        return nearest;
+    }
+
+    /// <summary>
+    /// True if the current velocity is heading toward <paramref name="position"/> and
+    /// will be within <paramref name="dangerRadius"/> after <paramref name="lookAheadTime"/>.
+    /// </summary>
     public bool IsApproachingCollision(Vector2 position, float dangerRadius, float lookAheadTime = 5f)
-        => Sensors.IsApproachingCollision(position, dangerRadius, lookAheadTime);
+    {
+        float distance = DistanceTo(position);
+
+        if (distance > dangerRadius * 2f)
+            return false;
+
+        Vector2 toPosition = position - Position;
+        if (toPosition.LengthSquared() < 0.1f)
+            return true;
+
+        float velocityTowardPosition = Vector2.Dot(Velocity, Vector2.Normalize(toPosition));
+        if (velocityTowardPosition <= 0)
+            return false;
+
+        return distance - velocityTowardPosition * lookAheadTime <= dangerRadius;
+    }
 
     /// <summary>Returns true if the ship is outside the Mandeville radius and free of gravity (can jump).</summary>
     public bool CanJump() => !IsInsideMandevilleRadius() && CurrentGravity == Vector2.Zero;

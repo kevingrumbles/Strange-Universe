@@ -104,3 +104,9 @@ and `GetSafeEntryTransform` became `GetSafeEntryPosition` (nothing used the rota
 A null asset service now means "headless": `Generate(null)` and systems built without assets skip nebula generation and art requests, and `EnterSystem` does not wait for a nebula when there is no render side.
 Nav tasks, `Steering` and `EventController` take the `StarSystem` itself (`NavTask.World` is just the owner's system). Tests that needed the fakes or the nebula upload were deleted (31 tests: the `FakeWorld` event and nav-task tests,
 the nebula pool and upload tests, and the asset-request assertions during `Generate`); 370 tests remain. Types: 127 to 125 (`IWorldContext` and `NullAssetRequests`).
+
+**Fourth pass: dead code.** A scan for members declared once and never used removed the nine unused `ShipSensors` queries (nearby/closest lists, planet and star collision checks), `Camera.WorldToScreen`/`ScreenToWorld`, two `JumpTask` constants,
+`Ship.TrySpend` and `ShipNavigator.CancelActive` (and the tests that only exercised them). `ShipSensors` was then down to targeting and one collision test, so it folded into `Ship` (type count 125 to 124); 366 tests remain.
+
+**Noticed, not changed:** `GravityWell.GravityThrustRatio` is `0f`, so gravity currently never pushes anything. `GravityWell`, `SystemSpatialQueries.CalculateGravityAtLocation`, the gravity argument of `ShipPhysics.Integrate`
+and the debug circles are all machinery for a switched-off feature; deleting them is a design decision (it turns gravity off for good), so it is left for the owner to call.
