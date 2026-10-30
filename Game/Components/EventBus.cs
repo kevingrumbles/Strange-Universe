@@ -44,15 +44,6 @@ public sealed class EventBus : IEventBus
     }
 }
 
-/// <summary>Discards everything. For code that runs without a universe.</summary>
-public sealed class NullEventBus : IEventBus
-{
-    public static readonly NullEventBus Instance = new();
-    public IDisposable Subscribe<T>(Action<T> handler) => new NoSubscription();
-    public void Publish<T>(T evt) { }
-    private sealed class NoSubscription : IDisposable { public void Dispose() { } }
-}
-
 /// <summary>A projectile damaged a ship.</summary>
 public readonly record struct ShipDamaged(Ship Ship, Projectile Projectile, bool ShieldWasUp);
 

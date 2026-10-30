@@ -11,7 +11,7 @@ using Strange_Universe.Game.Entities.ShipParts;
 namespace Strange_Universe.Game.Entities;
 
 /// <summary>Owns all game entities and drives the frame update.</summary>
-public class StarSystem : IWorldContext
+public class StarSystem
 {
     [JsonIgnore] public string SystemId { get { return Node.SystemId;  }  }
     [JsonIgnore] public HashSet<string> SystemConnectionIds { get { return Node.SystemConnectionIds; } }
@@ -20,7 +20,7 @@ public class StarSystem : IWorldContext
     [JsonIgnore] public StarSystemNode Node { get; }
     [JsonIgnore] public Player ActivePlayer => Universe?.Player;
     [JsonIgnore] public Universe Universe { get; }
-    /// <summary>Render-side art requests. Never null (<see cref="NullAssetRequests"/> when headless).</summary>
+    /// <summary>Render-side art requests; null when the system is built without a render side (tests).</summary>
     [JsonIgnore] public IAssetRequests Assets { get; }
     [JsonIgnore] public string DisplayName { get { return Node.DisplayName; } }
     [JsonIgnore] public bool Discovered { get { return Node.Discovered; } }
@@ -65,7 +65,7 @@ public class StarSystem : IWorldContext
         Node = node;
         Universe = universe;
         Layout = layout;
-        Assets = assets ?? NullAssetRequests.Instance;
+        Assets = assets;
         _collision = new CollisionSystem(universe?.Settings);
 
         Stars = new List<Star>(layout.Stars);
@@ -85,13 +85,13 @@ public class StarSystem : IWorldContext
     /// <summary>Requests the textures this system's stars, planets and asteroids need from the asset service.</summary>
     internal void AttachAssets()
     {
-        foreach (var star in Stars) Assets.EnsureStarTexture(star);
-        foreach (var planet in Planets) Assets.EnsurePlanetTexture(planet);
+        foreach (var star in Stars) Assets?.EnsureStarTexture(star);
+        foreach (var planet in Planets) Assets?.EnsurePlanetTexture(planet);
 
         // Palette art is a universe-wide resource, so its seed comes from the universe seed,
         // not from whichever system happens to request it first.
         for (int i = 0; i < StarSystemGenerator.AsteroidPaletteSize; i++)
-            Assets.EnsureAsteroidTexture(StarSystemGenerator.AsteroidPaletteId(i),
+            Assets?.EnsureAsteroidTexture(StarSystemGenerator.AsteroidPaletteId(i),
                 ProceduralHelpers.SeedHash($"{Universe.Seed}_asteroid_tex_{i}"));
     }
 
@@ -182,31 +182,18 @@ public class StarSystem : IWorldContext
         }
     }
 
-    // -- IWorldContext ---------------------------------------------------------
-    IReadOnlyList<Planet> IWorldContext.Planets => Planets;
-    bool IWorldContext.TestMode => Universe?.Settings?.TestMode ?? false;
-    int IWorldContext.NpcCount => Npcs.Count;
-    IEnumerable<Ship> IWorldContext.Ships => AllShips();
-
-    private IEnumerable<Ship> AllShips()
+    /// <summary>Every ship in the system: the player and all NPCs.</summary>
+    public IEnumerable<Ship> AllShips()
     {
         if (ActivePlayer != null) yield return ActivePlayer;
         foreach (var npc in Npcs) yield return npc;
     }
-    Vector2 IWorldContext.GetRandomSafeLocationOutsideAsteroidBelt(Random random) => Spatial.GetRandomSafeLocationOutsideAsteroidBelt(random);
-    void IWorldContext.PostMessage(string message, int durationSeconds) => Universe?.Messages.Post(message, durationSeconds);
-    IReadOnlyList<Star> IWorldContext.Stars => Stars;
-    Vector2 IWorldContext.GetSystemEdgeEntryPosition(Vector2? fromGalaxyPosition, Random random) => Spatial.GetSystemEdgeEntryPosition(fromGalaxyPosition, random);
-    Transform IWorldContext.GetSafeEntryTransform(Random random) => Spatial.GetSafeEntryTransform(random: random);
-    bool IWorldContext.SystemExists(string systemId) => Universe?.Galaxy.FindById(systemId) != null;
-    void IWorldContext.RemoveFromJumpRoute(string systemId) => Universe?.JumpRoute.Remove(systemId);
-    void IWorldContext.EnterSystem(string systemId) => Universe.EnterSystem(Universe.Galaxy.FindById(systemId));
 
     /// <summary>Adds an NPC to this system and attaches the system to it.</summary>
     public void AddNpc(Nonplayer npc)
     {
         npc.StarSystem = this;
-        Assets.EnsureShipArt(npc.ShipType);
+        Assets?.EnsureShipArt(npc.ShipType);
         Npcs.Add(npc);
     }
 }

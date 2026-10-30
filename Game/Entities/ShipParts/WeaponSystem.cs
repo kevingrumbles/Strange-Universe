@@ -4,9 +4,6 @@ using Strange_Universe.Game.Components.EquipmentComponents;
 
 namespace Strange_Universe.Game.Entities.ShipParts;
 
-/// <summary>Additive bonuses granted by utility equipment.</summary>
-public readonly record struct WeaponBonuses(float AttackSpeed, float AttackRange, float Accuracy);
-
 /// <summary>Weapon firing, cooldowns and utility-equipment bonus aggregation.</summary>
 public class WeaponSystem
 {
@@ -31,13 +28,13 @@ public class WeaponSystem
         return total;
     }
 
-    public WeaponBonuses CalculateBonuses()
+    /// <summary>The additive bonuses granted by utility equipment: attacks per second, range and accuracy.</summary>
+    public (float AttackSpeed, float AttackRange, float Accuracy) CalculateBonuses()
     {
         var equipment = _equipment();
-        return new WeaponBonuses(
-            SumUtilityBonus(equipment, u => u.AttackSpeedBonus),
-            SumUtilityBonus(equipment, u => u.AttackRangeBonus),
-            SumUtilityBonus(equipment, u => u.AccuracyBonus));
+        return (SumUtilityBonus(equipment, u => u.AttackSpeedBonus),
+                SumUtilityBonus(equipment, u => u.AttackRangeBonus),
+                SumUtilityBonus(equipment, u => u.AccuracyBonus));
     }
 
     /// <summary>The primary weapon with the longest range, or null when the ship is unarmed.</summary>
@@ -79,7 +76,7 @@ public class WeaponSystem
         var equipment = _equipment();
         if (equipment == null || output == null) return;
 
-        WeaponBonuses bonuses = CalculateBonuses();
+        var bonuses = CalculateBonuses();
         for (int i = 0; i < equipment.Count; i++)
         {
             if (equipment[i] is not WeaponComponent { IsPrimary: true } weapon) continue;

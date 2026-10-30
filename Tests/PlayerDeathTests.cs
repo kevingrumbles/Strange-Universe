@@ -4,7 +4,6 @@ using System.Linq;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
 using Strange_Universe.Game.Entities.ShipParts;
-using Strange_Universe.Game.Screens;
 using Strange_Universe.Tests.Fakes;
 using Xunit;
 
@@ -15,8 +14,8 @@ public class PlayerDeathTests
 {
     private static Universe Started(string seed = "death-seed")
     {
-        var u = new Universe("Death", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
+        var u = new Universe("Death", seed);
+        u.Generate(null);
         u.Player.Equipment.Clear(); // no shield: an active shield would absorb even a huge hit, so one big shot is lethal
         u.Player.CurrentShieldStrength = 0;
         return u;
@@ -24,29 +23,30 @@ public class PlayerDeathTests
 
     private static Projectile Lethal(Ship owner) => new() { Owner = owner, Damage = 100000, Lifetime = 1f };
 
-    // -- monitor ------------------------------------------------------------
+    // -- knowing the player is destroyed ------------------------------------
 
     [Fact]
-    public void Monitor_FlagsTheDestroyedPlayer()
+    public void ALethalHit_DestroysThePlayer_AndPublishesItOnce()
     {
         var u = Started();
-        using var monitor = new PlayerDeathMonitor(u.Events, u.Player);
         var npc = new Nonplayer("killer");
         u.ActiveStarSystem.AddNpc(npc);
-        Assert.False(monitor.PlayerDestroyed);
+        var destroyed = new System.Collections.Generic.List<ShipDestroyed>();
+        u.Events.Subscribe<ShipDestroyed>(destroyed.Add);
+        Assert.False(u.Player.IsDestroyed);
 
         u.Player.ApplyDamage(Lethal(npc));
+        u.Player.ApplyDamage(Lethal(npc)); // a ship that is already destroyed is not destroyed again
 
         Assert.True(u.Player.IsDestroyed);
-        Assert.True(monitor.PlayerDestroyed);
+        Assert.Equal(u.Player, Assert.Single(destroyed).Ship);
         u.Dispose();
     }
 
     [Fact]
-    public void Monitor_IgnoresHitsThatDoNotKill_AndOtherShipsDying()
+    public void HitsThatDoNotKill_AndOtherShipsDying_LeaveThePlayerAlive()
     {
         var u = Started();
-        using var monitor = new PlayerDeathMonitor(u.Events, u.Player);
         var npc = new Nonplayer("victim");
         u.ActiveStarSystem.AddNpc(npc);
         u.Player.CurrentHullStrength = 1000;
@@ -57,34 +57,7 @@ public class PlayerDeathTests
         npc.ApplyDamage(Lethal(u.Player)); // an NPC is destroyed
 
         Assert.True(npc.IsDestroyed);
-        Assert.False(monitor.PlayerDestroyed);
-        u.Dispose();
-    }
-
-    [Fact]
-    public void Monitor_StopsWatching_WhenDisposed()
-    {
-        var u = Started();
-        var monitor = new PlayerDeathMonitor(u.Events, u.Player);
-        monitor.Dispose();
-        var npc = new Nonplayer("killer");
-        u.ActiveStarSystem.AddNpc(npc);
-
-        u.Player.ApplyDamage(Lethal(npc));
-
-        Assert.False(monitor.PlayerDestroyed);
-        u.Dispose();
-    }
-
-    [Fact]
-    public void Monitor_ReportsAPlayerThatIsAlreadyDestroyed()
-    {
-        var u = Started();
-        u.Player.CurrentHullStrength = 0;
-
-        using var monitor = new PlayerDeathMonitor(u.Events, u.Player);
-
-        Assert.True(monitor.PlayerDestroyed);
+        Assert.False(u.Player.IsDestroyed);
         u.Dispose();
     }
 
@@ -92,7 +65,6 @@ public class PlayerDeathTests
     public void AnNpcShotKillingThePlayer_InAFullSystemUpdate_IsDetected()
     {
         var u = Started();
-        using var monitor = new PlayerDeathMonitor(u.Events, u.Player);
         var system = u.ActiveStarSystem;
         u.Player.Navigator.Clear();
         u.Player.Position = new Microsoft.Xna.Framework.Vector2(0, 5000);
@@ -110,7 +82,7 @@ public class PlayerDeathTests
         });
         system.Update(1f / 60f, new InputState());
 
-        Assert.True(monitor.PlayerDestroyed);
+        Assert.True(u.Player.IsDestroyed);
         u.Dispose();
     }
 

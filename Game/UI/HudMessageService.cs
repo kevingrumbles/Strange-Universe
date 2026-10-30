@@ -4,9 +4,9 @@ namespace Strange_Universe.Game.UI;
 
 /// <summary>
 /// Holds the single timed message shown at the bottom of the screen.
-/// Owned by <see cref="Launcher"/>; the simulation posts via <see cref="IMessageSink"/>.
+/// Owned by <see cref="Launcher"/>; the simulation posts through <see cref="Strange_Universe.Game.Entities.Universe.Post"/> and the playing screen forwards those to <see cref="Post"/>.
 /// </summary>
-public sealed class HudMessageService : IMessageSink
+public sealed class HudMessageService
 {
     public string Message { get; private set; } = string.Empty;
     public float Remaining { get; private set; }

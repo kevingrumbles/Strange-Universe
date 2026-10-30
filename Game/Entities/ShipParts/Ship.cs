@@ -12,11 +12,11 @@ namespace Strange_Universe.Game.Entities.ShipParts;
 
 /// <summary>
 /// Base class for all ships (player and NPCs). A facade over small components:
-/// <see cref="ShipPhysics"/>, <see cref="ShipDurability"/>, <see cref="ShipSensors"/>,
+/// <see cref="ShipPhysics"/>, <see cref="ShipDurability"/>, 
 /// <see cref="WeaponSystem"/> and <see cref="ShipNavigator"/>.
-/// The public/JSON surface is unchanged.
+/// It is a <see cref="WorldBody"/>: position, rotation, scale and velocity are the ship's own.
 /// </summary>
-public abstract class Ship
+public abstract class Ship : WorldBody
 {
     /// <summary>
     /// This ship's type. Only its name is saved (see <see cref="ShipStatsConverter"/>). Set it with <see cref="AssignShipType"/>,
@@ -33,7 +33,7 @@ public abstract class Ship
     public void AssignShipType(ShipStats shipType)
     {
         ShipType = shipType ?? throw new ArgumentNullException(nameof(shipType));
-        Physics.Body.Mass = shipType.Flight.Mass;
+        Mass = shipType.Flight.Mass;
 
         Equipment = new List<EquipmentComponent>(shipType.DefaultLoadout);
 
@@ -52,17 +52,6 @@ public abstract class Ship
     public int Credits { get; set; }
 
     public bool CanAfford(int amount) => amount >= 0 && Credits >= amount;
-
-    /// <summary>Takes <paramref name="amount"/> from the ship's credits. Returns false, changing nothing, when it has less than that.</summary>
-    public bool TrySpend(int amount)
-    {
-        ArgumentOutOfRangeException.ThrowIfNegative(amount);
-        if (Credits < amount)
-            return false;
-
-        Credits -= amount;
-        return true;
-    }
 
     /// <summary>Adds <paramref name="amount"/> to the ship's credits.</summary>
     public void Earn(int amount)
@@ -115,7 +104,7 @@ public abstract class Ship
     /// <summary>Takes <paramref name="item"/> off the ship. Returns false when the ship does not carry it.</summary>
     public bool Uninstall(EquipmentComponent item) => Equipment.Remove(item);
     [JsonIgnore] public string Id { get; set; }
-    [JsonIgnore] public Ship Target { get => Sensors.Target; set => Sensors.Target = value; }
+    [JsonIgnore] public Ship Target { get; set; }
     [JsonIgnore] public Vector2 CurrentGravity => StarSystem == null ? Vector2.Zero : StarSystem.Spatial.CalculateGravityAtLocation(Position);
     [JsonIgnore] public float Radius => ShipType.Flight.Radius;
     [JsonIgnore] public StarSystem StarSystem { get; set; }
@@ -123,31 +112,9 @@ public abstract class Ship
     // -- Components ---------------------------------------------------------
     [JsonIgnore] public ShipPhysics    Physics    { get; }
     [JsonIgnore] public ShipDurability Durability { get; }
-    [JsonIgnore] public ShipSensors    Sensors    { get; }
     [JsonIgnore] public WeaponSystem   Weapons    { get; }
     [JsonIgnore] public ShipNavigator  Navigator  { get; }
 
-    public virtual Vector2 Position
-    {
-        get => Physics.Transform.Position;
-        set => Physics.Transform.Position = value;
-    }
-    public float Rotation
-    {
-        get => Physics.Transform.Rotation;
-        set => Physics.Transform.Rotation = value;
-    }
-    public float Scale
-    {
-        get => Physics.Transform.Scale;
-        set => Physics.Transform.Scale = value;
-    }
-    public Vector2 Velocity
-    {
-        get => Physics.Body.Velocity;
-        set => Physics.Body.Velocity = value;
-    }
-    [JsonIgnore] public Vector2 Forward => Physics.Transform.Forward;
     [JsonIgnore] public float Speed => Velocity.Length();
     [JsonIgnore] public float MaxSpeed => ShipType.Flight.MaxSpeed;
     [JsonIgnore] public int MaxHullStrength => Durability.MaxHull;
@@ -156,7 +123,7 @@ public abstract class Ship
     [JsonIgnore] public float CurrentHullPercentage => Durability.HullPercentage;
     [JsonIgnore] public float CurrentShieldPercentage => Durability.ShieldPercentage;
     [JsonIgnore] public float CurrentFuelPercentage => Durability.FuelPercentage;
-    [JsonIgnore] public float MaxAcceleration => Physics.Body.Mass > 0f ? ShipType.Flight.ThrustForce / Physics.Body.Mass : 0f;
+    [JsonIgnore] public float MaxAcceleration => Mass > 0f ? ShipType.Flight.ThrustForce / Mass : 0f;
     [JsonIgnore] public float MandevilleRadius => StarSystem == null ? 0f : StarSystem.MandevilleRadius;
     [JsonIgnore] public float DistanceFromSystemCenter => DistanceTo(Vector2.Zero);
 
@@ -172,9 +139,8 @@ public abstract class Ship
     /// </summary>
     protected Ship()
     {
-        Physics    = new ShipPhysics(() => ShipType.Flight);
+        Physics    = new ShipPhysics(this, () => ShipType.Flight);
         Durability = new ShipDurability(() => ShipType.Durability, () => Equipment);
-        Sensors    = new ShipSensors(this);
         Weapons    = new WeaponSystem(() => Equipment);
         Navigator  = new ShipNavigator(this);
     }
@@ -188,7 +154,7 @@ public abstract class Ship
     {
         // Mass depends on ShipType, which is not available to the JSON constructor,
         // so it is (re)computed once everything is populated.
-        Physics.Body.Mass = ShipType.Flight.Mass;
+        Mass = ShipType.Flight.Mass;
     }
 
     /// <summary>Cache key used to look up this ship's splash/portrait art.</summary>
@@ -213,8 +179,8 @@ public abstract class Ship
     /// </summary>
     public void Update(float deltaTime)
     {
-        if (Target != null && !Sensors.IsTargetValid(Target))
-            Sensors.ClearTarget();
+        if (Target != null && !IsTargetValid(Target))
+            ClearTarget();
 
         // Nav tasks all need a system; a detached ship keeps its queue until it is attached.
         if (StarSystem != null)
@@ -301,16 +267,66 @@ public abstract class Ship
 
     [JsonIgnore] public Ship LastDamageSource => Durability.LastDamageSource;
 
-    // -- Sensors / targeting -----------------------------------------------
+    // -- Targeting ----------------------------------------------------------
+
     public float DistanceTo(Vector2 position) => Vector2.Distance(Position, position);
 
-    public void SetTarget(Ship target) => Sensors.SetTarget(target);
-    public void ClearTarget() => Sensors.ClearTarget();
-    public Ship GetNearestTarget() => Sensors.GetNearestTarget();
-    public bool IsTargetValid(Ship target) => Sensors.IsTargetValid(target);
+    /// <summary>Sets the current target. Does not allow targeting self.</summary>
+    public void SetTarget(Ship target)
+    {
+        if (target != this)
+            Target = target;
+    }
 
+    public void ClearTarget() => Target = null;
+
+    /// <summary>True if the target is not null, not self, and still present in the system.</summary>
+    public bool IsTargetValid(Ship target) =>
+        target != null && target != this && StarSystem != null && StarSystem.AllShips().Contains(target);
+
+    /// <summary>The nearest ship in the current system, excluding self.</summary>
+    public Ship GetNearestTarget()
+    {
+        if (StarSystem == null)
+            return null;
+
+        Ship nearest = null;
+        float nearestDistance = float.MaxValue;
+        foreach (var ship in StarSystem.AllShips())
+        {
+            if (ship == this) continue;
+
+            float distance = DistanceTo(ship.Position);
+            if (distance < nearestDistance)
+            {
+                nearestDistance = distance;
+                nearest = ship;
+            }
+        }
+        return nearest;
+    }
+
+    /// <summary>
+    /// True if the current velocity is heading toward <paramref name="position"/> and
+    /// will be within <paramref name="dangerRadius"/> after <paramref name="lookAheadTime"/>.
+    /// </summary>
     public bool IsApproachingCollision(Vector2 position, float dangerRadius, float lookAheadTime = 5f)
-        => Sensors.IsApproachingCollision(position, dangerRadius, lookAheadTime);
+    {
+        float distance = DistanceTo(position);
+
+        if (distance > dangerRadius * 2f)
+            return false;
+
+        Vector2 toPosition = position - Position;
+        if (toPosition.LengthSquared() < 0.1f)
+            return true;
+
+        float velocityTowardPosition = Vector2.Dot(Velocity, Vector2.Normalize(toPosition));
+        if (velocityTowardPosition <= 0)
+            return false;
+
+        return distance - velocityTowardPosition * lookAheadTime <= dangerRadius;
+    }
 
     /// <summary>Returns true if the ship is outside the Mandeville radius and free of gravity (can jump).</summary>
     public bool CanJump() => !IsInsideMandevilleRadius() && CurrentGravity == Vector2.Zero;

@@ -18,9 +18,6 @@ namespace Strange_Universe.Game.Components.ShipComponents;
 /// </summary>
 public abstract class ShipStats
 {
-    /// <summary>Test hook: runs on the flight stats of every new type, so a test run can try different tuning without editing the game's numbers.</summary>
-    internal static Action<FlightStats> FlightTuning { get; set; }
-
     /// <summary>The type's name, which is what is saved and what its art is registered under.</summary>
     public abstract string ShipTypeName { get; }
 
@@ -48,9 +45,6 @@ public abstract class ShipStats
 
     /// <summary>The equipment a ship of this type starts with. These are the objects the ship is given, so they are never shared between ships.</summary>
     public IReadOnlyList<EquipmentComponent> DefaultLoadout { get; protected set; } = Array.Empty<EquipmentComponent>();
-
-    /// <summary>Subclasses call this last in their constructor, after setting their values.</summary>
-    protected void FinishSetup() => FlightTuning?.Invoke(Flight);
 
     /// <summary>
     /// A new instance of the built-in type with this name (not case sensitive), falling back to the Shuttle for an unknown name.

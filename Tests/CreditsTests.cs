@@ -15,37 +15,7 @@ public class CreditsTests
     // -- spending and earning ---------------------------------------------------------
 
     [Fact]
-    public void ASpend_TakesTheCredits_WhenTheShipHasEnough()
-    {
-        var ship = new Nonplayer("buyer") { Credits = 500 };
-
-        Assert.True(ship.TrySpend(200));
-
-        Assert.Equal(300, ship.Credits);
-    }
-
-    [Fact]
-    public void ASpend_ThatIsTooBig_ChangesNothing()
-    {
-        var ship = new Nonplayer("buyer") { Credits = 100 };
-
-        Assert.False(ship.TrySpend(101));
-
-        Assert.Equal(100, ship.Credits);
-    }
-
-    [Fact]
-    public void SpendingExactlyEverything_IsAllowed()
-    {
-        var ship = new Nonplayer("buyer") { Credits = 100 };
-
-        Assert.True(ship.TrySpend(100));
-
-        Assert.Equal(0, ship.Credits);
-    }
-
-    [Fact]
-    public void CanAfford_MatchesWhatTrySpendWouldDo()
+    public void CanAfford_IsTrueOnlyForAWholeAmountTheShipHas()
     {
         var ship = new Nonplayer("buyer") { Credits = 100 };
 
@@ -66,11 +36,10 @@ public class CreditsTests
     }
 
     [Fact]
-    public void ANegativeAmount_IsRejected_ForSpendingAndEarning()
+    public void ANegativeAmount_IsRejected_WhenEarning()
     {
         var ship = new Nonplayer("odd") { Credits = 50 };
 
-        Assert.Throws<ArgumentOutOfRangeException>(() => ship.TrySpend(-1));
         Assert.Throws<ArgumentOutOfRangeException>(() => ship.Earn(-1));
         Assert.Equal(50, ship.Credits);
     }
@@ -114,8 +83,8 @@ public class CreditsTests
         string old = System.Text.RegularExpressions.Regex.Replace(json, @"\s*""Credits"": \d+,", "");
         Assert.DoesNotContain("Credits", old);
 
-        var withCredits = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(json, Persistence._readOptions);
-        var without = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(old, Persistence._readOptions);
+        var withCredits = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(json, FileSaveService.ReadOptions);
+        var without = JsonSerializer.Deserialize<System.Collections.Generic.List<Universe>>(old, FileSaveService.ReadOptions);
 
         Assert.All(withCredits, u => Assert.Equal(120, u.Player.Credits));
         Assert.All(without, u => Assert.Equal(0, u.Player.Credits));

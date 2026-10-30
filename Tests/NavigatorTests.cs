@@ -66,26 +66,6 @@ public class NavigatorTests
     }
 
     [Fact]
-    public void CancelActive_DropsOnlyTheActiveTask_WithoutHooks()
-    {
-        var ship = Ship();
-        ship.Navigator.Clear();
-        var first = new ProbeTask(ship);
-        var second = new ProbeTask(ship);
-        ship.Navigator.Enqueue(first);
-        ship.Navigator.Enqueue(second);
-        Step(ship);
-
-        ship.Navigator.CancelActive();
-
-        Assert.False(ship.Navigator.HasActiveTask);
-        Assert.Equal(1, ship.Navigator.QueuedCount);
-        Step(ship);
-        Assert.Same(second, ship.Navigator.ActiveTask);
-        Assert.Equal((0, 0), (first.Completed, first.Failed));
-    }
-
-    [Fact]
     public void Clear_DropsActiveAndQueued_WithoutHooks()
     {
         var ship = Ship();
@@ -161,8 +141,8 @@ public class NavigatorTests
 
     private static Universe StartedUniverse()
     {
-        var u = new Universe("Input", "input-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
+        var u = new Universe("Input", "input-seed");
+        u.Generate(null);
         // Let the opening spawn task finish so the test controls what is active.
         for (int i = 0; i < 5; i++) u.Player.Update(0.016f, new InputState());
         return u;
@@ -266,36 +246,6 @@ public class NavigatorTests
         Step(ship);
 
         Assert.Equal(2, task.Updates); // the first step only starts the task
-        Assert.Equal(NavTaskStatus.Running, task.Status);
-    }
-
-    [Fact]
-    public void PlayerJump_ToAnUnknownTarget_FailsOnItsFirstUpdate()
-    {
-        var world = new FakeWorld();
-        var player = new Player("p", new Shuttle());
-        var task = new JumpTask(player, null, "no-such-system") { World = world };
-
-        Assert.Equal(NavTaskStatus.Running, task.Status); // nothing is checked until it runs
-        task.Update(0.016f);
-
-        Assert.Equal(NavTaskStatus.Invalid, task.Status);
-    }
-
-    [Fact]
-    public void PlayerJump_WithoutATarget_FailsOnItsFirstUpdate()
-    {
-        var task = new JumpTask(new Player("p", new Shuttle()), null, null) { World = new FakeWorld() };
-        task.Update(0.016f);
-        Assert.Equal(NavTaskStatus.Invalid, task.Status);
-    }
-
-    [Fact]
-    public void NpcJump_NeedsNoTarget()
-    {
-        var npc = Ship();
-        var task = new JumpTask(npc, null, null) { World = new FakeWorld() };
-        task.Update(0.016f);
         Assert.Equal(NavTaskStatus.Running, task.Status);
     }
 

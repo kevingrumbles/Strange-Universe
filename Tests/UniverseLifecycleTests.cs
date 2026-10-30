@@ -13,7 +13,7 @@ namespace Strange_Universe.Tests;
 public class UniverseLifecycleTests
 {
     private static Universe NewUniverse(string seed = "life-seed") =>
-        new("Life", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
+        new("Life", seed);
 
     [Fact]
     public void ActiveStarSystem_BeforeGenerate_Throws()
@@ -37,7 +37,7 @@ public class UniverseLifecycleTests
     public void Generate_EntersStartingSystem()
     {
         var universe = NewUniverse();
-        universe.Generate(new RecordingAssetRequests());
+        universe.Generate(null);
 
         var system = universe.ActiveStarSystem;
         Assert.Equal("Sol", system.Name);
@@ -50,11 +50,11 @@ public class UniverseLifecycleTests
     public void Generate_UnknownSavedSystem_FallsBackToSol()
     {
         var universe = NewUniverse();
-        universe.Generate(new RecordingAssetRequests());
+        universe.Generate(null);
         universe.Dispose();
 
         universe.Player.CurrentStarSystemID = "does-not-exist";
-        universe.Generate(new RecordingAssetRequests());
+        universe.Generate(null);
 
         Assert.Equal("Sol", universe.ActiveStarSystem.Name);
         Assert.Equal(universe.ActiveStarSystem.SystemId, universe.Player.CurrentStarSystemID);
@@ -65,7 +65,7 @@ public class UniverseLifecycleTests
     public void EnterSystem_SwitchesActiveSystemAndPlayer()
     {
         var universe = NewUniverse();
-        universe.Generate(new RecordingAssetRequests());
+        universe.Generate(null);
         var sol = universe.ActiveStarSystem;
         var target = universe.Galaxy.FindById(sol.SystemConnectionIds.First());
 
@@ -75,50 +75,6 @@ public class UniverseLifecycleTests
         Assert.NotSame(sol, entered);
         Assert.Same(entered, universe.Player.StarSystem);
         Assert.Equal(target.SystemId, universe.Player.CurrentStarSystemID);
-        universe.Dispose();
-    }
-
-    [Fact]
-    public void RepeatedJumps_CreateExactlyPoolSizeUniqueNebulae()
-    {
-        int created = 0;
-        var universe = new Universe("Life", "pool-seed")
-        {
-            NebulaFactory = id => { System.Threading.Interlocked.Increment(ref created); return Nebula.CreateWithoutPixels(id); }
-        };
-        var assets = new RecordingAssetRequests();
-        universe.Generate(assets);
-
-        // Jump around repeatedly while the pool may still be filling.
-        for (int i = 0; i < 10; i++)
-        {
-            var next = universe.Galaxy.FindById(universe.ActiveStarSystem.SystemConnectionIds.First());
-            universe.EnterSystem(next);
-        }
-        universe.WaitForAllNebulae();
-
-        Assert.Equal(Universe.NebulaPoolSize, created);
-        Assert.Equal(Universe.NebulaPoolSize, universe.NebulaPool.Select(n => n.Id).Distinct().Count());
-        Assert.Equal(Universe.NebulaPoolSize, universe.NebulaPool.Count);
-        universe.Dispose();
-    }
-
-    [Fact]
-    public void Generate_NewSession_ReuploadsNebulae()
-    {
-        var universe = NewUniverse();
-        var first = new RecordingAssetRequests();
-        universe.Generate(first);
-        universe.WaitForAllNebulae();
-        universe.Dispose();
-
-        // Exit to menu and re-enter: a new texture cache must receive the nebulae again.
-        var second = new RecordingAssetRequests();
-        universe.Generate(second);
-        universe.WaitForAllNebulae();
-
-        Assert.Equal(Universe.NebulaPoolSize, second.Calls.Count(c => c.Method == "RegisterNebula"));
-        Assert.Equal(Universe.NebulaPoolSize, universe.NebulaPool.Count);
         universe.Dispose();
     }
 

@@ -127,7 +127,7 @@ public sealed class RefuelService : SpaceportService
     public override void Perform(Universe universe)
     {
         universe.Player.CurrentFuelLevel = universe.Player.MaxFuelLevel;
-        universe.Messages.Post("Refuelled");
+        universe.Post("Refuelled");
     }
 }
 
@@ -149,6 +149,6 @@ public sealed class RepairService : SpaceportService
     public override void Perform(Universe universe)
     {
         universe.Player.CurrentHullStrength = universe.Player.MaxHullStrength;
-        universe.Messages.Post("Hull repaired");
+        universe.Post("Hull repaired");
     }
 }

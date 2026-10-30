@@ -43,10 +43,4 @@ public class Camera
         Matrix.CreateTranslation(-Position.X, -Position.Y, 0f)
         * Matrix.CreateScale(Zoom, Zoom, 1f)
         * Matrix.CreateTranslation(ScreenCenter.X, ScreenCenter.Y, 0f);
-
-    public Vector2 WorldToScreen(Vector2 worldPos) =>
-        Vector2.Transform(worldPos, GetTransformMatrix());
-
-    public Vector2 ScreenToWorld(Vector2 screenPos) =>
-        Vector2.Transform(screenPos, Matrix.Invert(GetTransformMatrix()));
 }

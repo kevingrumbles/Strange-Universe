@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities;
+using Strange_Universe.Game.UI;
 using Strange_Universe.Game.NavSystem;
 using Strange_Universe;
 using System;
@@ -32,7 +33,7 @@ public class SpriteRenderer
         return disposition == TaskDisposition.Aggressive ? AggressiveShipColor : DefensiveShipColor;
     }
 
-    private readonly GameServices _services;
+    private readonly AssetService _assets;
     private readonly RenderService _renderService;
     private readonly Camera _camera;
     private SpriteBatch _spriteBatch => _renderService.SpriteBatch;
@@ -42,10 +43,10 @@ public class SpriteRenderer
     /// <summary>Render-side ship hit visuals (shield flares, hull debris).</summary>
     public ShipImpactEffects ImpactEffects { get; } = new();
 
-    public SpriteRenderer(SpriteFont font, GameServices services, RenderService renderService, Camera camera)
+    public SpriteRenderer(SpriteFont font, AssetService assets, RenderService renderService, Camera camera)
     {
         _font        = font;
-        _services = services;
+        _assets = assets;
         _renderService = renderService;
         _camera = camera;
     }
@@ -59,7 +60,7 @@ public class SpriteRenderer
     public void DrawNebula(string nebulaId, int screenWidth, int screenHeight, 
                           Vector2 cameraPos, float cameraZoom, bool debugMode = false)
     {
-        if (!_services.TextureCache.TryGet(nebulaId, out var tex) || tex is null) return;
+        if (!_assets.TryGet(nebulaId, out var tex) || tex is null) return;
 
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
@@ -190,7 +191,7 @@ public class SpriteRenderer
     /// <summary>Draws any entity that has a position, rotation, scale, and texture ID.</summary>
     public void DrawEntity(string textureId, Vector2 position, float rotation, float radius)
     {
-        if (!_services.TextureCache.TryGet(textureId, out var tex) || tex is null) return;
+        if (!_assets.TryGet(textureId, out var tex) || tex is null) return;
 
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
@@ -271,6 +272,20 @@ public class SpriteRenderer
             new Vector2(length + thickness, thickness), SpriteEffects.None, 0f);
     }
 
+    private static readonly Color HudMessageColor = new(255, 140, 0);
+
+    /// <summary>Draws the HUD's timed message centred near the bottom of the screen, fading out over its last second.</summary>
+    public void DrawMessage(HudMessageService hud, int screenWidth, int screenHeight)
+    {
+        if (hud.Remaining <= 0f || string.IsNullOrEmpty(hud.Message)) return;
+
+        _renderService.Begin(BatchMode.ScreenAlpha);
+        float alpha = hud.Remaining < 1f ? hud.Remaining : 1f;
+        Vector2 size = _font.MeasureString(hud.Message);
+        _spriteBatch.DrawString(_font, hud.Message,
+            new Vector2((screenWidth - size.X) / 2f, screenHeight - size.Y - 40f), HudMessageColor * alpha);
+    }
+
     public void DrawStar(Star star) =>
         DrawEntity(star.Id, star.Position, 0f, star.Radius);
 
@@ -290,7 +305,7 @@ public class SpriteRenderer
     /// <summary>Draws a single asteroid fragment, fading out as it expires.</summary>
     private void DrawShard(AsteroidShard shard)
     {
-        if (!_services.TextureCache.TryGet(shard.TextureId, out var tex) || tex is null) return;
+        if (!_assets.TryGet(shard.TextureId, out var tex) || tex is null) return;
 
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
@@ -709,7 +724,7 @@ public class SpriteRenderer
             const int SplashSize = 72;
             int splashX = mapLeft + (MapSize - SplashSize) / 2;
             int splashY = currentY + (SelectionSectionHeight - SplashSize) / 2;
-            if (_services.TextureCache.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
+            if (_assets.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
             {
                 float splashScale = (float)SplashSize / Math.Max(splashTex.Width, splashTex.Height);
                 var splashOrigin = new Vector2(splashTex.Width * 0.5f, splashTex.Height * 0.5f);

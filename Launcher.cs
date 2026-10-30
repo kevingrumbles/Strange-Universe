@@ -19,7 +19,7 @@ namespace Strange_Universe
         public static bool TestMode { get; set; } = true;
 
         private readonly GameSettings _settings = new();
-        private readonly ISaveService _saves = new FileSaveService();
+        private readonly SaveService _saves = new FileSaveService();
 
         private RenderService _render;
         private ProjectileRenderer _projectileRenderer;

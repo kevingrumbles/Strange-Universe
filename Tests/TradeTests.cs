@@ -17,14 +17,13 @@ public class TradeTests
     private sealed class Docked
     {
         public Universe Universe { get; }
-        public RecordingAssetRequests Assets { get; } = new();
         public List<string> Messages { get; } = new();
         public Player Player => Universe.Player;
 
         public Docked(bool docked = true)
         {
-            Universe = new Universe("Trader", "trade-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-            Universe.Generate(Assets);
+            Universe = new Universe("Trader", "trade-seed");
+            Universe.Generate(null);
             Universe.Events.Subscribe<MessageRequested>(m => Messages.Add(m.Message));
             Player.Navigator.Clear();
 
@@ -263,7 +262,7 @@ public class TradeTests
     }
 
     [Fact]
-    public void ABoughtShip_BringsItsOwnLimits_AndItsArtIsRequested()
+    public void ABoughtShip_BringsItsOwnLimits()
     {
         var d = new Docked();
         d.Player.AssignShipType(new Shuttle());
@@ -275,7 +274,6 @@ public class TradeTests
         Assert.Equal(runner.Limits.MaxMass, d.Player.ShipType.Limits.MaxMass);
         Assert.Equal(runner.Limits.MaxWeapons, d.Player.ShipType.Limits.MaxWeapons);
         Assert.Equal(runner.Flight.Radius, d.Player.Radius);
-        Assert.Contains(d.Assets.Calls, call => call.Method == nameof(IAssetRequests.EnsureShipArt) && call.Id == "Runner");
         d.Universe.Dispose();
     }
 

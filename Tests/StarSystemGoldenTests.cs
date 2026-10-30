@@ -19,7 +19,7 @@ public class StarSystemGoldenTests
 
     internal static string Fingerprint(string seed, string nodeName, Vector2 galaxyPos)
     {
-        var universe = new Universe("Golden", seed) { NebulaFactory = Nebula.CreateWithoutPixels };
+        var universe = new Universe("Golden", seed);
         StarSystemNode node;
         if (nodeName == null)
         {

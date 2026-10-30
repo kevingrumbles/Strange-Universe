@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Entities;
 using System;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Entities.ShipParts;
@@ -53,17 +54,8 @@ namespace Strange_Universe.Game.NavSystem
         /// </summary>
         public virtual bool CanBeInterrupted => true;
 
-        /// <summary>The world assigned through <see cref="World"/>, or null when the owner's own system is used. Lets a task that runs sub-tasks hand them the same world.</summary>
-        protected IWorldContext AssignedWorld => _world;
-
-        private IWorldContext _world;
-
-        /// <summary>The world the owner is in. Defaults to the owner's system; assign a fake to test a task in isolation.</summary>
-        public IWorldContext World
-        {
-            get => _world ?? Owner?.StarSystem;
-            set => _world = value;
-        }
+        /// <summary>The system the owner is in.</summary>
+        public StarSystem World => Owner?.StarSystem;
 
         public NavTask(Ship owner)
         {

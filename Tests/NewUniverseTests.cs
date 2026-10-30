@@ -78,8 +78,7 @@ public class NewUniverseTests
             saves.CreateUniverse(saves.LoadAll(), "Fresh");
 
             var loaded = new FileSaveService(path).LoadAll().Single();
-            loaded.NebulaFactory = Nebula.CreateWithoutPixels;
-            loaded.Generate(new RecordingAssetRequests()); // the same thing entering it from the menu does
+            loaded.Generate(null); // the same thing entering it from the menu does
 
             Assert.Equal("Sol", loaded.ActiveStarSystem.Name);
             Assert.NotNull(loaded.Player.StarSystem);
@@ -115,8 +114,7 @@ public class NewUniverseTests
     private static Universe LoadAndEnter(string path)
     {
         var universe = new FileSaveService(path).LoadAll().Single();
-        universe.NebulaFactory = Nebula.CreateWithoutPixels;
-        universe.Generate(new RecordingAssetRequests());
+        universe.Generate(null);
         return universe;
     }
 
@@ -191,10 +189,10 @@ public class NewUniverseTests
     [Fact]
     public void EnteringTheSameUniverseTwiceBeforeItSpawned_QueuesOnlyOneSpawn()
     {
-        var universe = new Universe("Twice", "twice-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        universe.Generate(new RecordingAssetRequests());
+        var universe = new Universe("Twice", "twice-seed");
+        universe.Generate(null);
         universe.Dispose();
-        universe.Generate(new RecordingAssetRequests()); // left and re-entered before the first frame ran
+        universe.Generate(null); // left and re-entered before the first frame ran
 
         Assert.Equal(1, universe.Player.Navigator.QueuedCount + (universe.Player.Navigator.HasActiveTask ? 1 : 0));
         universe.Dispose();

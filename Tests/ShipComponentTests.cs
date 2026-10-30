@@ -28,85 +28,92 @@ public class ShipComponentTests
     [Fact]
     public void Physics_BelowSoftCap_AppliesFullThrust()
     {
-        var p = new ShipPhysics(() => Flight);
-        p.Transform.Rotation = 0f;                      // facing +X
-        p.Body.Velocity = new Vector2(100f, 0f);         // below 0.75 * 500
+        var body = new WorldBody();
+        var p = new ShipPhysics(body, () => Flight);
+        body.Rotation = 0f;                      // facing +X
+        body.Velocity = new Vector2(100f, 0f);         // below 0.75 * 500
 
         p.ApplyThrust(1f);
 
-        Assert.Equal(200f, p.Body.Velocity.X, 3);
+        Assert.Equal(200f, body.Velocity.X, 3);
     }
 
     [Fact]
     public void Physics_AtMaxSpeed_NoForwardThrust()
     {
-        var p = new ShipPhysics(() => Flight);
-        p.Transform.Rotation = 0f;
-        p.Body.Velocity = new Vector2(500f, 0f);
+        var body = new WorldBody();
+        var p = new ShipPhysics(body, () => Flight);
+        body.Rotation = 0f;
+        body.Velocity = new Vector2(500f, 0f);
 
         p.ApplyThrust(1f);
 
-        Assert.Equal(500f, p.Body.Velocity.X, 3);
-        Assert.Equal(0f, p.Body.Velocity.Y, 3);
+        Assert.Equal(500f, body.Velocity.X, 3);
+        Assert.Equal(0f, body.Velocity.Y, 3);
     }
 
     [Fact]
     public void Physics_AtMaxSpeed_LateralThrustUnaffected()
     {
-        var p = new ShipPhysics(() => Flight);
-        p.Transform.Rotation = MathHelper.PiOver2;       // facing +Y, perpendicular to velocity
-        p.Body.Velocity = new Vector2(500f, 0f);
+        var body = new WorldBody();
+        var p = new ShipPhysics(body, () => Flight);
+        body.Rotation = MathHelper.PiOver2;       // facing +Y, perpendicular to velocity
+        body.Velocity = new Vector2(500f, 0f);
 
         p.ApplyThrust(1f);
 
-        Assert.Equal(500f, p.Body.Velocity.X, 2);
-        Assert.Equal(100f, p.Body.Velocity.Y, 2);
+        Assert.Equal(500f, body.Velocity.X, 2);
+        Assert.Equal(100f, body.Velocity.Y, 2);
     }
 
     [Fact]
     public void Physics_AtMaxSpeed_DeceleratingThrustUnaffected()
     {
-        var p = new ShipPhysics(() => Flight);
-        p.Transform.Rotation = MathHelper.Pi;            // facing -X (retrograde)
-        p.Body.Velocity = new Vector2(500f, 0f);
+        var body = new WorldBody();
+        var p = new ShipPhysics(body, () => Flight);
+        body.Rotation = MathHelper.Pi;            // facing -X (retrograde)
+        body.Velocity = new Vector2(500f, 0f);
 
         p.ApplyThrust(1f);
 
-        Assert.Equal(400f, p.Body.Velocity.X, 2);
+        Assert.Equal(400f, body.Velocity.X, 2);
     }
 
     [Fact]
     public void Physics_InSoftZone_ThrustIsReduced()
     {
-        var p = new ShipPhysics(() => Flight);
-        p.Transform.Rotation = 0f;
-        p.Body.Velocity = new Vector2(437.5f, 0f);       // halfway between 375 and 500
+        var body = new WorldBody();
+        var p = new ShipPhysics(body, () => Flight);
+        body.Rotation = 0f;
+        body.Velocity = new Vector2(437.5f, 0f);       // halfway between 375 and 500
 
         p.ApplyThrust(1f);
 
-        Assert.Equal(487.5f, p.Body.Velocity.X, 2);
+        Assert.Equal(487.5f, body.Velocity.X, 2);
     }
 
     [Fact]
     public void Physics_Integrate_ResetsNonFiniteState()
     {
-        var p = new ShipPhysics(() => Flight);
-        p.Body.Velocity = new Vector2(float.NaN, 0f);
-        p.Transform.Rotation = float.PositiveInfinity;
+        var body = new WorldBody();
+        var p = new ShipPhysics(body, () => Flight);
+        body.Velocity = new Vector2(float.NaN, 0f);
+        body.Rotation = float.PositiveInfinity;
 
         p.Integrate(Vector2.Zero, 0.016f);
 
-        Assert.Equal(Vector2.Zero, p.Body.Velocity);
-        Assert.Equal(Vector2.Zero, p.Transform.Position);
-        Assert.Equal(0f, p.Transform.Rotation);
+        Assert.Equal(Vector2.Zero, body.Velocity);
+        Assert.Equal(Vector2.Zero, body.Position);
+        Assert.Equal(0f, body.Rotation);
     }
 
     [Fact]
     public void Physics_RotateTowards_SnapsWhenWithinStep()
     {
-        var p = new ShipPhysics(() => Flight);
+        var body = new WorldBody();
+        var p = new ShipPhysics(body, () => Flight);
         Assert.True(p.RotateTowards(0.5f, 1f));          // max step = 2 rad
-        Assert.Equal(0.5f, p.Transform.Rotation);
+        Assert.Equal(0.5f, body.Rotation);
         Assert.False(p.RotateTowards(float.NaN, 1f));
     }
 
@@ -567,7 +574,7 @@ public class ShipComponentTests
 
         Assert.Equal("Shuttle", new Shuttle().ShipTypeName);
         Assert.Equal("Runner", new Runner().ShipTypeName);
-        Assert.NotEqual(new Runner().Flight.Radius, new Shuttle().Flight.Radius); // they differ (radius is not changed by the tuning override)
+        Assert.NotEqual(new Runner().Flight.Radius, new Shuttle().Flight.Radius); // they differ
         Assert.NotSame(new Shuttle().Flight, new Shuttle().Flight);                // and nothing is shared between instances
     }
 

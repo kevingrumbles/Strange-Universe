@@ -18,17 +18,16 @@ public sealed class PlayingScreen : IScreen
     private readonly Universe _universe;
     private readonly HudMessageService _hud = new();
 
-    private GameServices _services;
+    private AssetService _assets;
     private Camera _camera;
     private InputHandler _input;
     private SpriteRenderer _sprites;
-    private WorldRenderer _world;
-    private HudRenderer _hudRenderer;
+    private DebugRenderer _debug;
     private GalaxyMapOverlay _galaxyMap;
-    private PlayerDeathMonitor _deathMonitor;
     private SpaceportOverlay _spaceportOverlay;
     private SpaceportMenu _spaceportMenu;
     private IDisposable _dockSaveSubscription;
+    private IDisposable _hudSubscription;
 
     public PlayingScreen(ScreenContext ctx, ProjectileRenderer projectileRenderer, Universe universe)
     {
@@ -39,21 +38,19 @@ public sealed class PlayingScreen : IScreen
 
     public void OnEnter()
     {
-        _services = new GameServices(_ctx.GraphicsDevice);
+        _assets = new AssetService(_ctx.GraphicsDevice);
         _camera = new Camera(_ctx.ScreenWidth, _ctx.ScreenHeight);
         _input = _ctx.Input;
         _input.Rebaseline();
-        _sprites = new SpriteRenderer(_ctx.Font, _services, _ctx.Render, _camera);
-        _world = new WorldRenderer(_sprites, _projectileRenderer,
-            new DebugRenderer(_ctx.Render, _camera, _ctx.Settings), _ctx.Settings);
-        _hudRenderer = new HudRenderer(_ctx.Render, _ctx.Font);
+        _sprites = new SpriteRenderer(_ctx.Font, _assets, _ctx.Render, _camera);
+        _debug = new DebugRenderer(_ctx.Render, _camera, _ctx.Settings);
         _galaxyMap = new GalaxyMapOverlay(_ctx.Font, _ctx.GraphicsDevice, _ctx.Render);
-        _spaceportOverlay = new SpaceportOverlay(_ctx.Render, _ctx.Font, _ctx.GraphicsDevice);
+        _spaceportOverlay = new SpaceportOverlay(_ctx.Render, _ctx.Font, _assets);
 
         _universe.Settings = _ctx.Settings;
-        _deathMonitor = new PlayerDeathMonitor(_universe.Events, _universe.Player);
         _sprites.ImpactEffects.Connect(_universe.Events);
-        _universe.Generate(_services.Assets, _hud);
+        _universe.Generate(_assets);
+        _hudSubscription = _universe.Events.Subscribe<MessageRequested>(m => _hud.Post(m.Message, m.DurationSeconds));
 
         // Docking is a persist point: the player's position in the system is saved the moment they dock.
         _dockSaveSubscription = _universe.Events.Subscribe<PlayerDocked>(_ => _ctx.Saves.Save(_universe));
@@ -65,9 +62,9 @@ public sealed class PlayingScreen : IScreen
         // Decided before the monitor goes away: a ship destroyed in the same frame the window closes is not saved either.
         _dockSaveSubscription?.Dispose();
         _dockSaveSubscription = null;
-        bool playerDestroyed = _deathMonitor?.PlayerDestroyed ?? false;
-        _deathMonitor?.Dispose();
-        _deathMonitor = null;
+        _hudSubscription?.Dispose();
+        _hudSubscription = null;
+        bool playerDestroyed = _universe.Player.IsDestroyed;
 
         if (playerDestroyed)
         {
@@ -83,9 +80,9 @@ public sealed class PlayingScreen : IScreen
         _galaxyMap?.Dispose();
         _spaceportOverlay?.Dispose();
         _spaceportOverlay = null;
-        _services?.Dispose();
+        _assets?.Dispose();
         _galaxyMap = null;
-        _services = null;
+        _assets = null;
     }
 
     public void Update(GameTime gameTime)
@@ -93,7 +90,7 @@ public sealed class PlayingScreen : IScreen
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
 
         // Destroyed: back to the menu without saving (OnExit sees the flag).
-        if (_deathMonitor.PlayerDestroyed)
+        if (_universe.Player.IsDestroyed)
         {
             _ctx.ShowMenu();
             return;
@@ -153,8 +150,12 @@ public sealed class PlayingScreen : IScreen
         var input = _input.GetState();
         if (input.Exit)
         {
-            if (!_spaceportMenu.Back()) // Escape closes an open store first, and leaves for the main menu from the services
-                _ctx.ShowMenu();
+            if (!_spaceportMenu.Back()) // Escape closes an open store first, and undocks from the services
+            {
+                _universe.Undock();
+                _spaceportMenu = null;
+                _input.Rebaseline();
+            }
             return;
         }
 
@@ -184,16 +185,44 @@ public sealed class PlayingScreen : IScreen
             _ctx.GraphicsDevice.Clear(ScreenContext.Background);
             _spaceportOverlay.Draw(_spaceportMenu, _ctx.ScreenWidth, _ctx.ScreenHeight);
             _ctx.Render.Begin(BatchMode.ScreenAlpha);
-            _hudRenderer.DrawMessage(_hud, _ctx.ScreenWidth, _ctx.ScreenHeight);
+            _sprites.DrawMessage(_hud, _ctx.ScreenWidth, _ctx.ScreenHeight);
             return;
         }
 
         _ctx.GraphicsDevice.Clear(ScreenContext.Background);
-        _world.Draw(_universe.ActiveStarSystem, _camera);
+        DrawWorld(_universe.ActiveStarSystem);
         DrawOverlay();
 
         if (_galaxyMap.IsOpen)
             _galaxyMap.Draw(_universe, _ctx.ScreenWidth, _ctx.ScreenHeight);
+    }
+
+    /// <summary>Draws the star system in fixed layer order. All batches go through <see cref="RenderService.Begin"/>, so the render service stays the single batch owner.</summary>
+    private void DrawWorld(StarSystem sys)
+    {
+        int w = _camera.ScreenWidth, h = _camera.ScreenHeight;
+        _sprites.DrawBackgroundStars(sys.BackgroundStars, w, h, _camera.Position, _camera.Zoom, layer: 0);
+        _sprites.DrawNebula(sys.NebulaId, w, h, _camera.Position, _camera.Zoom, _ctx.Settings.ShowDebug);
+        _sprites.DrawBackgroundStars(sys.BackgroundStars, w, h, _camera.Position, _camera.Zoom, layer: 1);
+
+        foreach (var star in sys.Stars) _sprites.DrawStar(star);
+        foreach (var planet in sys.Planets) _sprites.DrawPlanet(planet);
+        foreach (var asteroid in sys.Asteroids) _sprites.DrawAsteroid(asteroid);
+
+        var player = sys.ActivePlayer;
+        _sprites.DrawPlayer(player);
+        foreach (var npc in sys.Npcs) _sprites.DrawNPC(npc);
+
+        _projectileRenderer.SetCameraMatrix(_camera.GetTransformMatrix());
+        _projectileRenderer.DrawAll(sys.Projectiles);
+
+        // The player's targets get brackets around them: a targeted ship, or the planet with a spaceport targeted for docking.
+        if (player.Target != null && player.IsTargetValid(player.Target))
+            _sprites.DrawTargetIndicator(player.Target);
+        if (player.DockTarget != null)
+            _sprites.DrawTargetIndicator(player.DockTarget);
+
+        _debug.Draw(sys, player);
     }
 
     private void DrawOverlay()
@@ -203,6 +232,6 @@ public sealed class PlayingScreen : IScreen
         _sprites.DrawSpeedBar(_universe.Player, w, h, _universe.Player.MaxSpeed);
         _sprites.DrawHud(_universe, w, h);
 
-        _hudRenderer.DrawMessage(_hud, w, h);
+        _sprites.DrawMessage(_hud, w, h);
     }
 }

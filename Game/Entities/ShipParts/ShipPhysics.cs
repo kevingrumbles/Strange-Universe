@@ -6,20 +6,18 @@ using Strange_Universe.Game.Components.ShipComponents;
 namespace Strange_Universe.Game.Entities.ShipParts;
 
 /// <summary>
-/// Ship movement: soft-capped thrust, rotation, gravity application and integration.
-/// Owns the ship's <see cref="Components.Transform"/> and <see cref="PhysicsBody"/>.
+/// Ship movement: soft-capped thrust, rotation, gravity application and integration. It moves the <see cref="WorldBody"/> it is given (the ship).
 /// </summary>
 public class ShipPhysics
 {
+    private readonly WorldBody _body;
     private readonly Func<FlightStats> _stats;
 
-    public ShipPhysics(Func<FlightStats> stats)
+    public ShipPhysics(WorldBody body, Func<FlightStats> stats)
     {
+        _body = body ?? throw new ArgumentNullException(nameof(body));
         _stats = stats ?? throw new ArgumentNullException(nameof(stats));
     }
-
-    public Transform Transform { get; } = new();
-    public PhysicsBody Body { get; } = new();
 
     private FlightStats Stats => _stats();
 
@@ -31,8 +29,8 @@ public class ShipPhysics
     public void ApplyThrust(float deltaTime)
     {
         FlightStats stats = Stats;
-        Vector2 thrustForce = Transform.Forward * stats.ThrustForce;
-        Vector2 velocity = Body.Velocity;
+        Vector2 thrustForce = _body.Forward * stats.ThrustForce;
+        Vector2 velocity = _body.Velocity;
         float currentSpeed = velocity.Length();
 
         if (currentSpeed > 0f)
@@ -62,7 +60,7 @@ public class ShipPhysics
             // Negative parallel (decelerating) and lateral components: never reduced
         }
 
-        Body.ApplyForce(thrustForce, deltaTime);
+        _body.ApplyForce(thrustForce, deltaTime);
     }
 
     /// <summary>
@@ -71,19 +69,19 @@ public class ShipPhysics
     public bool RotateTowards(float targetAngle, float deltaTime, float threshold = float.MaxValue)
     {
         if (float.IsNaN(targetAngle) || float.IsInfinity(targetAngle)) return false;
-        if (float.IsNaN(Transform.Rotation) || float.IsInfinity(Transform.Rotation))
-            Transform.Rotation = 0f;
+        if (float.IsNaN(_body.Rotation) || float.IsInfinity(_body.Rotation))
+            _body.Rotation = 0f;
 
-        float diff = MathHelpers.WrapAngle(targetAngle - Transform.Rotation);
+        float diff = MathHelpers.WrapAngle(targetAngle - _body.Rotation);
         float maxDelta = Stats.RotationSpeed * deltaTime;
 
         if (Math.Abs(diff) <= Math.Min(maxDelta, threshold))
         {
-            Transform.Rotation = targetAngle;
+            _body.Rotation = targetAngle;
             return true;
         }
 
-        Transform.Rotation += Math.Sign(diff) * maxDelta;
+        _body.Rotation += Math.Sign(diff) * maxDelta;
         return false;
     }
 
@@ -93,10 +91,10 @@ public class ShipPhysics
         switch (d)
         {
             case Direction.Left:
-                Transform.Rotation -= Stats.RotationSpeed * deltaTime;
+                _body.Rotation -= Stats.RotationSpeed * deltaTime;
                 break;
             case Direction.Right:
-                Transform.Rotation += Stats.RotationSpeed * deltaTime;
+                _body.Rotation += Stats.RotationSpeed * deltaTime;
                 break;
         }
     }
@@ -107,14 +105,14 @@ public class ShipPhysics
     /// </summary>
     public void Integrate(Vector2 gravity, float deltaTime)
     {
-        Body.ApplyForce(gravity, deltaTime);
-        Body.Integrate(Transform, deltaTime);
+        _body.ApplyForce(gravity, deltaTime);
+        _body.Integrate(deltaTime);
 
-        if (!MathHelpers.IsFinite(Body.Velocity))
-            Body.Velocity = Vector2.Zero;
-        if (!MathHelpers.IsFinite(Transform.Position))
-            Transform.Position = Vector2.Zero;
-        if (!float.IsFinite(Transform.Rotation))
-            Transform.Rotation = 0f;
+        if (!MathHelpers.IsFinite(_body.Velocity))
+            _body.Velocity = Vector2.Zero;
+        if (!MathHelpers.IsFinite(_body.Position))
+            _body.Position = Vector2.Zero;
+        if (!float.IsFinite(_body.Rotation))
+            _body.Rotation = 0f;
     }
 }

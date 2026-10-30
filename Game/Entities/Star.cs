@@ -6,39 +6,9 @@ using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
-public class Star
+public class Star : WorldBody
 {
     public string    Id { get; }
-    private Transform Transform    { get; } = new();
-    /// <summary>Current ship position in world space.</summary>
-    [JsonIgnore]
-    public Vector2 Position
-    {
-        get => Transform.Position;
-        set => Transform.Position = value;
-    }
-
-    /// <summary>Current ship heading (rotation in radians).</summary>
-    [JsonIgnore]
-    public float Rotation
-    {
-        get => Transform.Rotation;
-        set => Transform.Rotation = value;
-    }
-
-    [JsonIgnore]
-    public float Scale
-    {
-        get => Transform.Scale;
-        set => Transform.Scale = value;
-    }
-
-    /// <summary>Forward direction vector based on current rotation.</summary>
-    [JsonIgnore]
-    public Vector2 Forward
-    {
-        get => Transform.Forward;
-    }
 
     public float     Radius       { get; set; }
     public string    Name         { get; set; }
@@ -65,7 +35,7 @@ public class Star
         float wellRadius = Radius * MathHelper.Lerp(3f, 6f, (float)starRng.NextDouble());
         // Stars use 80-100% of max gravity force at their center
         float wellStrength = MathHelper.Lerp(0.8f, 1.0f, (float)starRng.NextDouble());
-        GravityWell = new GravityWell(Transform.Position, wellRadius, wellStrength);
+        GravityWell = new GravityWell(Position, wellRadius, wellStrength);
     }
 
     /// <summary>

@@ -7,50 +7,8 @@ using System.Text.Json.Serialization;
 
 namespace Strange_Universe.Game.Entities;
 
-public class Asteroid
+public class Asteroid : WorldBody
 {
-    /// <summary>Current ship position in world space.</summary>
-    [JsonIgnore]
-    public Vector2 Position
-    {
-        get => Transform.Position;
-        set => Transform.Position = value;
-    }
-
-    /// <summary>Current ship heading (rotation in radians).</summary>
-    [JsonIgnore]
-    public float Rotation
-    {
-        get => Transform.Rotation;
-        set => Transform.Rotation = value;
-    }
-
-    [JsonIgnore]
-    public float Scale
-    {
-        get => Transform.Scale;
-        set => Transform.Scale = value;
-    }
-
-    /// <summary>Forward direction vector based on current rotation.</summary>
-    [JsonIgnore]
-    public Vector2 Forward
-    {
-        get => Transform.Forward;
-    }
-    /// <summary>Current velocity vector.</summary>
-    public Vector2 Velocity
-    {
-        get => Physics.Velocity;
-        set => Physics.Velocity = value;
-    }
-    public float AngularVelocity
-    {
-        get => Physics.AngularVelocity;
-        set => Physics.AngularVelocity = value;
-    }
-    private Transform   Transform { get; } = new();
-    private PhysicsBody Physics   { get; } = new();
     public float       Radius    { get; set; }
     public string      TextureId { get; set; } = string.Empty;
 
@@ -294,7 +252,7 @@ public class Asteroid
             Velocity -= Position / r * (_orbitMu / r2 * deltaTime);
         }
 
-        Physics.Integrate(Transform, deltaTime);
+        Integrate(deltaTime);
 
         for (int i = Shards.Count - 1; i >= 0; i--)
         {

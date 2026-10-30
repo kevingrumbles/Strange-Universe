@@ -22,8 +22,8 @@ public static class DockedWorld
     /// <summary>A started universe whose only planet is <paramref name="planet"/>, with the player moving at <paramref name="speed"/> <paramref name="surfaceDistance"/> from its surface.</summary>
     public static Universe Started(Planet planet, float surfaceDistance = 50f, float speed = 0f)
     {
-        var u = new Universe("Dock", "dock-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
-        u.Generate(new RecordingAssetRequests());
+        var u = new Universe("Dock", "dock-seed");
+        u.Generate(null);
         u.Player.Navigator.Clear(); // the opening spawn task
         u.ActiveStarSystem.Planets.Clear();
         u.ActiveStarSystem.Planets.Add(planet);

@@ -319,8 +319,7 @@ public class DockingStateTests
             u.Dispose();
 
             var loaded = new FileSaveService(path).LoadAll().Single();
-            loaded.NebulaFactory = Nebula.CreateWithoutPixels;
-            loaded.Generate(new RecordingAssetRequests());
+            loaded.Generate(null);
 
             Assert.False(loaded.IsDocked);                              // the player starts in the ship
             Assert.Equal(systemId, loaded.ActiveStarSystem.SystemId);   // in the system they docked in
@@ -337,11 +336,11 @@ public class DockingStateTests
     [Fact]
     public void EnteringASystem_RechargesTheShieldsToFull()
     {
-        var u = new Universe("Shields", "shield-seed") { NebulaFactory = Nebula.CreateWithoutPixels };
+        var u = new Universe("Shields", "shield-seed");
         TestGear.Arm(u.Player, TestGear.Shield(30f), TestGear.Shield(20f));
         u.Player.CurrentShieldStrength = 3;
 
-        u.Generate(new RecordingAssetRequests()); // loading into the starting system
+        u.Generate(null); // loading into the starting system
 
         Assert.Equal(50, u.Player.MaxShieldStrength);
         Assert.Equal(50, u.Player.CurrentShieldStrength);
