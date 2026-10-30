@@ -316,22 +316,79 @@ public class SpriteRenderer
             shard.Rotation, origin, scale, SpriteEffects.None, 0f);
     }
 
-    public void DrawPlayer(Player player)
-    {
-        DrawEntity(player.ShipType.ShipTypeName, player.Position,
-                   player.Rotation + player.ShipType.Appearance.SpriteRotationOffset,
-                   player.Radius * 2.2f * player.ShipType.Appearance.SpriteScale);
+    public void DrawPlayer(Player player) => DrawShip(player);
 
-        DrawShipImpacts(player);
+    public void DrawNPC(Nonplayer npc) => DrawShip(npc);
+
+    private void DrawShip(Ship ship)
+    {
+        string type = ship.ShipType.ShipTypeName;
+        if (_assets.TryGet(type, out var hullTexture) && hullTexture != null)
+        {
+            float half = ship.Radius * 2.2f * ship.ShipType.Appearance.SpriteScale; // half the picture's width
+            float scale = half * 2f / hullTexture.Width;
+            var origin = new Vector2(hullTexture.Width * 0.5f, hullTexture.Height * 0.5f);
+
+            _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
+
+            // Shadow: the hull again, dark, pushed away from the nearest star.
+            if (NearestStar(ship) is { } star)
+            {
+                Vector2 away = ship.Position - star.Position;
+                if (away != Vector2.Zero) away.Normalize();
+                _spriteBatch.Draw(hullTexture, ship.Position + away * half * 0.08f, null, Color.Black * 0.4f,
+                                  ship.Rotation, origin, scale, SpriteEffects.None, 0f);
+            }
+
+            DrawFlames(ship, type, half);
+
+            _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
+            _spriteBatch.Draw(hullTexture, ship.Position, null, Color.White,
+                              ship.Rotation, origin, scale, SpriteEffects.None, 0f);
+        }
+
+        DrawShipImpacts(ship);
     }
 
-    public void DrawNPC(Nonplayer npc)
+    private static Star NearestStar(Ship ship)
     {
-        DrawEntity(npc.ShipType.ShipTypeName, npc.Position,
-                   npc.Rotation + npc.ShipType.Appearance.SpriteRotationOffset,
-                   npc.Radius * 2.2f * npc.ShipType.Appearance.SpriteScale);
+        Star nearest = null;
+        float best = float.MaxValue;
+        var stars = ship.StarSystem?.Stars;
+        if (stars == null) return null;
 
-        DrawShipImpacts(npc);
+        foreach (var star in stars)
+        {
+            float d = Vector2.DistanceSquared(star.Position, ship.Position);
+            if (d < best) { best = d; nearest = star; }
+        }
+        return nearest;
+    }
+
+    /// <summary>One flame behind each engine, as long as the ship's <see cref="Ship.ThrustLevel"/>, flickering a little so it never looks still.</summary>
+    private void DrawFlames(Ship ship, string type, float half)
+    {
+        if (ship.ThrustLevel <= 0.02f) return;
+        if (!_assets.TryGetHull(type, out var hull) || !_assets.TryGet(AssetService.FlameId, out var flame) || flame == null) return;
+
+        _renderService.Begin(BatchMode.WorldAdditive, _camera.GetTransformMatrix());
+
+        float time = (float)(System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency);
+        float cos = MathF.Cos(ship.Rotation), sin = MathF.Sin(ship.Rotation);
+        var origin = new Vector2(flame.Width * 0.5f, 0f);
+
+        for (int i = 0; i < hull.Engines.Length; i++)
+        {
+            float flicker = 0.9f + 0.1f * MathF.Sin(time * 47f + i * 1.9f) * MathF.Sin(time * 31f + i * 0.7f + ship.Position.X * 0.01f);
+            float length = half * 0.95f * ship.ThrustLevel * flicker;
+            float width = half * 0.17f * (0.6f + 0.4f * ship.ThrustLevel);
+
+            Vector2 local = hull.Engines[i] * half;
+            Vector2 at = ship.Position + new Vector2(local.X * cos - local.Y * sin, local.X * sin + local.Y * cos);
+
+            _spriteBatch.Draw(flame, at, null, Color.White, ship.Rotation + MathHelper.PiOver2, origin,
+                              new Vector2(width / flame.Width, length / flame.Height), SpriteEffects.None, 0f);
+        }
     }
 
     /// <summary>

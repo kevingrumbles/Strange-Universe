@@ -21,6 +21,9 @@ public class ShipPhysics
 
     private FlightStats Stats => _stats();
 
+    /// <summary>True from a call to <see cref="ApplyThrust"/> until the ship's update reads it (see <see cref="Ship.ThrustLevel"/>).</summary>
+    public bool ThrustedThisFrame { get; set; }
+
     /// <summary>
     /// Applies thrust force in the ship's current facing direction.
     /// Uses a soft speed cap that gradually reduces acceleration-contributing thrust as MaxSpeed is approached.
@@ -28,6 +31,7 @@ public class ShipPhysics
     /// </summary>
     public void ApplyThrust(float deltaTime)
     {
+        ThrustedThisFrame = true;
         FlightStats stats = Stats;
         Vector2 thrustForce = _body.Forward * stats.ThrustForce;
         Vector2 velocity = _body.Velocity;

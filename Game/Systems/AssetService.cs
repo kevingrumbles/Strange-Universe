@@ -18,6 +18,10 @@ public sealed class AssetService : IAssetRequests, IDisposable
 {
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Dictionary<string, Texture2D> _textures = new();
+    private readonly Dictionary<string, ShipHull> _hulls = new();
+
+    /// <summary>Texture id of the engine flame shared by every ship.</summary>
+    public const string FlameId = "ship_flame";
 
     public AssetService(GraphicsDevice graphicsDevice)
     {
@@ -37,6 +41,9 @@ public sealed class AssetService : IAssetRequests, IDisposable
     }
 
     public bool TryGet(string id, out Texture2D texture) => _textures.TryGetValue(id, out texture);
+
+    /// <summary>The generated ship for a ship type name: where its engines are.</summary>
+    public bool TryGetHull(string shipTypeName, out ShipHull hull) => _hulls.TryGetValue(shipTypeName, out hull);
 
     /// <summary>
     /// Loads a PNG from <paramref name="relativePath"/> (relative to the executable directory), read straight from disk so replacing a file shows on
@@ -62,10 +69,20 @@ public sealed class AssetService : IAssetRequests, IDisposable
     {
         if (shipType == null || TryGet(shipType.ShipTypeName, out _)) return;
 
-        var tex = LoadArt(shipType.Appearance.SpriteName);
+        var hull = ShipHullGenerator.Generate(shipType.Appearance);
+        var tex = new Texture2D(_graphicsDevice, ShipHull.Size, ShipHull.Size);
+        tex.SetData(hull.Pixels);
         Register(shipType.ShipTypeName, tex);
+        _hulls[shipType.ShipTypeName] = hull;
 
-        // Splash art -- fall back to the standard sprite if not provided or not found
+        if (!TryGet(FlameId, out _))
+        {
+            var flame = new Texture2D(_graphicsDevice, ShipHullGenerator.FlameWidth, ShipHullGenerator.FlameHeight);
+            flame.SetData(ShipHullGenerator.Flame());
+            Register(FlameId, flame);
+        }
+
+        // Splash art -- fall back to the generated hull if not provided or not found
         Texture2D splashTex = null;
         if (!string.IsNullOrEmpty(shipType.Appearance.SplashName))
             splashTex = LoadArt(shipType.Appearance.SplashName);

@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Helpers;
 using Strange_Universe.Game.Components.EquipmentComponents;
 
 namespace Strange_Universe.Game.Components.ShipComponents;
@@ -19,9 +20,18 @@ public sealed class Runner : ShipStats
         Durability.MaxHull = 5;
         Durability.MaxFuel = 7;
 
-        Appearance.SpriteName  = "Art/Runner_sprite.png";
-        Appearance.SplashName  = "Art/Shuttle_splash.png";
-        Appearance.SpriteScale = 1.5f;
+        Appearance.SplashName   = "Art/Shuttle_splash.png";
+        Appearance.SpriteScale  = 1.5f;
+        Appearance.HullSeed     = 23;
+        Appearance.BodyWidth    = 0.17f;
+        Appearance.NoseSharpness = 0.9f;
+        Appearance.WingPairs    = 2;
+        Appearance.WingSpan     = 0.85f;
+        Appearance.WingSweep    = 0.5f;
+        Appearance.WingChord    = 0.45f;
+        Appearance.EngineCount  = 3;
+        Appearance.HullColor    = new Rgba(120, 126, 140);
+        Appearance.AccentColor  = new Rgba(210, 80, 40);
 
         DefaultLoadout = new EquipmentComponent[] {EquipmentCatalog.PlasmaGun, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull };
         TypicalCredits = 250;
