@@ -12,7 +12,7 @@ public class ShipHullTests
 {
     private static readonly ShipStats[] Types = { new Shuttle(), new Runner() };
 
-    private static int Alpha(ShipHull hull, int x, int y) => (int)(hull.Pixels[y * ShipHull.Size + x] >> 24);
+    private static int Alpha(ShipHull hull, int x, int y) => (int)(hull.Pixels[y * ShipHull.AtlasWidth + x] >> 24); // the first picture
 
     [Fact]
     public void TheSameAppearance_MakesTheSameShip_AndADifferentSeedDoesNot()
@@ -35,7 +35,7 @@ public class ShipHullTests
         foreach (var pixels in pictures)
         {
             int solid = pixels.Count(p => (p >> 24) == 255);
-            Assert.InRange(solid, ShipHull.Size * ShipHull.Size / 10, ShipHull.Size * ShipHull.Size / 2);
+            Assert.InRange(solid, ShipHull.Size * ShipHull.Size * ShipHull.LightAngles / 10, ShipHull.Size * ShipHull.Size * ShipHull.LightAngles / 2);
         }
     }
 

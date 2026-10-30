@@ -30,6 +30,7 @@ public sealed class Shuttle : ShipStats
         Appearance.WingSweep    = 0.15f;
         Appearance.WingChord    = 0.6f;
         Appearance.EngineCount  = 2;
+        Appearance.WindowCount  = 10;
         Appearance.HullColor    = new Rgba(168, 172, 180);
         Appearance.AccentColor  = new Rgba(60, 110, 190);
 

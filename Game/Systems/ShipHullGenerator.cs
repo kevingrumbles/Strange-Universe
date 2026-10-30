@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Microsoft.Xna.Framework;
 using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Helpers;
@@ -7,23 +8,41 @@ using Strange_Universe.Game.Helpers;
 namespace Strange_Universe.Game.Systems;
 
 /// <summary>
-/// A generated ship: its lit hull picture (premultiplied RGBA, pointing right, <see cref="Size"/> square) and where its engines are.
-/// Positions are in the picture's own space: -1 to 1 on each axis from the centre, x toward the nose, y down.
+/// A generated ship: its hull pictures (premultiplied RGBA, pointing right) and where its engines are.
+/// <para>
+/// The hull is lit from <see cref="LightAngles"/> directions around it, side by side in one strip (<see cref="AtlasWidth"/> wide, <see cref="Size"/> tall),
+/// so the renderer can light a ship from the nearest star by blending the two pictures either side of the star's direction.
+/// Picture <c>i</c> is lit from the angle <c>i / LightAngles * 2π</c> in the ship's own frame (0 = from the nose, π/2 = from below the picture).
+/// </para>
+/// Positions are in a picture's own space: -1 to 1 on each axis from the centre, x toward the nose, y down.
 /// </summary>
 public sealed class ShipHull
 {
     public const int Size = 256;
+    public const int LightAngles = 16;
+    public const int AtlasWidth = Size * LightAngles;
 
+    /// <summary>The strip of lit pictures, row by row (<see cref="AtlasWidth"/> pixels per row).</summary>
     public uint[] Pixels { get; init; }
 
     /// <summary>Where each engine's flame starts (the back of the nozzle).</summary>
     public Vector2[] Engines { get; init; }
+
+    /// <summary>The pixels of one lit picture on its own.</summary>
+    public uint[] Picture(int light)
+    {
+        var picture = new uint[Size * Size];
+        for (int y = 0; y < Size; y++)
+            Array.Copy(Pixels, y * AtlasWidth + light * Size, picture, y * Size, Size);
+        return picture;
+    }
 }
 
 /// <summary>
-/// Builds a ship's picture from its <see cref="ShipAppearance"/>: a fuselage whose width changes along its length in separate armour sections, wings,
-/// engine pods and a cockpit, all mirrored about the ship's axis, then lit, panelled and edged. The same appearance always makes the same ship.
-/// Pure pixel work with no graphics library, so it is the same on any machine and runs without a window.
+/// Builds a ship's pictures from its <see cref="ShipAppearance"/>: a fuselage whose width changes along its length in separate armour sections, wings with
+/// ribs, stripes and gun mounts, engine pods, a cockpit, raised plates, vents and cabin windows, all mirrored about the ship's axis. The shape is a height
+/// map, which is lit from many directions with shading, shine, crevice darkening and shadows cast by the raised parts onto the hull.
+/// The same appearance always makes the same ship. Pure pixel work with no graphics library, so it is the same on any machine and runs without a window.
 /// </summary>
 public static class ShipHullGenerator
 {
@@ -36,10 +55,16 @@ public static class ShipHullGenerator
     private const float PodHalfWidth = 0.075f;
     private const int Sections = 4;
 
+    /// <summary>How tall the hull is in pixels for a height of 1, for the shadows the raised parts cast.</summary>
+    private const float HeightPixels = 40f;
+
+    private const float LightElevation = 0.45f;
+    private const int ShadowSteps = 32;
+
     public const int FlameWidth = 32;
     public const int FlameHeight = 64;
 
-    private enum Mat : byte { None, Hull, Accent, Glass, Engine }
+    private enum Mat : byte { None, Hull, Accent, Glass, Engine, Vent, Window }
 
     private struct Cell
     {
@@ -53,6 +78,12 @@ public static class ShipHullGenerator
         public float RootY, Span;
     }
 
+    private struct Rect
+    {
+        public float X, Y, HalfX, HalfY;
+        public bool Contains(float x, float ay) => MathF.Abs(x - X) < HalfX && MathF.Abs(ay - Y) < HalfY;
+    }
+
     private sealed class Design
     {
         public float Body;
@@ -60,6 +91,9 @@ public static class ShipHullGenerator
         public readonly float[] SectionScale = new float[Sections];
         public readonly List<Wing> Wings = new();
         public readonly List<float> EngineY = new();
+        public readonly List<Rect> Plates = new();
+        public readonly List<Rect> Vents = new();
+        public readonly List<Vector2> Windows = new();
         public float ConeX = 0.5f, ConeRadiusX = 0.2f, ConeRadiusY;
         public float SeamOffsetX, SeamOffsetY;
 
@@ -81,6 +115,7 @@ public static class ShipHullGenerator
                 {
                     float u = ay / w;
                     Put(0.45f + 0.4f * MathF.Sqrt(1f - u * u), u < 0.1f && t > 0.3f ? Mat.Accent : Mat.Hull);
+                    AddFuselageDetail(ref best, x, ay);
                 }
             }
 
@@ -88,14 +123,28 @@ public static class ShipHullGenerator
                 if (InWing(wing, x, ay))
                 {
                     float along = (ay - wing.RootY) / (wing.Span - wing.RootY);
-                    Put(0.28f + 0.12f * (1f - along), along > 0.75f ? Mat.Accent : Mat.Hull);
+                    float h = 0.28f + 0.12f * (1f - along);
+
+                    if (Frac(along * 7f) < 0.12f) h += 0.025f; // ribs running out to the tip
+                    if (EdgeDistance(wing, x, ay) < 0.022f) h += 0.04f; // raised leading edge
+
+                    bool stripe = along is > 0.1f and < 0.5f && Frac(x * 8f + ay * 6f) < 0.35f;
+                    Put(h, along > 0.75f || stripe ? Mat.Accent : Mat.Hull);
                 }
+
+            if (Wings.Count > 0)
+                AddGuns(ref best, x, ay);
 
             foreach (float py in EngineY)
             {
                 float d = MathF.Abs(y - py) / PodHalfWidth;
                 if (d < 1f && x is >= NozzleX and <= -0.5f)
-                    Put(0.5f + 0.15f * MathF.Sqrt(1f - d * d), x < -0.88f ? Mat.Engine : Mat.Hull);
+                {
+                    float h = 0.5f + 0.15f * MathF.Sqrt(1f - d * d);
+                    if (Frac(x * 18f) < 0.25f) h += 0.03f; // rings along the pod
+                    if (x < -0.9f && d < 0.5f) h -= 0.12f; // the bell of the nozzle
+                    Put(h, x < -0.88f ? Mat.Engine : Mat.Hull);
+                }
 
                 // A strut ties a pod that sits outboard of the fuselage back to it.
                 if (MathF.Abs(py) > Body * 0.8f && ay < MathF.Abs(py) && x is >= -0.62f and <= -0.52f)
@@ -112,8 +161,54 @@ public static class ShipHullGenerator
             return best;
         }
 
+        /// <summary>Raised plates, recessed vent grills and cabin windows on the fuselage.</summary>
+        private void AddFuselageDetail(ref Cell cell, float x, float ay)
+        {
+            foreach (var plate in Plates)
+                if (plate.Contains(x, ay))
+                {
+                    cell.H += 0.07f;
+                    break;
+                }
+
+            foreach (var vent in Vents)
+                if (vent.Contains(x, ay) && Frac(ay / 0.014f) < 0.5f)
+                {
+                    cell.H -= 0.05f;
+                    cell.M = Mat.Vent;
+                    return;
+                }
+
+            foreach (var window in Windows)
+            {
+                float dx = x - window.X, dy = ay - window.Y;
+                if (dx * dx + dy * dy < 0.016f * 0.016f)
+                {
+                    cell.M = Mat.Window;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>Gun barrels on the first wing pair, sticking out past the leading edge.</summary>
+        private void AddGuns(ref Cell cell, float x, float ay)
+        {
+            Wing w = Wings[0];
+            float gunY = w.RootY + 0.55f * (w.Span - w.RootY);
+            float along = (gunY - w.RootY) / (w.Span - w.RootY);
+            float leading = MathHelper.Lerp(w.FrontRoot.X, w.FrontTip.X, along);
+
+            bool barrel = x > leading && x < leading + 0.16f && MathF.Abs(ay - gunY) < 0.012f;
+            bool mount = x > leading - 0.05f && x < leading + 0.02f && MathF.Abs(ay - gunY) < 0.03f;
+            if ((barrel || mount) && 0.4f > cell.H)
+            {
+                cell.H = 0.4f;
+                cell.M = Mat.Engine;
+            }
+        }
+
         /// <summary>The fuselage's half width at <paramref name="t"/> (0 at the tail, 1 at the nose): the smooth profile, stepped by armour section.</summary>
-        private float HalfWidth(float t)
+        public float HalfWidth(float t)
         {
             float pos = t * (Profile.Length - 1);
             int i = Math.Min((int)pos, Profile.Length - 2);
@@ -123,10 +218,12 @@ public static class ShipHullGenerator
             float s = t * Sections;
             int k = Math.Min((int)s, Sections - 1);
             float frac = s - k;
-            float scale = k > 0 && frac < 0.08f ? MathHelper.Lerp(SectionScale[k - 1], SectionScale[k], frac / 0.08f) : SectionScale[k];
+            float scale = k > 0 && frac < 0.04f ? MathHelper.Lerp(SectionScale[k - 1], SectionScale[k], frac / 0.04f) : SectionScale[k];
 
             return Body * profile * scale;
         }
+
+        private static float Frac(float v) => v - MathF.Floor(v);
 
         private static bool InWing(Wing w, float x, float ay)
         {
@@ -137,19 +234,26 @@ public static class ShipHullGenerator
             return (s1 >= 0 && s2 >= 0 && s3 >= 0 && s4 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0 && s4 <= 0);
         }
 
+        private static float EdgeDistance(Wing w, float x, float ay)
+        {
+            Vector2 edge = w.FrontRoot - w.FrontTip;
+            return MathF.Abs(Cross(w.FrontTip, w.FrontRoot, new Vector2(x, ay))) / edge.Length();
+        }
+
         private static float Cross(Vector2 a, Vector2 b, Vector2 p) => (b.X - a.X) * (p.Y - a.Y) - (b.Y - a.Y) * (p.X - a.X);
     }
 
     private static Design Build(ShipAppearance a, Random rng)
     {
+        float Next() => (float)rng.NextDouble();
         var d = new Design { Body = a.BodyWidth };
 
         float noseEnd = (1f - a.NoseSharpness) * 0.5f + 0.03f;
         float[] baseProfile = { 0.75f, 0.95f, 1f, 0.95f, 0.8f, 0.55f, noseEnd };
         for (int i = 0; i < baseProfile.Length; i++)
-            d.Profile[i] = baseProfile[i] * (i is > 0 and < 5 ? 1f + ((float)rng.NextDouble() - 0.5f) * 0.2f : 1f);
+            d.Profile[i] = baseProfile[i] * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f : 1f);
         for (int i = 0; i < Sections; i++)
-            d.SectionScale[i] = 0.88f + (float)rng.NextDouble() * 0.2f;
+            d.SectionScale[i] = 0.8f + Next() * 0.4f;
 
         for (int pair = 0; pair < a.WingPairs; pair++)
         {
@@ -157,7 +261,7 @@ public static class ShipHullGenerator
             float x0 = pair == 0 ? -0.1f : -0.55f;
             float chord = a.WingChord * shrink, span = a.WingSpan * shrink, sweep = a.WingSweep * shrink;
             float rootY = a.BodyWidth * 0.5f;
-            float j1 = ((float)rng.NextDouble() - 0.5f) * 0.08f, j2 = ((float)rng.NextDouble() - 0.5f) * 0.08f;
+            float j1 = (Next() - 0.5f) * 0.08f, j2 = (Next() - 0.5f) * 0.08f;
 
             d.Wings.Add(new Wing
             {
@@ -175,8 +279,29 @@ public static class ShipHullGenerator
             d.EngineY.Add(engines == 1 ? 0f : (i - (engines - 1) * 0.5f) * 2.2f * a.BodyWidth);
 
         d.ConeRadiusY = a.BodyWidth * 0.5f;
-        d.SeamOffsetX = (float)rng.NextDouble();
-        d.SeamOffsetY = (float)rng.NextDouble();
+        d.SeamOffsetX = Next();
+        d.SeamOffsetY = Next();
+
+        // Detail is placed where the fuselage is wide enough to carry it.
+        float WidthAt(float x) => d.HalfWidth((x - Tail) / (Nose - Tail));
+
+        for (int i = 0; i < 14; i++)
+        {
+            float x = -0.7f + Next() * 1.3f;
+            var plate = new Rect { X = x, HalfX = 0.03f + Next() * 0.06f, HalfY = 0.02f + Next() * 0.04f };
+            plate.Y = Next() * MathF.Max(0f, WidthAt(x) * 0.85f - plate.HalfY);
+            d.Plates.Add(plate);
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            float x = -0.6f + Next() * 0.8f;
+            d.Vents.Add(new Rect { X = x, Y = i == 0 ? 0f : WidthAt(x) * 0.45f, HalfX = 0.05f + Next() * 0.03f, HalfY = 0.03f });
+        }
+        for (int i = 0; i < a.WindowCount; i++)
+        {
+            float x = -0.35f + (a.WindowCount == 1 ? 0.4f : 0.85f * i / (a.WindowCount - 1));
+            d.Windows.Add(new Vector2(x, WidthAt(x) * 0.62f));
+        }
         return d;
     }
 
@@ -191,7 +316,8 @@ public static class ShipHullGenerator
         var cover = new float[n * n];
         var material = new Mat[n * n];
 
-        for (int py = 0; py < n; py++)
+        Parallel.For(0, n, py =>
+        {
             for (int px = 0; px < n; px++)
             {
                 int covered = 0;
@@ -213,11 +339,16 @@ public static class ShipHullGenerator
                 height[i] = covered > 0 ? sum / covered : 0f;
                 material[i] = mat;
             }
+        });
 
-        var pixels = new uint[n * n];
-        var light = Vector3.Normalize(new Vector3(-0.45f, -0.55f, 0.7f));
         float H(int x, int y) => x < 0 || y < 0 || x >= n || y >= n ? 0f : height[y * n + x];
         float Cov(int x, int y) => x < 0 || y < 0 || x >= n || y >= n ? 0f : cover[y * n + x];
+
+        // Everything that does not depend on where the light is: colour, surface direction and how tucked-away each pixel is.
+        var albedo = new Vector3[n * n];
+        var normals = new Vector3[n * n];
+        var occlusion = new float[n * n];
+        var emissive = new bool[n * n];
 
         for (int py = 0; py < n; py++)
             for (int px = 0; px < n; px++)
@@ -225,40 +356,81 @@ public static class ShipHullGenerator
                 int i = py * n + px;
                 if (cover[i] <= 0f) continue;
 
-                var normal = Vector3.Normalize(new Vector3(-(H(px + 1, py) - H(px - 1, py)) * 24f, -(H(px, py + 1) - H(px, py - 1)) * 24f, 1f));
-                float diffuse = MathF.Max(0f, Vector3.Dot(normal, light));
-                float shade = 0.4f + 0.85f * diffuse;
+                normals[i] = Vector3.Normalize(new Vector3(-(H(px + 1, py) - H(px - 1, py)) * 44f, -(H(px, py + 1) - H(px, py - 1)) * 44f, 1f));
 
-                Vector3 color = BaseColor(appearance, material[i]);
+                // Crevices are darker: compare with the average height around.
+                float around = 0f;
+                for (int oy = -3; oy <= 3; oy++)
+                    for (int ox = -3; ox <= 3; ox++)
+                        around += H(px + ox, py + oy);
+                occlusion[i] = MathHelper.Clamp(1f - (around / 49f - height[i]) * 1.6f, 0.55f, 1f);
+
                 float nx = (px + 0.5f) / n * 2f - 1f, ny = (py + 0.5f) / n * 2f - 1f;
+                Vector3 color = BaseColor(appearance, material[i]);
 
                 if (material[i] is Mat.Hull or Mat.Accent)
-                {
-                    shade *= PanelShade(design, appearance.HullSeed, nx, ny);
-                }
-                else if (material[i] == Mat.Glass)
-                {
-                    color += new Vector3(1f, 1f, 1f) * (0.5f * MathF.Pow(diffuse, 12f));
-                }
+                    color *= PanelShade(design, appearance.HullSeed, nx, ny);
                 else if (material[i] == Mat.Engine && nx < -0.9f)
-                {
                     color = Vector3.Lerp(color, new Vector3(0.8f, 0.35f, 0.12f), 0.55f);
-                }
-
-                color *= shade;
+                else if (material[i] == Mat.Window)
+                    emissive[i] = true;
 
                 // A darker rim where the hull meets space.
                 if (cover[i] >= 1f && (Cov(px - 1, py) < 0.75f || Cov(px + 1, py) < 0.75f || Cov(px, py - 1) < 0.75f || Cov(px, py + 1) < 0.75f))
                     color *= 0.8f;
 
-                pixels[i] = Pack(color, cover[i]);
+                albedo[i] = color;
             }
+
+        var pixels = new uint[ShipHull.AtlasWidth * n];
+        Parallel.For(0, ShipHull.LightAngles, light =>
+        {
+            float angle = light / (float)ShipHull.LightAngles * MathF.Tau;
+            float cos = MathF.Cos(angle), sin = MathF.Sin(angle);
+            float horizontal = MathF.Sqrt(1f - LightElevation * LightElevation);
+            var toLight = new Vector3(cos * horizontal, sin * horizontal, LightElevation);
+            var halfway = Vector3.Normalize(toLight + Vector3.UnitZ);
+            float rise = LightElevation / horizontal; // height gained per pixel travelled toward the light
+
+            for (int py = 0; py < n; py++)
+                for (int px = 0; px < n; px++)
+                {
+                    int i = py * n + px;
+                    if (cover[i] <= 0f) continue;
+
+                    Vector3 color;
+                    if (emissive[i])
+                    {
+                        color = new Vector3(1f, 0.82f, 0.45f);
+                    }
+                    else
+                    {
+                        float diffuse = MathF.Max(0f, Vector3.Dot(normals[i], toLight));
+                        float shadow = Shadow(height, n, px, py, cos, sin, rise);
+                        float shine = material[i] switch
+                        {
+                            Mat.Glass => 0.9f,
+                            Mat.Vent => 0f,
+                            _ => 0.22f,
+                        };
+                        float spec = shine * MathF.Pow(MathF.Max(0f, Vector3.Dot(normals[i], halfway)), material[i] == Mat.Glass ? 40f : 18f);
+
+                        float lit = (0.18f + 1.05f * diffuse) * occlusion[i] * shadow;
+                        color = albedo[i] * lit + new Vector3(1f, 1f, 1f) * (spec * shadow);
+                    }
+
+                    pixels[py * ShipHull.AtlasWidth + light * n + px] = Pack(color, cover[i]);
+                }
+        });
 
         if (design.Wings.Count > 0)
         {
             Wing wing = design.Wings[0];
-            PaintLight(pixels, wing.FrontTip.X, -wing.FrontTip.Y, new Vector3(1f, 0.2f, 0.2f));
-            PaintLight(pixels, wing.FrontTip.X, wing.FrontTip.Y, new Vector3(0.2f, 1f, 0.4f));
+            for (int light = 0; light < ShipHull.LightAngles; light++)
+            {
+                PaintLight(pixels, light, wing.FrontTip.X, -wing.FrontTip.Y, new Vector3(1f, 0.2f, 0.2f));
+                PaintLight(pixels, light, wing.FrontTip.X, wing.FrontTip.Y, new Vector3(0.2f, 1f, 0.4f));
+            }
         }
 
         var engines = new Vector2[design.EngineY.Count];
@@ -268,11 +440,29 @@ public static class ShipHullGenerator
         return new ShipHull { Pixels = pixels, Engines = engines };
     }
 
+    /// <summary>1 where the light reaches the pixel, less where a taller part of the hull between it and the light throws a shadow on it.</summary>
+    private static float Shadow(float[] height, int n, int px, int py, float dirX, float dirY, float rise)
+    {
+        float start = height[py * n + px] * HeightPixels;
+        float shadow = 1f;
+        for (int s = 1; s <= ShadowSteps; s++)
+        {
+            int x = (int)MathF.Round(px + dirX * s), y = (int)MathF.Round(py + dirY * s);
+            if (x < 0 || y < 0 || x >= n || y >= n) break;
+
+            float blocked = height[y * n + x] * HeightPixels - (start + s * rise);
+            if (blocked > 0f)
+                shadow = MathF.Min(shadow, 1f - 0.55f * MathF.Min(1f, blocked / 5f));
+        }
+        return shadow;
+    }
+
     private static Vector3 BaseColor(ShipAppearance a, Mat m) => m switch
     {
         Mat.Accent => new Vector3(a.AccentColor.R, a.AccentColor.G, a.AccentColor.B) / 255f,
         Mat.Glass => new Vector3(70, 140, 200) / 255f,
         Mat.Engine => new Vector3(55, 55, 65) / 255f,
+        Mat.Vent => new Vector3(60, 64, 72) / 255f,
         _ => new Vector3(a.HullColor.R, a.HullColor.G, a.HullColor.B) / 255f,
     };
 
@@ -299,7 +489,7 @@ public static class ShipHullGenerator
         }
     }
 
-    private static void PaintLight(uint[] pixels, float x, float y, Vector3 color)
+    private static void PaintLight(uint[] pixels, int picture, float x, float y, Vector3 color)
     {
         const int n = ShipHull.Size;
         float cx = (x + 1f) * 0.5f * n, cy = (y + 1f) * 0.5f * n;
@@ -309,9 +499,11 @@ public static class ShipHullGenerator
                 if (px < 0 || py < 0 || px >= n || py >= n) continue;
                 float d = MathF.Sqrt((px + 0.5f - cx) * (px + 0.5f - cx) + (py + 0.5f - cy) * (py + 0.5f - cy));
                 if (d > 3.5f) continue;
+
+                int at = py * ShipHull.AtlasWidth + picture * n + px;
+                if (pixels[at] == 0u) continue;
                 float a = MathHelper.Clamp(1.2f - d / 3.5f, 0f, 1f);
-                if (pixels[py * n + px] != 0u)
-                    pixels[py * n + px] = Pack(Vector3.Lerp(Unpack(pixels[py * n + px]), color, a), 1f);
+                pixels[at] = Pack(Vector3.Lerp(Unpack(pixels[at]), color, a), 1f);
             }
     }
 

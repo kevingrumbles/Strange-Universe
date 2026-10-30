@@ -326,29 +326,44 @@ public class SpriteRenderer
         if (_assets.TryGet(type, out var hullTexture) && hullTexture != null)
         {
             float half = ship.Radius * 2.2f * ship.ShipType.Appearance.SpriteScale; // half the picture's width
-            float scale = half * 2f / hullTexture.Width;
-            var origin = new Vector2(hullTexture.Width * 0.5f, hullTexture.Height * 0.5f);
+            float scale = half * 2f / ShipHull.Size;
+            var origin = new Vector2(ShipHull.Size * 0.5f, ShipHull.Size * 0.5f);
+            var star = NearestStar(ship);
 
             _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
             // Shadow: the hull again, dark, pushed away from the nearest star.
-            if (NearestStar(ship) is { } star)
+            if (star != null)
             {
                 Vector2 away = ship.Position - star.Position;
                 if (away != Vector2.Zero) away.Normalize();
-                _spriteBatch.Draw(hullTexture, ship.Position + away * half * 0.08f, null, Color.Black * 0.4f,
+                _spriteBatch.Draw(hullTexture, ship.Position + away * half * 0.08f, HullPicture(0), Color.Black * 0.4f,
                                   ship.Rotation, origin, scale, SpriteEffects.None, 0f);
             }
 
             DrawFlames(ship, type, half);
 
+            // Lit from the nearest star: the hull pictures are lit from 16 directions around the ship, so the two either side of the star's direction (in
+            // the ship's own frame) are blended.
+            Vector2 toLight = star != null ? star.Position - ship.Position : new Vector2(-0.45f, -0.55f);
+            float turns = (MathF.Atan2(toLight.Y, toLight.X) - ship.Rotation) / MathHelper.TwoPi;
+            float position = (turns - MathF.Floor(turns)) * ShipHull.LightAngles;
+            int first = (int)position % ShipHull.LightAngles;
+            float blend = position - MathF.Floor(position);
+
             _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
-            _spriteBatch.Draw(hullTexture, ship.Position, null, Color.White,
+            _spriteBatch.Draw(hullTexture, ship.Position, HullPicture(first), Color.White,
                               ship.Rotation, origin, scale, SpriteEffects.None, 0f);
+            if (blend > 0.01f)
+                _spriteBatch.Draw(hullTexture, ship.Position, HullPicture((first + 1) % ShipHull.LightAngles), Color.White * blend,
+                                  ship.Rotation, origin, scale, SpriteEffects.None, 0f);
         }
 
         DrawShipImpacts(ship);
     }
+
+    /// <summary>The part of a ship's strip of pictures lit from direction <paramref name="light"/>.</summary>
+    private static Rectangle HullPicture(int light) => new(light * ShipHull.Size, 0, ShipHull.Size, ShipHull.Size);
 
     private static Star NearestStar(Ship ship)
     {

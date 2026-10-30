@@ -30,6 +30,7 @@ public sealed class Runner : ShipStats
         Appearance.WingSweep    = 0.5f;
         Appearance.WingChord    = 0.45f;
         Appearance.EngineCount  = 3;
+        Appearance.WindowCount  = 4;
         Appearance.HullColor    = new Rgba(120, 126, 140);
         Appearance.AccentColor  = new Rgba(210, 80, 40);
 

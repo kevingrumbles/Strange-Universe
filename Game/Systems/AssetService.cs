@@ -70,7 +70,7 @@ public sealed class AssetService : IAssetRequests, IDisposable
         if (shipType == null || TryGet(shipType.ShipTypeName, out _)) return;
 
         var hull = ShipHullGenerator.Generate(shipType.Appearance);
-        var tex = new Texture2D(_graphicsDevice, ShipHull.Size, ShipHull.Size);
+        var tex = new Texture2D(_graphicsDevice, ShipHull.AtlasWidth, ShipHull.Size); // every lighting direction, side by side
         tex.SetData(hull.Pixels);
         Register(shipType.ShipTypeName, tex);
         _hulls[shipType.ShipTypeName] = hull;
@@ -86,7 +86,12 @@ public sealed class AssetService : IAssetRequests, IDisposable
         Texture2D splashTex = null;
         if (!string.IsNullOrEmpty(shipType.Appearance.SplashName))
             splashTex = LoadArt(shipType.Appearance.SplashName);
-        Register(Ship.SplashArtKeyFor(shipType), splashTex ?? tex);
+        if (splashTex == null)
+        {
+            splashTex = new Texture2D(_graphicsDevice, ShipHull.Size, ShipHull.Size);
+            splashTex.SetData(hull.Picture(0));
+        }
+        Register(Ship.SplashArtKeyFor(shipType), splashTex);
     }
 
     public void EnsureAsteroidTexture(string paletteId, int seed)

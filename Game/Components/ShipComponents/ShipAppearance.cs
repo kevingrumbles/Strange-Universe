@@ -36,6 +36,9 @@ public sealed class ShipAppearance
     /// <summary>1 to 4 engines across the back. Each one gets a flame.</summary>
     public int EngineCount { get; set; } = 2;
 
+    /// <summary>How many cabin windows along each side of the fuselage.</summary>
+    public int WindowCount { get; set; } = 6;
+
     public Rgba HullColor { get; set; } = new(150, 155, 165);
 
     public Rgba AccentColor { get; set; } = new(190, 70, 50);
