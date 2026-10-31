@@ -109,7 +109,7 @@ public class EventController
     {
         foreach (var planet in world.Planets)
         {
-            var guard = new Nonplayer(npcId: $"Npc_defender_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: false, npcName: "Defending Shuttle");
+            var guard = new Nonplayer(npcId: $"Npc_defender_{world.Npcs.Count + 1}", shipType: new Frigate(), jumpSpawn: false, npcName: "Defending Frigate");
             guard.EnqueueNavTask(new GuardTask(guard, planet.Position, planet.Radius * 2));
             world.AddNpc(guard);
         }
@@ -126,17 +126,18 @@ public class EventController
         if (world.Planets.Count == 0)
             return;
 
-        var merchant = new Nonplayer(npcId: $"Npc_merchant_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Merchant Shuttle");
+        ShipStats cargoShip = random.Next(3) switch { 0 => new Hauler(), 1 => new Courier(), _ => new Freighter() };
+        var merchant = new Nonplayer(npcId: $"Npc_merchant_{world.Npcs.Count + 1}", shipType: cargoShip, jumpSpawn: true, npcName: $"Merchant {cargoShip.ShipTypeName}");
         merchant.EnqueueNavTask(new DockTask(merchant, world.Planets[random.Next(0, world.Planets.Count)].Position));
         merchant.EnqueueNavTask(new JumpTask(merchant));
         world.AddNpc(merchant);
         world.Universe.Post("A merchant ship has arrived in the system. It is looking for a place to dock and trade.");
     }
 
-    /// <summary>A shuttle arriving by jump that patrols three to five random points outside the asteroid belt. The count is rolled once, before the points.</summary>
+    /// <summary>An interceptor arriving by jump that patrols three to five random points outside the asteroid belt. The count is rolled once, before the points.</summary>
     private static void SpawnPatrol(StarSystem world, Random random)
     {
-        var npc = new Nonplayer(npcId: $"Npc_patroler_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Patrolling Shuttle");
+        var npc = new Nonplayer(npcId: $"Npc_patroler_{world.Npcs.Count + 1}", shipType: new Interceptor(), jumpSpawn: true, npcName: "Patrolling Interceptor");
         int pointCount = random.Next(3, 6);
         var patrolPoints = Enumerable.Range(0, pointCount).Select(_ => world.Spatial.GetRandomSafeLocationOutsideAsteroidBelt(random)).ToList();
         npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));

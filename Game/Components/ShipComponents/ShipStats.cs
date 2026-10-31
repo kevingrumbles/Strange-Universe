@@ -54,7 +54,12 @@ public abstract class ShipStats
         => BuiltIn().FirstOrDefault(type => string.Equals(type.ShipTypeName, shipTypeName, StringComparison.OrdinalIgnoreCase)) ?? new Shuttle();
 
     /// <summary>A new instance of every built-in ship type (the first is the Shuttle). Add each new type here.</summary>
-    internal static IReadOnlyList<ShipStats> BuiltIn() => new ShipStats[] { new Shuttle(), new Runner() };
+    internal static IReadOnlyList<ShipStats> BuiltIn() => new ShipStats[]
+    {
+        new Shuttle(), new Runner(),
+        new Hauler(), new Freighter(), new Courier(),
+        new Interceptor(), new Frigate(), new Dreadnought(),
+    };
 
     /// <summary>
     /// A new ship type of the same kind, with its own parts and its own new default loadout. A spaceport keeps one of each ship type it sells and hands

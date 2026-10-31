@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities.ShipParts;
@@ -10,7 +11,7 @@ namespace Strange_Universe.Tests;
 /// <summary>Ships are drawn from a generated picture, with flames at the engines the generator placed.</summary>
 public class ShipHullTests
 {
-    private static readonly ShipStats[] Types = { new Shuttle(), new Runner() };
+    private static readonly IReadOnlyList<ShipStats> Types = ShipStats.BuiltIn();
 
     private static int Alpha(ShipHull hull, int x, int y) => (int)(hull.Pixels[y * ShipHull.AtlasWidth + x] >> 24); // the first picture
 
