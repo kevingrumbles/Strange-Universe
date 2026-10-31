@@ -31,8 +31,8 @@ public sealed class Runner : ShipStats
         Appearance.WingChord    = 0.35f;
         Appearance.EngineCount  = 3;
         Appearance.WindowCount  = 0;
-        Appearance.HullColor    = new Rgba(30, 33, 40);
-        Appearance.AccentColor  = new Rgba(105, 22, 26);
+        Appearance.HullColor    = new Rgba(78, 86, 102);
+        Appearance.AccentColor  = new Rgba(140, 36, 40);
 
         DefaultLoadout = new EquipmentComponent[] {EquipmentCatalog.PlasmaGun, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull };
         TypicalCredits = 250;
