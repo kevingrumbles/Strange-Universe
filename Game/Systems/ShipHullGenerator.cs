@@ -72,7 +72,6 @@ public static class ShipHullGenerator
     private const float Tail = -0.9f;
     private const float Nose = 0.95f;
     private const float NozzleX = -0.95f;
-    private const float PodHalfWidth = 0.075f;
     private const int Sections = 4;
 
     /// <summary>How tall the hull is in pixels for a height of 1, for the shadows the raised parts cast.</summary>
@@ -107,7 +106,7 @@ public static class ShipHullGenerator
 
     private sealed class Design
     {
-        public float Body;
+        public float Body, Blockiness, PodHalfWidth;
         public readonly float[] Profile = new float[7];
         public readonly float[] SectionScale = new float[Sections];
         public readonly List<Wing> Wings = new();
@@ -135,7 +134,9 @@ public static class ShipHullGenerator
                 if (ay < w)
                 {
                     float u = ay / w;
-                    Put(0.45f + 0.4f * MathF.Sqrt(1f - u * u), u < 0.1f && t > 0.3f ? Mat.Accent : Mat.Hull);
+                    // A round cross-section for a smooth hull, squarer and flatter on top as it gets blockier.
+                    float p = MathHelper.Lerp(2f, 8f, Blockiness);
+                    Put(0.45f + 0.4f * MathF.Pow(1f - MathF.Pow(u, p), 1f / p), u < 0.1f && t > 0.3f ? Mat.Accent : Mat.Hull);
                     AddFuselageDetail(ref best, x, ay);
                 }
             }
@@ -269,12 +270,19 @@ public static class ShipHullGenerator
         float Next() => (float)rng.NextDouble();
         var d = new Design { Body = a.BodyWidth };
 
+        d.Blockiness = a.Blockiness;
+        d.PodHalfWidth = MathHelper.Clamp(a.BodyWidth * 0.4f, 0.04f, 0.075f);
+
         float noseEnd = (1f - a.NoseSharpness) * 0.5f + 0.03f;
-        float[] baseProfile = { 0.75f, 0.95f, 1f, 0.95f, 0.8f, 0.55f, noseEnd };
-        for (int i = 0; i < baseProfile.Length; i++)
-            d.Profile[i] = baseProfile[i] * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f : 1f);
+        float[] smooth = { 0.75f, 0.95f, 1f, 0.95f, 0.8f, 0.55f, noseEnd };
+        float[] boxy = { 1f, 1f, 1f, 1f, 1f, 0.95f, noseEnd };
+        for (int i = 0; i < smooth.Length; i++)
+            d.Profile[i] = MathHelper.Lerp(smooth[i], boxy[i], a.Blockiness) * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f * (1f - a.Blockiness) : 1f);
+
+        // Boxy ships are built from modules of clearly different widths; sleek ones are almost uniform.
+        float variation = MathHelper.Lerp(0.08f, 0.4f, a.Blockiness);
         for (int i = 0; i < Sections; i++)
-            d.SectionScale[i] = 0.8f + Next() * 0.4f;
+            d.SectionScale[i] = 1f - variation * 0.5f + Next() * variation;
 
         for (int pair = 0; pair < a.WingPairs; pair++)
         {
@@ -297,7 +305,7 @@ public static class ShipHullGenerator
 
         int engines = Math.Clamp(a.EngineCount, 1, 4);
         for (int i = 0; i < engines; i++)
-            d.EngineY.Add(engines == 1 ? 0f : (i - (engines - 1) * 0.5f) * 2.2f * a.BodyWidth);
+            d.EngineY.Add((i - (engines - 1) * 0.5f) * 2.1f * d.PodHalfWidth);
 
         d.ConeRadiusY = a.BodyWidth * 0.5f;
         d.SeamOffsetX = Next();
@@ -309,7 +317,7 @@ public static class ShipHullGenerator
         for (int i = 0; i < 14; i++)
         {
             float x = -0.7f + Next() * 1.3f;
-            var plate = new Rect { X = x, HalfX = 0.03f + Next() * 0.06f, HalfY = 0.02f + Next() * 0.04f };
+            var plate = new Rect { X = x, HalfX = (0.03f + Next() * 0.06f) * (1f + a.Blockiness), HalfY = (0.02f + Next() * 0.04f) * (1f + a.Blockiness) };
             plate.Y = Next() * MathF.Max(0f, WidthAt(x) * 0.85f - plate.HalfY);
             d.Plates.Add(plate);
         }
@@ -422,7 +430,7 @@ public static class ShipHullGenerator
                     Vector3 color;
                     if (emissive[i])
                     {
-                        color = new Vector3(1f, 0.82f, 0.45f);
+                        color = new Vector3(0.85f, 0.5f, 0.2f);
                     }
                     else
                     {

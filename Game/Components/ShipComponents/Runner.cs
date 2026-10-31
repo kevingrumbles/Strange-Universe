@@ -21,18 +21,18 @@ public sealed class Runner : ShipStats
         Durability.MaxFuel = 7;
 
         Appearance.SplashName   = "Art/Shuttle_splash.png";
-        Appearance.SpriteScale  = 1.5f;
+        Appearance.SpriteScale  = 0.9f;
         Appearance.HullSeed     = 23;
-        Appearance.BodyWidth    = 0.17f;
-        Appearance.NoseSharpness = 0.9f;
-        Appearance.WingPairs    = 2;
-        Appearance.WingSpan     = 0.85f;
-        Appearance.WingSweep    = 0.5f;
-        Appearance.WingChord    = 0.45f;
+        Appearance.BodyWidth    = 0.13f;
+        Appearance.NoseSharpness = 1f;
+        Appearance.WingPairs    = 1;
+        Appearance.WingSpan     = 0.3f;
+        Appearance.WingSweep    = 0.3f;
+        Appearance.WingChord    = 0.35f;
         Appearance.EngineCount  = 3;
-        Appearance.WindowCount  = 4;
-        Appearance.HullColor    = new Rgba(120, 126, 140);
-        Appearance.AccentColor  = new Rgba(210, 80, 40);
+        Appearance.WindowCount  = 0;
+        Appearance.HullColor    = new Rgba(30, 33, 40);
+        Appearance.AccentColor  = new Rgba(105, 22, 26);
 
         DefaultLoadout = new EquipmentComponent[] {EquipmentCatalog.PlasmaGun, EquipmentCatalog.HeavyLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.ReinforcedHull };
         TypicalCredits = 250;

@@ -21,18 +21,19 @@ public sealed class Shuttle : ShipStats
         Durability.MaxFuel = 5;
 
         Appearance.SplashName   = "Art/Shuttle_splash.png";
-        Appearance.SpriteScale  = 1.5f;
+        Appearance.SpriteScale  = 0.85f;
         Appearance.HullSeed     = 11;
         Appearance.BodyWidth    = 0.3f;
-        Appearance.NoseSharpness = 0.35f;
+        Appearance.NoseSharpness = 0.3f;
+        Appearance.Blockiness   = 0.9f;
         Appearance.WingPairs    = 1;
-        Appearance.WingSpan     = 0.62f;
-        Appearance.WingSweep    = 0.15f;
-        Appearance.WingChord    = 0.6f;
+        Appearance.WingSpan     = 0.4f;
+        Appearance.WingSweep    = 0.04f;
+        Appearance.WingChord    = 0.3f;
         Appearance.EngineCount  = 2;
         Appearance.WindowCount  = 10;
-        Appearance.HullColor    = new Rgba(168, 172, 180);
-        Appearance.AccentColor  = new Rgba(60, 110, 190);
+        Appearance.HullColor    = new Rgba(92, 90, 86);
+        Appearance.AccentColor  = new Rgba(138, 92, 34);
 
         DefaultLoadout = new EquipmentComponent[] { EquipmentCatalog.LightLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.LightHullPlating };
         TypicalCredits = 100;
