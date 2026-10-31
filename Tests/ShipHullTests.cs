@@ -102,4 +102,32 @@ public class ShipHullTests
         for (int i = 0; i < 120; i++) ship.Update(1f / 60f);
         Assert.Equal(0f, ship.ThrustLevel);
     }
+
+    [Fact]
+    public void TheShieldBubble_EnclosesEveryHullPixel_AndFollowsTheOutline()
+    {
+        foreach (var type in Types)
+        {
+            var hull = ShipHullGenerator.Generate(type.Appearance);
+            for (int y = 0; y < ShipHull.Size; y += 2)
+                for (int x = 0; x < ShipHull.Size; x += 2)
+                {
+                    if (Alpha(hull, x, y) < 128) continue;
+                    float px = (x + 0.5f) / ShipHull.Size * 2f - 1f, py = (y + 0.5f) / ShipHull.Size * 2f - 1f;
+                    Assert.True(MathF.Sqrt(px * px + py * py) <= hull.ShieldRadiusAt(MathF.Atan2(py, px)) + 0.01f);
+                }
+
+            // Not a circle: it reaches further toward the nose than out to the sides.
+            Assert.NotEqual(hull.ShieldRadiusAt(0f), hull.ShieldRadiusAt(MathF.PI / 2f), 2);
+        }
+    }
+
+    [Fact]
+    public void ScorchMark_IsASoftBlotch()
+    {
+        var scorch = ShipHullGenerator.Scorch();
+        int centre = ShipHullGenerator.ScorchSize / 2;
+        Assert.True((scorch[centre * ShipHullGenerator.ScorchSize + centre] >> 24) > 150);
+        Assert.Equal(0u, scorch[0] >> 24);
+    }
 }

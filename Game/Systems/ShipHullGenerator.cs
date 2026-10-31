@@ -28,6 +28,26 @@ public sealed class ShipHull
     /// <summary>Where each engine's flame starts (the back of the nozzle).</summary>
     public Vector2[] Engines { get; init; }
 
+    /// <summary>How far out the shield bubble reaches, as a fraction of the picture's half-width, at <see cref="ShieldAngles"/> angles around the ship.</summary>
+    public float[] ShieldRadius { get; init; }
+
+    public const int ShieldAngles = 72;
+
+    /// <summary>The shield bubble's radius toward <paramref name="angle"/> (radians in the ship's own frame, 0 = the nose), interpolated between samples.</summary>
+    public float ShieldRadiusAt(float angle)
+    {
+        float position = (angle / MathF.Tau - MathF.Floor(angle / MathF.Tau)) * ShieldAngles;
+        int first = (int)position % ShieldAngles;
+        return MathHelper.Lerp(ShieldRadius[first], ShieldRadius[(first + 1) % ShieldAngles], position - MathF.Floor(position));
+    }
+
+    /// <summary>True when the hull covers <paramref name="point"/> (picture space, -1 to 1).</summary>
+    public bool Covers(Vector2 point)
+    {
+        int x = (int)((point.X + 1f) * 0.5f * Size), y = (int)((point.Y + 1f) * 0.5f * Size);
+        return x >= 0 && y >= 0 && x < Size && y < Size && (Pixels[y * AtlasWidth + x] >> 24) > 127;
+    }
+
     /// <summary>The pixels of one lit picture on its own.</summary>
     public uint[] Picture(int light)
     {
@@ -63,6 +83,7 @@ public static class ShipHullGenerator
 
     public const int FlameWidth = 32;
     public const int FlameHeight = 64;
+    public const int ScorchSize = 32;
 
     private enum Mat : byte { None, Hull, Accent, Glass, Engine, Vent, Window }
 
@@ -437,7 +458,54 @@ public static class ShipHullGenerator
         for (int i = 0; i < engines.Length; i++)
             engines[i] = new Vector2(NozzleX, design.EngineY[i]);
 
-        return new ShipHull { Pixels = pixels, Engines = engines };
+        return new ShipHull { Pixels = pixels, Engines = engines, ShieldRadius = ShieldBubble(cover, n) };
+    }
+
+    /// <summary>
+    /// The shield bubble: how far the hull reaches from the centre at each angle, widened so that thin parts such as wing tips sit inside a smooth curve
+    /// instead of poking through it, plus a margin.
+    /// </summary>
+    private static float[] ShieldBubble(float[] cover, int n)
+    {
+        const int A = ShipHull.ShieldAngles;
+        var reach = new float[A];
+        for (int i = 0; i < A; i++)
+        {
+            float cos = MathF.Cos(i / (float)A * MathF.Tau), sin = MathF.Sin(i / (float)A * MathF.Tau);
+            for (float r = 1.2f; r > 0f; r -= 1f / n)
+            {
+                int x = (int)((cos * r + 1f) * 0.5f * n), y = (int)((sin * r + 1f) * 0.5f * n);
+                if (x >= 0 && y >= 0 && x < n && y < n && cover[y * n + x] > 0.5f) { reach[i] = r; break; }
+            }
+        }
+
+        var widened = new float[A];
+        for (int i = 0; i < A; i++)
+            for (int o = -4; o <= 4; o++)
+                widened[i] = MathF.Max(widened[i], reach[(i + o + A) % A] - MathF.Abs(o) * 0.02f);
+
+        for (int i = 0; i < A; i++)
+        {
+            float sum = 0f;
+            for (int o = -2; o <= 2; o++) sum += widened[(i + o + A) % A];
+            reach[i] = sum / 5f + 0.1f;
+        }
+        return reach;
+    }
+
+    /// <summary>A soft dark blotch, <see cref="ScorchSize"/> square: a hull scorch mark. Premultiplied black.</summary>
+    public static uint[] Scorch()
+    {
+        var pixels = new uint[ScorchSize * ScorchSize];
+        for (int y = 0; y < ScorchSize; y++)
+            for (int x = 0; x < ScorchSize; x++)
+            {
+                float dx = (x + 0.5f) / ScorchSize * 2f - 1f, dy = (y + 0.5f) / ScorchSize * 2f - 1f;
+                float d = MathF.Sqrt(dx * dx + dy * dy);
+                float alpha = d >= 1f ? 0f : MathF.Pow(1f - d, 1.3f);
+                pixels[y * ScorchSize + x] = Pack(Vector3.Zero, alpha);
+            }
+        return pixels;
     }
 
     /// <summary>1 where the light reaches the pixel, less where a taller part of the hull between it and the light throws a shadow on it.</summary>

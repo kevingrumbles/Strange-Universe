@@ -357,6 +357,8 @@ public class SpriteRenderer
             if (blend > 0.01f)
                 _spriteBatch.Draw(hullTexture, ship.Position, HullPicture((first + 1) % ShipHull.LightAngles), Color.White * blend,
                                   ship.Rotation, origin, scale, SpriteEffects.None, 0f);
+
+            DrawDamage(ship, type, half);
         }
 
         DrawShipImpacts(ship);
@@ -364,6 +366,57 @@ public class SpriteRenderer
 
     /// <summary>The part of a ship's strip of pictures lit from direction <paramref name="light"/>.</summary>
     private static Rectangle HullPicture(int light) => new(light * ShipHull.Size, 0, ShipHull.Size, ShipHull.Size);
+
+    private const int ScorchMarks = 14;
+
+    /// <summary>
+    /// Scorch marks on the hull, one more for each 1/<see cref="ScorchMarks"/> of the hull lost. They are always in the same places for a given ship, so
+    /// damage accumulates rather than flickering about; badly damaged ships also glow where the hull is burning through.
+    /// </summary>
+    private void DrawDamage(Ship ship, string type, float half)
+    {
+        int marks = (int)MathF.Ceiling((1f - ship.CurrentHullPercentage / 100f) * ScorchMarks - 0.001f);
+        if (marks <= 0) return;
+        if (!_assets.TryGetHull(type, out var hull) || !_assets.TryGet(AssetService.ScorchId, out var scorch) || scorch == null) return;
+
+        // The same marks for the same ship, in picture coordinates.
+        var rng = new Random(StringComparer.Ordinal.GetHashCode(ship.Id ?? type));
+        var positions = new List<(Vector2 Point, float Size, float Turn)>();
+        for (int i = 0; i < ScorchMarks; i++)
+        {
+            Vector2 point = Vector2.Zero;
+            for (int tries = 0; tries < 30; tries++)
+            {
+                point = new Vector2((float)rng.NextDouble() * 1.8f - 0.9f, (float)rng.NextDouble() * 1.6f - 0.8f);
+                if (hull.Covers(point)) break;
+            }
+            positions.Add((point, 0.1f + (float)rng.NextDouble() * 0.12f, (float)rng.NextDouble() * MathHelper.TwoPi));
+        }
+
+        float cos = MathF.Cos(ship.Rotation), sin = MathF.Sin(ship.Rotation);
+        var origin = new Vector2(scorch.Width * 0.5f, scorch.Height * 0.5f);
+        Vector2 At(Vector2 p) { p *= half; return ship.Position + new Vector2(p.X * cos - p.Y * sin, p.X * sin + p.Y * cos); }
+
+        _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
+        for (int i = 0; i < marks && i < ScorchMarks; i++)
+        {
+            var (point, size, turn) = positions[i];
+            _spriteBatch.Draw(scorch, At(point), null, Color.White * 0.6f, ship.Rotation + turn, origin,
+                              size * half * 2f / scorch.Width, SpriteEffects.None, 0f);
+        }
+
+        if (ship.CurrentHullPercentage >= 40f) return;
+
+        _renderService.Begin(BatchMode.WorldAdditive, _camera.GetTransformMatrix());
+        float time = (float)(System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency);
+        int embers = Math.Min(marks, 1 + (int)((40f - ship.CurrentHullPercentage) / 8f));
+        for (int i = 0; i < embers; i++)
+        {
+            float glow = 0.5f + 0.5f * MathF.Sin(time * (3f + i) + i * 2.1f);
+            _spriteBatch.Draw(_pixel, At(positions[i].Point), null, new Color(255, 120, 40) * (0.25f + 0.4f * glow), 0f,
+                              new Vector2(0.5f, 0.5f), new Vector2(3f, 3f), SpriteEffects.None, 0f);
+        }
+    }
 
     private static Star NearestStar(Ship ship)
     {
@@ -448,8 +501,13 @@ public class SpriteRenderer
 
         // Flares outward slightly then fades as it dissipates.
         float expand = 1f + impact.Progress * 0.12f;
-        float radius = impact.Radius * expand;
         float alpha  = impact.Alpha * impact.Alpha;
+
+        // The bubble follows the hull's outline: its reach at each angle comes from the generated hull, circular if there is none.
+        _assets.TryGetHull(ship.ShipType.ShipTypeName, out var hull);
+        float half = ship.Radius * 2.2f * ship.ShipType.Appearance.SpriteScale;
+        float RadiusAt(float worldAngle) =>
+            (hull != null ? hull.ShieldRadiusAt(worldAngle - ship.Rotation) * half : impact.Radius) * expand;
 
         float step = (impact.ArcWidth * 2f) / Segments;
         float start = impact.Angle - impact.ArcWidth;
@@ -466,8 +524,8 @@ public class SpriteRenderer
 
             if (taper <= 0.01f) continue;
 
-            Vector2 p1 = ship.Position + new Vector2(MathF.Cos(a1), MathF.Sin(a1)) * radius;
-            Vector2 p2 = ship.Position + new Vector2(MathF.Cos(a2), MathF.Sin(a2)) * radius;
+            Vector2 p1 = ship.Position + new Vector2(MathF.Cos(a1), MathF.Sin(a1)) * RadiusAt(a1);
+            Vector2 p2 = ship.Position + new Vector2(MathF.Cos(a2), MathF.Sin(a2)) * RadiusAt(a2);
 
             // Wide soft band underneath, tight bright core on top.
             DrawLineF(p1, p2, impact.Color * (alpha * taper * 0.35f), 7f);

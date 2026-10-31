@@ -22,6 +22,7 @@ public sealed class AssetService : IAssetRequests, IDisposable
 
     /// <summary>Texture id of the engine flame shared by every ship.</summary>
     public const string FlameId = "ship_flame";
+    public const string ScorchId = "ship_scorch";
 
     public AssetService(GraphicsDevice graphicsDevice)
     {
@@ -80,6 +81,10 @@ public sealed class AssetService : IAssetRequests, IDisposable
             var flame = new Texture2D(_graphicsDevice, ShipHullGenerator.FlameWidth, ShipHullGenerator.FlameHeight);
             flame.SetData(ShipHullGenerator.Flame());
             Register(FlameId, flame);
+
+            var scorch = new Texture2D(_graphicsDevice, ShipHullGenerator.ScorchSize, ShipHullGenerator.ScorchSize);
+            scorch.SetData(ShipHullGenerator.Scorch());
+            Register(ScorchId, scorch);
         }
 
         // Splash art -- fall back to the generated hull if not provided or not found
