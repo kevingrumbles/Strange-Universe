@@ -115,6 +115,7 @@ public static class ShipHullGenerator
         public readonly List<Rect> Vents = new();
         public readonly List<Vector2> Windows = new();
         public float ConeX = 0.5f, ConeRadiusX = 0.2f, ConeRadiusY;
+        public float BridgeX, BridgeHalfX, BridgeHalfY; // a raised square bridge block; none when BridgeHalfX is 0
         public float SeamOffsetX, SeamOffsetY;
 
         public Cell At(float x, float y)
@@ -169,11 +170,18 @@ public static class ShipHullGenerator
                 }
 
                 // A strut ties a pod that sits outboard of the fuselage back to it.
-                if (MathF.Abs(py) > Body * 0.8f && ay < MathF.Abs(py) && x is >= -0.62f and <= -0.52f)
+                if (MathF.Abs(py) > HalfWidth((-0.57f - Tail) / (Nose - Tail)) * 0.8f && ay < MathF.Abs(py) && x is >= -0.62f and <= -0.52f)
                     Put(0.35f, Mat.Hull);
             }
 
-            if (best.H > 0f)
+            // The bridge: a tall block with a band of glass across its front face.
+            if (BridgeHalfX > 0f && best.H > 0f && MathF.Abs(x - BridgeX) < BridgeHalfX && ay < BridgeHalfY)
+            {
+                bool front = x > BridgeX + BridgeHalfX - 0.07f;
+                Put(front ? 1.05f : 1f, front && ay < BridgeHalfY - 0.03f ? Mat.Glass : Mat.Hull);
+            }
+
+            if (best.H > 0f && ConeRadiusX > 0f)
             {
                 float dx = (x - ConeX) / ConeRadiusX, dy = y / ConeRadiusY;
                 float d2 = dx * dx + dy * dy;
@@ -276,8 +284,9 @@ public static class ShipHullGenerator
         float noseEnd = (1f - a.NoseSharpness) * 0.5f + 0.03f;
         float[] smooth = { 0.75f, 0.95f, 1f, 0.95f, 0.8f, 0.55f, noseEnd };
         float[] boxy = { 1f, 1f, 1f, 1f, 1f, 0.95f, noseEnd };
+        float[] bridgeForward = { 0.32f, 0.4f, 0.52f, 0.68f, 0.86f, 1f, 1f };
         for (int i = 0; i < smooth.Length; i++)
-            d.Profile[i] = MathHelper.Lerp(smooth[i], boxy[i], a.Blockiness) * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f * (1f - a.Blockiness) : 1f);
+            d.Profile[i] = MathHelper.Lerp(MathHelper.Lerp(smooth[i], boxy[i], a.Blockiness), bridgeForward[i], a.BridgeForward) * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f * (1f - a.Blockiness) : 1f);
 
         // Boxy ships are built from modules of clearly different widths; sleek ones are almost uniform.
         float variation = MathHelper.Lerp(0.08f, 0.4f, a.Blockiness);
@@ -308,6 +317,13 @@ public static class ShipHullGenerator
             d.EngineY.Add((i - (engines - 1) * 0.5f) * 2.1f * d.PodHalfWidth);
 
         d.ConeRadiusY = a.BodyWidth * 0.5f;
+        if (a.BridgeForward > 0.5f)
+        {
+            d.ConeRadiusX = 0f; // the bridge replaces the cockpit dome
+            d.BridgeHalfX = 0.2f;
+            d.BridgeX = Nose - 0.3f;
+            d.BridgeHalfY = a.BodyWidth * 0.6f;
+        }
         d.SeamOffsetX = Next();
         d.SeamOffsetY = Next();
 

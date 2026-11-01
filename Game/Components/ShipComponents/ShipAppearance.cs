@@ -26,6 +26,12 @@ public sealed class ShipAppearance
     /// <summary>0 for a smooth, tapering hull, 1 for a boxy one: straight sides, flat top, stepped modules and big plates.</summary>
     public float Blockiness { get; set; }
 
+    /// <summary>
+    /// 0 for the usual shape (widest amidships, tapering to the nose); 1 for a ship that is widest at the front, a broad square bridge block, and narrows
+    /// to a slim stern.
+    /// </summary>
+    public float BridgeForward { get; set; }
+
     /// <summary>0 to 2 pairs of wings; the second pair is smaller and further back. Wings do nothing in space, so keep them small.</summary>
     public int WingPairs { get; set; } = 1;
 
