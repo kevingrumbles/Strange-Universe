@@ -191,8 +191,7 @@ public static class ShipHullGenerator
         private float HammerEdge(float ay) => HammerFront - HammerSweep * (ay / HammerHalfY) * (ay / HammerHalfY);
 
         /// <summary>
-        /// The hammerhead: a crossbar thick in the middle and thin at the tips, its front edge bowed back toward the tips, with red tips, a row of guns along
-        /// the front edge and an eye at each tip.
+        /// The hammerhead: a crossbar thick in the middle and thin at the tips, its front edge bowed back toward the tips, with red tips and an eye at each tip.
         /// </summary>
         private void AddHammer(ref Cell cell, float x, float ay)
         {
@@ -208,14 +207,6 @@ public static class ShipHullGenerator
                     if (ay < 0.05f || (u > 0.3f && Frac(u * 5f) < 0.06f)) h += 0.04f; // spine and ribs
                     PutHigher(ref cell, h, u > 0.8f || front - x < 0.025f ? Mat.Accent : Mat.Hull);
                 }
-            }
-
-            // Guns along the front edge.
-            foreach (float gun in new[] { 0.12f, 0.3f, 0.48f, 0.64f })
-            {
-                float edge = HammerEdge(gun);
-                if (x > edge && x < edge + 0.13f && MathF.Abs(ay - gun) < 0.011f)
-                    PutHigher(ref cell, 0.5f, Mat.Engine);
             }
 
             // An eye at each tip.

@@ -27,8 +27,7 @@ public sealed class ShipAppearance
     public float Blockiness { get; set; }
 
     /// <summary>
-    /// 0 for none. Otherwise the half width of a hammerhead: a broad, swept-back crossbar at the front of the ship, with guns along its leading edge and
-    /// glowing eyes at the tips, on a slim neck. The fuselage stops at the head.
+    /// 0 for none. Otherwise the half width of a hammerhead: a broad, swept-back crossbar at the front of the ship, with glowing eyes at the tips, on a slim neck. The fuselage stops at the head.
     /// </summary>
     public float HammerSpan { get; set; }
 
