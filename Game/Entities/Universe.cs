@@ -168,6 +168,13 @@ public class Universe : IDisposable
             _nebulaStartIndex = -1;
             GenerateNebulaPool(first);
         }
+
+        // Once the nebulae are done (or were never wanted) the art of the ships not met yet is made in the background, so buying one is instant.
+        if (_shipPreloadPending && _nebulaStartIndex < 0 && (!_nebulaWanted || _nebulaUploaded.All(uploaded => uploaded)))
+        {
+            _shipPreloadPending = false;
+            _assets.PreloadShipArt(ShipStats.BuiltIn());
+        }
     }
 
     // -- Docking -----------------------------------------------------------------
@@ -346,7 +353,9 @@ public class Universe : IDisposable
         _assets = assets;
 
         StarSystemNode start = ResolveStartNode();
-        _nebulaStartIndex = assets != null && !Settings.PauseNebulaGeneration ? StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize) : -1;
+        _nebulaWanted = assets != null && !Settings.PauseNebulaGeneration;
+        _nebulaStartIndex = _nebulaWanted ? StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize) : -1;
+        _shipPreloadPending = assets != null;
         Player.Generate();
         _assets?.EnsureShipArt(Player.ShipType);
         EnterSystem(start);
@@ -357,6 +366,8 @@ public class Universe : IDisposable
             Player.EnqueueNavTask(new SpawnTask(Player));
     }
 
+    private bool _nebulaWanted;
+    private bool _shipPreloadPending;
     private int _nebulaStartIndex = -1; // the slot to generate first at the end of the first update; -1 when there is nothing to start
 
     /// <summary>

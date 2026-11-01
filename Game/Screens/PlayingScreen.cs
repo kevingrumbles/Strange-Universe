@@ -88,6 +88,7 @@ public sealed class PlayingScreen : IScreen
     public void Update(GameTime gameTime)
     {
         float dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        _assets.UploadPreloadedShipArt();
 
         // Destroyed: back to the menu without saving (OnExit sees the flag).
         if (_universe.Player.IsDestroyed)

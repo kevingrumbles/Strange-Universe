@@ -31,6 +31,8 @@ public sealed class RecordingAssetRequests : IAssetRequests
 
     public void EnsureShipArt(ShipStats shipType) => Calls.Add((nameof(EnsureShipArt), shipType?.ShipTypeName));
 
+    public void PreloadShipArt(IReadOnlyList<ShipStats> shipTypes) => Calls.Add((nameof(PreloadShipArt), null));
+
     public List<int> AsteroidSeeds { get; } = new();
 
     public void EnsureAsteroidTexture(string paletteId, int seed)
