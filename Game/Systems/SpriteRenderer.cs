@@ -53,6 +53,9 @@ public class SpriteRenderer
 
     // -- World-space pass (SpriteBatch already began with camera matrix) ------
 
+    private const double NebulaFadeSeconds = 1.5;
+    private readonly Dictionary<string, double> _nebulaSeenAt = new();
+
     /// <summary>
     /// Draws an infinite scrolling nebula background using a seamless tileable texture.
     /// The nebula appears endless in all directions with parallax scrolling.
@@ -60,7 +63,12 @@ public class SpriteRenderer
     public void DrawNebula(string nebulaId, int screenWidth, int screenHeight, 
                           Vector2 cameraPos, float cameraZoom, bool debugMode = false)
     {
+        // A nebula is generated in the background, so it may appear a few seconds after the system does: fade it in rather than pop.
         if (!_assets.TryGet(nebulaId, out var tex) || tex is null) return;
+        double now = System.Diagnostics.Stopwatch.GetTimestamp() / (double)System.Diagnostics.Stopwatch.Frequency;
+        if (!_nebulaSeenAt.TryGetValue(nebulaId, out double seenAt))
+            _nebulaSeenAt[nebulaId] = seenAt = now;
+        Color tint = Color.White * (float)Math.Clamp((now - seenAt) / NebulaFadeSeconds, 0.0, 1.0);
 
         _renderService.Begin(BatchMode.WorldAlpha, _camera.GetTransformMatrix());
 
@@ -102,7 +110,7 @@ public class SpriteRenderer
                     new Rectangle((int)worldX, (int)worldY, 
                                  (int)worldTileSize, (int)worldTileSize),
                     null, // Use entire texture
-                    Color.White,
+                    tint,
                     0f,
                     Vector2.Zero,
                     SpriteEffects.None,

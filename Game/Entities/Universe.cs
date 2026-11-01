@@ -37,7 +37,7 @@ public class Universe : IDisposable
 
     /// <summary>
     /// Builds the system for <paramref name="node"/>, makes it active, attaches the player and records
-    /// it as the player's current system. Blocks until the system's nebula is uploaded.
+    /// it as the player's current system. Does not wait for the system's nebula: it is generated in the background and shows once <see cref="Update"/> uploads it.
     /// </summary>
     public StarSystem EnterSystem(StarSystemNode node)
     {
@@ -59,8 +59,6 @@ public class Universe : IDisposable
         Player.StarSystem = _activeStarSystem;
         Player.CurrentStarSystemID = node.SystemId;
         Player.RefillShield(); // shields are always full when the player loads into a system
-        if (_assets != null)
-            WaitForNebula(_activeStarSystem.NebulaId);
         Events.Publish(new SystemEntered(_activeStarSystem));
         return _activeStarSystem;
     }
@@ -108,7 +106,7 @@ public class Universe : IDisposable
     public IEventBus Events { get; } = new EventBus();
 
     // One background generation task per pool slot, started at most once per launch.
-    // Results are uploaded on the main thread (UploadFinishedNebulae / WaitForNebula).
+    // Results are uploaded on the main thread (UploadFinishedNebulae).
     private readonly Task<Nebula>[] _nebulaTasks = new Task<Nebula>[NebulaPoolSize];
     private readonly bool[] _nebulaUploaded = new bool[NebulaPoolSize];
     private volatile bool _disposed;
@@ -394,23 +392,6 @@ public class Universe : IDisposable
         if (existing != null) return existing;
         created.Start(TaskScheduler.Default);
         return created;
-    }
-
-    /// <summary>
-    /// Blocks until the nebula <paramref name="nebulaId"/> is generated and uploaded, so a system
-    /// never renders without its nebula. Main thread only.
-    /// </summary>
-    private void WaitForNebula(string nebulaId)
-    {
-        for (int i = 0; i < NebulaPoolSize; i++)
-        {
-            if (NebulaPoolId(Seed, i) != nebulaId) continue;
-            if (_nebulaUploaded[i]) return;
-
-            StartNebula(i).Wait();
-            UploadNebula(i);
-            return;
-        }
     }
 
     /// <summary>Uploads nebulae whose background generation has finished. Main thread only.</summary>
