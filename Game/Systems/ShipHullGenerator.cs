@@ -84,7 +84,7 @@ public static class ShipHullGenerator
     public const int FlameHeight = 64;
     public const int ScorchSize = 32;
 
-    private enum Mat : byte { None, Hull, Accent, Glass, Engine, Vent, Window }
+    private enum Mat : byte { None, Hull, Accent, Glass, Engine, Vent, Window, Eye }
 
     private struct Cell
     {
@@ -115,7 +115,8 @@ public static class ShipHullGenerator
         public readonly List<Rect> Vents = new();
         public readonly List<Vector2> Windows = new();
         public float ConeX = 0.5f, ConeRadiusX = 0.2f, ConeRadiusY;
-        public float BridgeX, BridgeHalfX, BridgeHalfY; // a raised square bridge block; none when BridgeHalfX is 0
+        public float HammerFront, HammerHalfY, HammerSweep; // the hammerhead crossbar; none when HammerHalfY is 0
+        public float BodyEnd = Nose; // the fuselage stops here
         public float SeamOffsetX, SeamOffsetY;
 
         public Cell At(float x, float y)
@@ -129,7 +130,7 @@ public static class ShipHullGenerator
             }
 
             float t = (x - Tail) / (Nose - Tail);
-            if (t is >= 0f and <= 1f)
+            if (t is >= 0f and <= 1f && x <= BodyEnd)
             {
                 float w = HalfWidth(t);
                 if (ay < w)
@@ -174,14 +175,10 @@ public static class ShipHullGenerator
                     Put(0.35f, Mat.Hull);
             }
 
-            // The bridge: a tall block with a band of glass across its front face.
-            if (BridgeHalfX > 0f && best.H > 0f && MathF.Abs(x - BridgeX) < BridgeHalfX && ay < BridgeHalfY)
-            {
-                bool front = x > BridgeX + BridgeHalfX - 0.07f;
-                Put(front ? 1.05f : 1f, front && ay < BridgeHalfY - 0.03f ? Mat.Glass : Mat.Hull);
-            }
+            if (HammerHalfY > 0f)
+                AddHammer(ref best, x, ay);
 
-            if (best.H > 0f && ConeRadiusX > 0f)
+            if (best.H > 0f)
             {
                 float dx = (x - ConeX) / ConeRadiusX, dy = y / ConeRadiusY;
                 float d2 = dx * dx + dy * dy;
@@ -189,6 +186,48 @@ public static class ShipHullGenerator
                     Put(0.95f - 0.2f * d2, Mat.Glass);
             }
             return best;
+        }
+
+        private float HammerEdge(float ay) => HammerFront - HammerSweep * (ay / HammerHalfY) * (ay / HammerHalfY);
+
+        /// <summary>
+        /// The hammerhead: a crossbar thick in the middle and thin at the tips, its front edge bowed back toward the tips, with red tips, a row of guns along
+        /// the front edge and an eye at each tip.
+        /// </summary>
+        private void AddHammer(ref Cell cell, float x, float ay)
+        {
+            float u = ay / HammerHalfY;
+            float front = HammerEdge(ay);
+            if (u < 1f)
+            {
+                float depth = 0.2f + 0.26f * (1f - u);
+                if (x < front && x > front - depth)
+                {
+                    float h = 0.6f + 0.22f * (1f - u);
+                    if (front - x < 0.025f) h += 0.05f;                     // a raised lip along the front edge
+                    if (ay < 0.05f || (u > 0.3f && Frac(u * 5f) < 0.06f)) h += 0.04f; // spine and ribs
+                    PutHigher(ref cell, h, u > 0.8f || front - x < 0.025f ? Mat.Accent : Mat.Hull);
+                }
+            }
+
+            // Guns along the front edge.
+            foreach (float gun in new[] { 0.12f, 0.3f, 0.48f, 0.64f })
+            {
+                float edge = HammerEdge(gun);
+                if (x > edge && x < edge + 0.13f && MathF.Abs(ay - gun) < 0.011f)
+                    PutHigher(ref cell, 0.5f, Mat.Engine);
+            }
+
+            // An eye at each tip.
+            float eyeY = HammerHalfY - 0.11f, eyeX = HammerEdge(eyeY) - 0.07f;
+            float dx = x - eyeX, dy = ay - eyeY;
+            if (dx * dx + dy * dy < 0.03f * 0.03f)
+                PutHigher(ref cell, 0.9f, Mat.Eye);
+        }
+
+        private static void PutHigher(ref Cell cell, float h, Mat m)
+        {
+            if (h > cell.H) { cell.H = h; cell.M = m; }
         }
 
         /// <summary>Raised plates, recessed vent grills and cabin windows on the fuselage.</summary>
@@ -284,9 +323,8 @@ public static class ShipHullGenerator
         float noseEnd = (1f - a.NoseSharpness) * 0.5f + 0.03f;
         float[] smooth = { 0.75f, 0.95f, 1f, 0.95f, 0.8f, 0.55f, noseEnd };
         float[] boxy = { 1f, 1f, 1f, 1f, 1f, 0.95f, noseEnd };
-        float[] bridgeForward = { 0.32f, 0.4f, 0.52f, 0.68f, 0.86f, 1f, 1f };
         for (int i = 0; i < smooth.Length; i++)
-            d.Profile[i] = MathHelper.Lerp(MathHelper.Lerp(smooth[i], boxy[i], a.Blockiness), bridgeForward[i], a.BridgeForward) * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f * (1f - a.Blockiness) : 1f);
+            d.Profile[i] = MathHelper.Lerp(smooth[i], boxy[i], a.Blockiness) * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f * (1f - a.Blockiness) : 1f);
 
         // Boxy ships are built from modules of clearly different widths; sleek ones are almost uniform.
         float variation = MathHelper.Lerp(0.08f, 0.4f, a.Blockiness);
@@ -317,12 +355,14 @@ public static class ShipHullGenerator
             d.EngineY.Add((i - (engines - 1) * 0.5f) * 2.1f * d.PodHalfWidth);
 
         d.ConeRadiusY = a.BodyWidth * 0.5f;
-        if (a.BridgeForward > 0.5f)
+        if (a.HammerSpan > 0f)
         {
-            d.ConeRadiusX = 0f; // the bridge replaces the cockpit dome
-            d.BridgeHalfX = 0.2f;
-            d.BridgeX = Nose - 0.3f;
-            d.BridgeHalfY = a.BodyWidth * 0.6f;
+            d.HammerHalfY = a.HammerSpan;
+            d.HammerFront = 0.72f;
+            d.HammerSweep = 0.24f;
+            d.BodyEnd = 0.5f;
+            d.ConeX = 0.5f;
+            d.ConeRadiusX = 0.1f;
         }
         d.SeamOffsetX = Next();
         d.SeamOffsetY = Next();
@@ -417,7 +457,7 @@ public static class ShipHullGenerator
                     color *= PanelShade(design, appearance.HullSeed, nx, ny);
                 else if (material[i] == Mat.Engine && nx < -0.9f)
                     color = Vector3.Lerp(color, new Vector3(0.8f, 0.35f, 0.12f), 0.55f);
-                else if (material[i] == Mat.Window)
+                else if (material[i] is Mat.Window or Mat.Eye)
                     emissive[i] = true;
 
                 // A darker rim where the hull meets space.
@@ -446,7 +486,7 @@ public static class ShipHullGenerator
                     Vector3 color;
                     if (emissive[i])
                     {
-                        color = new Vector3(0.85f, 0.5f, 0.2f);
+                        color = material[i] == Mat.Eye ? new Vector3(1f, 0.1f, 0.06f) : new Vector3(0.85f, 0.5f, 0.2f);
                     }
                     else
                     {

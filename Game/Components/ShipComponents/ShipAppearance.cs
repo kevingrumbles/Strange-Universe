@@ -27,10 +27,10 @@ public sealed class ShipAppearance
     public float Blockiness { get; set; }
 
     /// <summary>
-    /// 0 for the usual shape (widest amidships, tapering to the nose); 1 for a ship that is widest at the front, a broad square bridge block, and narrows
-    /// to a slim stern.
+    /// 0 for none. Otherwise the half width of a hammerhead: a broad, swept-back crossbar at the front of the ship, with guns along its leading edge and
+    /// glowing eyes at the tips, on a slim neck. The fuselage stops at the head.
     /// </summary>
-    public float BridgeForward { get; set; }
+    public float HammerSpan { get; set; }
 
     /// <summary>0 to 2 pairs of wings; the second pair is smaller and further back. Wings do nothing in space, so keep them small.</summary>
     public int WingPairs { get; set; } = 1;

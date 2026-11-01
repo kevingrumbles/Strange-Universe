@@ -23,11 +23,11 @@ public sealed class Dreadnought : ShipStats
         Appearance.SplashName    = "Art/Shuttle_splash.png";
         Appearance.SpriteScale   = 0.85f;
         Appearance.HullSeed      = 67;
-        Appearance.BodyWidth     = 0.36f;
+        Appearance.BodyWidth     = 0.17f;
         Appearance.NoseSharpness = 0.45f;
         Appearance.Blockiness    = 0.9f;
-        Appearance.BridgeForward = 1f;
-        Appearance.WingPairs     = 1;
+        Appearance.HammerSpan    = 0.78f;
+        Appearance.WingPairs     = 0;
         Appearance.WingSpan      = 0.38f;
         Appearance.WingSweep     = 0.1f;
         Appearance.WingChord     = 0.3f;
