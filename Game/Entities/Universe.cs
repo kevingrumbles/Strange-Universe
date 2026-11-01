@@ -156,13 +156,18 @@ public class Universe : IDisposable
 
     public void Update(float deltaTime, InputState input)
     {
-        StartNebulaWhenRunning(deltaTime);
         UploadFinishedNebulae();
 
-        if (IsDocked)
-            return; // nothing is simulated while docked: there is no active star system
+        if (!IsDocked) // nothing is simulated while docked: there is no active star system
+            ActiveStarSystem.Update(deltaTime, input);
 
-        ActiveStarSystem.Update(deltaTime, input);
+        // The nebulae use every core for seconds, so they start only once the game has run a frame, not while it is starting up.
+        if (_nebulaStartIndex >= 0)
+        {
+            int first = _nebulaStartIndex;
+            _nebulaStartIndex = -1;
+            GenerateNebulaPool(first);
+        }
     }
 
     // -- Docking -----------------------------------------------------------------
@@ -341,9 +346,7 @@ public class Universe : IDisposable
         _assets = assets;
 
         StarSystemNode start = ResolveStartNode();
-        // The nebulae use every core for seconds, so they wait until the game is running rather than compete with starting up.
         _nebulaStartIndex = assets != null && !Settings.PauseNebulaGeneration ? StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize) : -1;
-        _nebulaStartDelay = NebulaStartDelaySeconds;
         Player.Generate();
         _assets?.EnsureShipArt(Player.ShipType);
         EnterSystem(start);
@@ -354,23 +357,7 @@ public class Universe : IDisposable
             Player.EnqueueNavTask(new SpawnTask(Player));
     }
 
-    /// <summary>How long the game runs before nebula generation starts, so the first frames' own work (spawned ships' art) finishes first.</summary>
-    private const float NebulaStartDelaySeconds = 0.5f;
-
-    private int _nebulaStartIndex = -1; // the slot to generate first once the game is running; -1 when there is nothing to start
-    private float _nebulaStartDelay;
-
-    private void StartNebulaWhenRunning(float deltaTime)
-    {
-        if (_nebulaStartIndex < 0) return;
-
-        _nebulaStartDelay -= deltaTime;
-        if (_nebulaStartDelay > 0f) return;
-
-        int first = _nebulaStartIndex;
-        _nebulaStartIndex = -1;
-        GenerateNebulaPool(first);
-    }
+    private int _nebulaStartIndex = -1; // the slot to generate first at the end of the first update; -1 when there is nothing to start
 
     /// <summary>
     /// Starts background generation of every pool slot not already started. <paramref name="firstIndex"/>
