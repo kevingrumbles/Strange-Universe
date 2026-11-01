@@ -326,7 +326,7 @@ public class Universe : IDisposable
 
     /// <summary>
     /// Starts a play session: attaches runtime services, starts nebula generation (the starting
-    /// system's nebula first) and enters the player's starting system.
+    /// system's nebula first, unless <see cref="GameSettings.PauseNebulaGeneration"/>) and enters the player's starting system.
     /// </summary>
     public void Generate(IAssetRequests assets)
     {
@@ -340,7 +340,7 @@ public class Universe : IDisposable
         _assets = assets;
 
         StarSystemNode start = ResolveStartNode();
-        if (assets != null)
+        if (assets != null && !Settings.PauseNebulaGeneration)
             GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
         Player.Generate();
         _assets?.EnsureShipArt(Player.ShipType);
