@@ -156,6 +156,7 @@ public class Universe : IDisposable
 
     public void Update(float deltaTime, InputState input)
     {
+        StartNebulaWhenRunning(deltaTime);
         UploadFinishedNebulae();
 
         if (IsDocked)
@@ -326,7 +327,7 @@ public class Universe : IDisposable
 
     /// <summary>
     /// Starts a play session: attaches runtime services, starts nebula generation (the starting
-    /// system's nebula first, unless <see cref="GameSettings.PauseNebulaGeneration"/>) and enters the player's starting system.
+    /// system's nebula first, unless <see cref="GameSettings.PauseNebulaGeneration"/>, and only once the game is running) and enters the player's starting system.
     /// </summary>
     public void Generate(IAssetRequests assets)
     {
@@ -340,8 +341,9 @@ public class Universe : IDisposable
         _assets = assets;
 
         StarSystemNode start = ResolveStartNode();
-        if (assets != null && !Settings.PauseNebulaGeneration)
-            GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
+        // The nebulae use every core for seconds, so they wait until the game is running rather than compete with starting up.
+        _nebulaStartIndex = assets != null && !Settings.PauseNebulaGeneration ? StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize) : -1;
+        _nebulaStartDelay = NebulaStartDelaySeconds;
         Player.Generate();
         _assets?.EnsureShipArt(Player.ShipType);
         EnterSystem(start);
@@ -350,6 +352,24 @@ public class Universe : IDisposable
         // played): it spawns now.
         if (Player.Location is null && !Player.Navigator.Has<SpawnTask>())
             Player.EnqueueNavTask(new SpawnTask(Player));
+    }
+
+    /// <summary>How long the game runs before nebula generation starts, so the first frames' own work (spawned ships' art) finishes first.</summary>
+    private const float NebulaStartDelaySeconds = 0.5f;
+
+    private int _nebulaStartIndex = -1; // the slot to generate first once the game is running; -1 when there is nothing to start
+    private float _nebulaStartDelay;
+
+    private void StartNebulaWhenRunning(float deltaTime)
+    {
+        if (_nebulaStartIndex < 0) return;
+
+        _nebulaStartDelay -= deltaTime;
+        if (_nebulaStartDelay > 0f) return;
+
+        int first = _nebulaStartIndex;
+        _nebulaStartIndex = -1;
+        GenerateNebulaPool(first);
     }
 
     /// <summary>
@@ -371,6 +391,7 @@ public class Universe : IDisposable
 
     private void ResetNebulaState()
     {
+        _nebulaStartIndex = -1;
         for (int i = 0; i < NebulaPoolSize; i++)
         {
             Volatile.Write(ref _nebulaTasks[i], null);
