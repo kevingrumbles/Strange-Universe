@@ -131,4 +131,26 @@ public class ShipHullTests
         Assert.True((scorch[centre * ShipHullGenerator.ScorchSize + centre] >> 24) > 150);
         Assert.Equal(0u, scorch[0] >> 24);
     }
+
+    [Fact]
+    public void NoTwoShipTypes_HaveTheSameOutline()
+    {
+        bool[] Outline(ShipStats type)
+        {
+            var hull = ShipHullGenerator.Generate(type.Appearance);
+            var outline = new bool[ShipHull.Size * ShipHull.Size];
+            for (int y = 0; y < ShipHull.Size; y++)
+                for (int x = 0; x < ShipHull.Size; x++)
+                    outline[y * ShipHull.Size + x] = Alpha(hull, x, y) > 127;
+            return outline;
+        }
+
+        var outlines = Types.Select(Outline).ToList();
+        for (int a = 0; a < outlines.Count; a++)
+            for (int b = a + 1; b < outlines.Count; b++)
+            {
+                int different = Enumerable.Range(0, outlines[a].Length).Count(i => outlines[a][i] != outlines[b][i]);
+                Assert.True(different > ShipHull.Size * ShipHull.Size / 25, $"{Types[a].ShipTypeName} and {Types[b].ShipTypeName} are too alike");
+            }
+    }
 }

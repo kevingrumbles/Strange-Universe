@@ -23,9 +23,11 @@ public sealed class Runner : ShipStats
         Appearance.SplashName   = "Art/Shuttle_splash.png";
         Appearance.SpriteScale  = 0.9f;
         Appearance.HullSeed     = 23;
-        Appearance.BodyWidth    = 0.13f;
+        Appearance.BodyWidth    = 0.4f;
+        Appearance.Delta        = 1f;
         Appearance.NoseSharpness = 1f;
-        Appearance.WingPairs    = 1;
+        Appearance.Blockiness   = 0.6f;
+        Appearance.WingPairs    = 0;
         Appearance.WingSpan     = 0.3f;
         Appearance.WingSweep    = 0.3f;
         Appearance.WingChord    = 0.35f;

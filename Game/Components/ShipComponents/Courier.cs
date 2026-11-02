@@ -23,10 +23,11 @@ public sealed class Courier : ShipStats
         Appearance.SplashName    = "Art/Shuttle_splash.png";
         Appearance.SpriteScale   = 0.9f;
         Appearance.HullSeed      = 41;
-        Appearance.BodyWidth     = 0.15f;
+        Appearance.BodyWidth     = 0.13f;
+        Appearance.SidePods      = 0.1f;
         Appearance.NoseSharpness = 0.7f;
         Appearance.Blockiness    = 0.25f;
-        Appearance.WingPairs     = 1;
+        Appearance.WingPairs     = 0;
         Appearance.WingSpan      = 0.26f;
         Appearance.WingSweep     = 0.15f;
         Appearance.WingChord     = 0.25f;

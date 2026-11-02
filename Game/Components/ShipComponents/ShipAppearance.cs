@@ -37,6 +37,15 @@ public sealed class ShipAppearance
     /// </summary>
     public int CargoBays { get; set; }
 
+    /// <summary>0 for the usual shape; 1 for a delta: widest at the tail and narrowing in a straight line to a point at the nose, like a flat arrowhead.</summary>
+    public float Delta { get; set; }
+
+    /// <summary>0 for none. Otherwise the half width of a rounded pod along each side of the fuselage, such as a cargo pod.</summary>
+    public float SidePods { get; set; }
+
+    /// <summary>0 for none. Otherwise a twin-boom ship: two slim hulls this far either side of the centre line, joined by a cross-piece and a central cockpit pod.</summary>
+    public float TwinBoom { get; set; }
+
     /// <summary>0 to 2 pairs of wings; the second pair is smaller and further back. Wings do nothing in space, so keep them small.</summary>
     public int WingPairs { get; set; } = 1;
 

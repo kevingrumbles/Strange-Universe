@@ -117,6 +117,8 @@ public static class ShipHullGenerator
         public readonly List<(Rect Box, float H, bool Bridge)> Blocks = new(); // the bridge and engine blocks of a cargo ship
         public readonly List<Vector2> Windows = new();
         public float ConeX = 0.5f, ConeRadiusX = 0.2f, ConeRadiusY;
+        public float SidePodX, SidePodY, SidePodRX, SidePodRY; // rounded pods along the fuselage; none when SidePodRY is 0
+        public float BoomY;                                   // twin booms either side of the centre line; none when 0
         public float HammerFront, HammerHalfY, HammerSweep; // the hammerhead crossbar; none when HammerHalfY is 0
         public float BodyEnd = Nose; // the fuselage stops here
         public float SeamOffsetX, SeamOffsetY;
@@ -135,14 +137,32 @@ public static class ShipHullGenerator
             if (t is >= 0f and <= 1f && x <= BodyEnd)
             {
                 float w = HalfWidth(t);
-                if (ay < w)
+                float fy = BoomY > 0f ? MathF.Abs(ay - BoomY) : ay; // the distance from the centre line of the hull being drawn
+                if (fy < w)
                 {
-                    float u = ay / w;
+                    float u = fy / w;
                     // A round cross-section for a smooth hull, squarer and flatter on top as it gets blockier.
                     float p = MathHelper.Lerp(2f, 8f, Blockiness);
                     Put(0.45f + 0.4f * MathF.Pow(1f - MathF.Pow(u, p), 1f / p), u < 0.1f && t > 0.3f ? Mat.Accent : Mat.Hull);
-                    AddFuselageDetail(ref best, x, ay);
+                    AddFuselageDetail(ref best, x, fy);
                 }
+            }
+
+            if (BoomY > 0f)
+            {
+                // The central cockpit pod and the cross-piece that joins the two booms.
+                float px = (x - 0.15f) / 0.45f, py = ay / 0.1f;
+                if (px * px + py * py < 1f)
+                    Put(0.6f + 0.3f * MathF.Sqrt(1f - px * px - py * py), Mat.Hull);
+                if (x is > -0.35f and < -0.15f && ay < BoomY)
+                    Put(0.42f + (Frac(x * 40f) < 0.2f ? 0.03f : 0f), Mat.Hull);
+            }
+
+            if (SidePodRY > 0f)
+            {
+                float dx = (x - SidePodX) / SidePodRX, dy = (ay - SidePodY) / SidePodRY, d2 = dx * dx + dy * dy;
+                if (d2 < 1f)
+                    Put(0.5f + 0.35f * MathF.Sqrt(1f - d2), MathF.Abs(dx) < 0.12f ? Mat.Accent : Mat.Hull);
             }
 
             foreach (var wing in Wings)
@@ -334,8 +354,9 @@ public static class ShipHullGenerator
         float noseEnd = (1f - a.NoseSharpness) * 0.5f + 0.03f;
         float[] smooth = { 0.75f, 0.95f, 1f, 0.95f, 0.8f, 0.55f, noseEnd };
         float[] boxy = { 1f, 1f, 1f, 1f, 1f, 0.95f, noseEnd };
+        float[] delta = { 1f, 0.84f, 0.68f, 0.52f, 0.36f, 0.2f, 0.03f };
         for (int i = 0; i < smooth.Length; i++)
-            d.Profile[i] = MathHelper.Lerp(smooth[i], boxy[i], a.Blockiness) * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f * (1f - a.Blockiness) : 1f);
+            d.Profile[i] = MathHelper.Lerp(MathHelper.Lerp(smooth[i], boxy[i], a.Blockiness), delta[i], a.Delta) * (i is > 0 and < 5 ? 1f + (Next() - 0.5f) * 0.2f * (1f - a.Blockiness) : 1f);
 
         // Boxy ships are built from modules of clearly different widths; sleek ones are almost uniform.
         float variation = MathHelper.Lerp(0.08f, 0.4f, a.Blockiness);
@@ -362,10 +383,29 @@ public static class ShipHullGenerator
         }
 
         int engines = Math.Clamp(a.EngineCount, 1, 4);
-        for (int i = 0; i < engines; i++)
-            d.EngineY.Add((i - (engines - 1) * 0.5f) * 2.1f * d.PodHalfWidth);
+        if (a.TwinBoom > 0f)
+        {
+            d.BoomY = a.TwinBoom;
+            d.EngineY.Add(-a.TwinBoom); // an engine at the tail of each boom
+            d.EngineY.Add(a.TwinBoom);
+        }
+        else
+            for (int i = 0; i < engines; i++)
+                d.EngineY.Add((i - (engines - 1) * 0.5f) * 2.1f * d.PodHalfWidth);
+        if (a.SidePods > 0f)
+        {
+            d.SidePodRY = a.SidePods;
+            d.SidePodRX = a.SidePods * 3.4f;
+            d.SidePodX = -0.1f;
+            d.SidePodY = a.BodyWidth * 0.6f + a.SidePods * 0.5f;
+        }
+        if (a.Delta > 0.5f || a.TwinBoom > 0f)
+        {
+            d.ConeX = a.TwinBoom > 0f ? 0.3f : 0.3f;
+            d.ConeRadiusX = 0.16f;
+        }
 
-        d.ConeRadiusY = a.BodyWidth * 0.5f;
+        d.ConeRadiusY = a.Delta > 0.5f || a.TwinBoom > 0f ? 0.07f : a.BodyWidth * 0.5f;
         if (a.CargoBays > 0)
         {
             // Bridge block, containers and engine block along a thin spine. The bridge spans both rows of containers together.
@@ -557,16 +597,21 @@ public static class ShipHullGenerator
     private static float[] ShieldBubble(float[] cover, int n)
     {
         const int A = ShipHull.ShieldAngles;
+        // Every hull pixel counts, so no thin part can slip between samples. A pixel between two samples raises both, as the bubble is interpolated.
         var reach = new float[A];
-        for (int i = 0; i < A; i++)
-        {
-            float cos = MathF.Cos(i / (float)A * MathF.Tau), sin = MathF.Sin(i / (float)A * MathF.Tau);
-            for (float r = 1.2f; r > 0f; r -= 1f / n)
+        for (int py = 0; py < n; py++)
+            for (int px = 0; px < n; px++)
             {
-                int x = (int)((cos * r + 1f) * 0.5f * n), y = (int)((sin * r + 1f) * 0.5f * n);
-                if (x >= 0 && y >= 0 && x < n && y < n && cover[y * n + x] > 0.5f) { reach[i] = r; break; }
+                if (cover[py * n + px] <= 0.5f) continue;
+
+                float x = (px + 0.5f) / n * 2f - 1f, y = (py + 0.5f) / n * 2f - 1f;
+                float r = MathF.Sqrt(x * x + y * y);
+                float turns = MathF.Atan2(y, x) / MathF.Tau;
+                float position = (turns - MathF.Floor(turns)) * A;
+                int first = (int)position % A;
+                reach[first] = MathF.Max(reach[first], r);
+                reach[(first + 1) % A] = MathF.Max(reach[(first + 1) % A], r);
             }
-        }
 
         var widened = new float[A];
         for (int i = 0; i < A; i++)

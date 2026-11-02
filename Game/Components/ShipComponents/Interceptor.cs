@@ -23,10 +23,11 @@ public sealed class Interceptor : ShipStats
         Appearance.SplashName    = "Art/Shuttle_splash.png";
         Appearance.SpriteScale   = 0.95f;
         Appearance.HullSeed      = 53;
-        Appearance.BodyWidth     = 0.11f;
+        Appearance.BodyWidth     = 0.07f;
+        Appearance.TwinBoom      = 0.22f;
         Appearance.NoseSharpness = 1f;
         Appearance.Blockiness    = 0f;
-        Appearance.WingPairs     = 1;
+        Appearance.WingPairs     = 0;
         Appearance.WingSpan      = 0.28f;
         Appearance.WingSweep     = 0.35f;
         Appearance.WingChord     = 0.3f;
