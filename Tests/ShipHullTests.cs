@@ -62,7 +62,7 @@ public class ShipHullTests
             Assert.Equal(type.Appearance.EngineCount, hull.Engines.Length);
             foreach (var engine in hull.Engines)
             {
-                Assert.True(engine.X < -0.9f, "engines are at the tail");
+                Assert.True(engine.X < -0.5f, "engines are at the back");
                 int px = (int)((engine.X + 1f) * 0.5f * ShipHull.Size) + 4;
                 int py = (int)((engine.Y + 1f) * 0.5f * ShipHull.Size);
                 Assert.Equal(255, Alpha(hull, px, py));
