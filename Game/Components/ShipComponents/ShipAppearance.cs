@@ -31,6 +31,12 @@ public sealed class ShipAppearance
     /// </summary>
     public float HammerSpan { get; set; }
 
+    /// <summary>
+    /// 0 for none. Otherwise how many cargo containers run along each side of a slim spine: blocks of different widths, some in the accent colour, which
+    /// give the ship a stepped, modular outline.
+    /// </summary>
+    public int CargoBays { get; set; }
+
     /// <summary>0 to 2 pairs of wings; the second pair is smaller and further back. Wings do nothing in space, so keep them small.</summary>
     public int WingPairs { get; set; } = 1;
 

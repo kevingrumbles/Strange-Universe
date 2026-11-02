@@ -23,9 +23,10 @@ public sealed class Freighter : ShipStats
         Appearance.SplashName    = "Art/Shuttle_splash.png";
         Appearance.SpriteScale   = 0.85f;
         Appearance.HullSeed      = 37;
-        Appearance.BodyWidth     = 0.38f;
+        Appearance.BodyWidth     = 0.13f;
         Appearance.NoseSharpness = 0.1f;
         Appearance.Blockiness    = 1f;
+        Appearance.CargoBays     = 4;
         Appearance.WingPairs     = 0;
         Appearance.WingSpan      = 0.4f;
         Appearance.WingSweep     = 0.04f;

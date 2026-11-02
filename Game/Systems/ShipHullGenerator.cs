@@ -113,6 +113,7 @@ public static class ShipHullGenerator
         public readonly List<float> EngineY = new();
         public readonly List<Rect> Plates = new();
         public readonly List<Rect> Vents = new();
+        public readonly List<(Rect Box, bool Accent)> Containers = new();
         public readonly List<Vector2> Windows = new();
         public float ConeX = 0.5f, ConeRadiusX = 0.2f, ConeRadiusY;
         public float HammerFront, HammerHalfY, HammerSweep; // the hammerhead crossbar; none when HammerHalfY is 0
@@ -177,6 +178,14 @@ public static class ShipHullGenerator
 
             if (HammerHalfY > 0f)
                 AddHammer(ref best, x, ay);
+
+            foreach (var (box, accent) in Containers)
+                if (box.Contains(x, ay))
+                {
+                    float edge = MathF.Min(box.HalfX - MathF.Abs(x - box.X), box.HalfY - MathF.Abs(ay - box.Y));
+                    float h = 0.62f + (edge < 0.016f ? 0.07f : 0f) + (Frac(ay * 24f) < 0.1f ? 0.025f : 0f); // a raised frame and ribbed sides
+                    Put(h, accent ? Mat.Accent : Mat.Hull);
+                }
 
             if (best.H > 0f)
             {
@@ -346,6 +355,17 @@ public static class ShipHullGenerator
             d.EngineY.Add((i - (engines - 1) * 0.5f) * 2.1f * d.PodHalfWidth);
 
         d.ConeRadiusY = a.BodyWidth * 0.5f;
+        if (a.CargoBays > 0)
+        {
+            const float From = -0.42f, To = 0.62f, Inner = 0.08f;
+            float length = (To - From) / a.CargoBays;
+            for (int i = 0; i < a.CargoBays; i++)
+            {
+                float outer = 0.34f + Next() * 0.16f;
+                d.Containers.Add((new Rect { X = From + length * (i + 0.5f), HalfX = length * 0.5f - 0.02f, Y = (Inner + outer) * 0.5f, HalfY = (outer - Inner) * 0.5f },
+                                  Next() < 0.35f));
+            }
+        }
         if (a.HammerSpan > 0f)
         {
             d.HammerHalfY = a.HammerSpan;
