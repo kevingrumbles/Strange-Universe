@@ -234,20 +234,23 @@ public static class ShipHullGenerator
 
         // Where the wing's trailing edge is at each distance from the centre line: a long central lobe, then a notch and a smaller lobe either side.
         private static readonly (float Y, float X)[] Trailing =
-            { (0f, -0.66f), (0.2f, -0.66f), (0.38f, -0.4f), (0.58f, -0.56f), (0.76f, -0.32f), (0.95f, 0.05f) };
+            { (0f, -0.5f), (0.2f, -0.5f), (0.38f, -0.3f), (0.58f, -0.42f), (0.78f, -0.18f), (0.96f, 0.02f) };
 
         private static float TrailingEdge(float ay)
         {
             for (int i = 1; i < Trailing.Length; i++)
                 if (ay <= Trailing[i].Y)
-                    return MathHelper.Lerp(Trailing[i - 1].X, Trailing[i].X, (ay - Trailing[i - 1].Y) / (Trailing[i].Y - Trailing[i - 1].Y));
+                {
+                    float f = (ay - Trailing[i - 1].Y) / (Trailing[i].Y - Trailing[i - 1].Y);
+                    return MathHelper.Lerp(Trailing[i - 1].X, Trailing[i].X, (1f - MathF.Cos(f * MathF.PI)) * 0.5f); // eased, so the lobes are soft
+                }
             return Trailing[^1].X;
         }
 
         /// <summary>The flying wing: swept back from a blunt nose to the tips, thickest down the middle, with panel lines and exhaust slits along the back.</summary>
         private void AddFlyingWing(ref Cell cell, float x, float ay)
         {
-            float lead = Nose - 0.9f * ay, trail = TrailingEdge(ay);
+            float lead = 0.52f - 0.5f * MathF.Sqrt(ay * ay + 0.02f), trail = TrailingEdge(ay); // a blunt, rounded nose and a curved sweep
             if (ay > 0.96f || x > lead || x < trail) return;
 
             float hump = MathHelper.Clamp(1f - ay / 0.3f, 0f, 1f);
@@ -256,7 +259,7 @@ public static class ShipHullGenerator
             if (x - trail < 0.02f) h += 0.02f;                       // trailing edge lip
             if (Frac(ay * 13f) < 0.05f) h += 0.015f;                 // panel ribs
 
-            Mat m = ay < 0.018f && x < 0.62f || ay > 0.84f ? Mat.Accent : Mat.Hull;
+            Mat m = ay < 0.014f && x < 0.38f ? Mat.Accent : Mat.Hull;
             if (x - trail is > 0.025f and < 0.07f && ay < 0.19f && Frac(ay / 0.05f) < 0.55f)
             {
                 h -= 0.06f;                                          // exhaust slits
@@ -443,10 +446,10 @@ public static class ShipHullGenerator
             d.BodyEnd = -2f; // no fuselage
             d.HidePods = true;
             d.EngineY.Clear();
-            foreach (float y in new[] { -0.12f, 0f, 0.12f })
+            foreach (float y in new[] { -0.1f, 0f, 0.1f })
                 d.EngineY.Add(y);
-            d.EngineX = -0.66f;
-            d.ConeX = 0.5f;
+            d.EngineX = -0.52f;
+            d.ConeX = 0.3f;
             d.ConeRadiusX = 0.12f;
         }
         if (a.TwinBoom > 0f)
