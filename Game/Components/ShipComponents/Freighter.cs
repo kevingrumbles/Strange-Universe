@@ -23,7 +23,7 @@ public sealed class Freighter : ShipStats
         Appearance.SplashName    = "Art/Shuttle_splash.png";
         Appearance.SpriteScale   = 0.85f;
         Appearance.HullSeed      = 37;
-        Appearance.BodyWidth     = 0.13f;
+        Appearance.BodyWidth     = 0.15f;
         Appearance.NoseSharpness = 0.1f;
         Appearance.Blockiness    = 1f;
         Appearance.CargoBays     = 4;
@@ -32,7 +32,7 @@ public sealed class Freighter : ShipStats
         Appearance.WingSweep     = 0.04f;
         Appearance.WingChord     = 0.3f;
         Appearance.EngineCount   = 4;
-        Appearance.WindowCount   = 3;
+        Appearance.WindowCount   = 0;
         Appearance.HullColor     = new Rgba(66, 74, 68);
         Appearance.AccentColor   = new Rgba(150, 120, 44);
 

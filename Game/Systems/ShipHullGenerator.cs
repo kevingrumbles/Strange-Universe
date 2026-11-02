@@ -114,6 +114,7 @@ public static class ShipHullGenerator
         public readonly List<Rect> Plates = new();
         public readonly List<Rect> Vents = new();
         public readonly List<(Rect Box, bool Accent)> Containers = new();
+        public readonly List<(Rect Box, float H, bool Bridge)> Blocks = new(); // the bridge and engine blocks of a cargo ship
         public readonly List<Vector2> Windows = new();
         public float ConeX = 0.5f, ConeRadiusX = 0.2f, ConeRadiusY;
         public float HammerFront, HammerHalfY, HammerSweep; // the hammerhead crossbar; none when HammerHalfY is 0
@@ -185,6 +186,14 @@ public static class ShipHullGenerator
                     float edge = MathF.Min(box.HalfX - MathF.Abs(x - box.X), box.HalfY - MathF.Abs(ay - box.Y));
                     float h = 0.62f + (edge < 0.016f ? 0.07f : 0f) + (Frac(ay * 24f) < 0.1f ? 0.025f : 0f); // a raised frame and ribbed sides
                     Put(h, accent ? Mat.Accent : Mat.Hull);
+                }
+
+            foreach (var (box, height, bridge) in Blocks)
+                if (box.Contains(x, ay))
+                {
+                    float edge = MathF.Min(box.HalfX - MathF.Abs(x - box.X), box.HalfY - MathF.Abs(ay - box.Y));
+                    bool glass = bridge && x > box.X + box.HalfX - 0.07f && ay < box.HalfY - 0.04f; // a band of windows across the front
+                    Put(height + (edge < 0.02f ? 0.05f : 0f) + (glass ? 0.03f : 0f), glass ? Mat.Glass : Mat.Hull);
                 }
 
             if (best.H > 0f)
@@ -319,6 +328,8 @@ public static class ShipHullGenerator
 
         d.Blockiness = a.Blockiness;
         d.PodHalfWidth = MathHelper.Clamp(a.BodyWidth * 0.4f, 0.04f, 0.075f);
+        if (a.CargoBays > 0)
+            d.Body *= 0.4f; // the thin spine joining the parts of a cargo ship
 
         float noseEnd = (1f - a.NoseSharpness) * 0.5f + 0.03f;
         float[] smooth = { 0.75f, 0.95f, 1f, 0.95f, 0.8f, 0.55f, noseEnd };
@@ -357,14 +368,17 @@ public static class ShipHullGenerator
         d.ConeRadiusY = a.BodyWidth * 0.5f;
         if (a.CargoBays > 0)
         {
-            const float From = -0.42f, To = 0.62f, Inner = 0.08f;
+            // Bridge block, containers and engine block along a thin spine. The bridge spans both rows of containers together.
+            const float From = -0.42f, To = 0.46f, Inner = 0.08f, Outer = 0.34f;
             float length = (To - From) / a.CargoBays;
             for (int i = 0; i < a.CargoBays; i++)
-            {
-                float outer = 0.34f + Next() * 0.16f;
-                d.Containers.Add((new Rect { X = From + length * (i + 0.5f), HalfX = length * 0.5f - 0.02f, Y = (Inner + outer) * 0.5f, HalfY = (outer - Inner) * 0.5f },
+                d.Containers.Add((new Rect { X = From + length * (i + 0.5f), HalfX = length * 0.5f - 0.02f, Y = (Inner + Outer) * 0.5f, HalfY = (Outer - Inner) * 0.5f },
                                   Next() < 0.35f));
-            }
+
+            d.Blocks.Add((new Rect { X = (To + Nose) * 0.5f + 0.02f, HalfX = (Nose - To) * 0.5f - 0.02f, Y = 0f, HalfY = Outer }, 0.75f, true));
+            d.Blocks.Add((new Rect { X = (From + Tail) * 0.5f - 0.02f, HalfX = (From - Tail) * 0.5f - 0.04f, Y = 0f, HalfY = Outer }, 0.55f, false));
+            d.ConeX = (To + Nose) * 0.5f;
+            d.ConeRadiusX = 0.12f;
         }
         if (a.HammerSpan > 0f)
         {

@@ -32,8 +32,8 @@ public sealed class ShipAppearance
     public float HammerSpan { get; set; }
 
     /// <summary>
-    /// 0 for none. Otherwise how many cargo containers run along each side of a slim spine: blocks of different widths, some in the accent colour, which
-    /// give the ship a stepped, modular outline.
+    /// 0 for none. Otherwise a cargo ship in three parts joined by a thin spine: a bridge block at the front, this many containers (all the same size)
+    /// along each side, and a block of engines at the back. The bridge is as wide as the containers on both sides together.
     /// </summary>
     public int CargoBays { get; set; }
 
