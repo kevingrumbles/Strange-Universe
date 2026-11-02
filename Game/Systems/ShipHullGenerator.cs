@@ -119,9 +119,6 @@ public static class ShipHullGenerator
         public float ConeX = 0.5f, ConeRadiusX = 0.2f, ConeRadiusY;
         public float SidePodX, SidePodY, SidePodRX, SidePodRY; // rounded pods along the fuselage; none when SidePodRY is 0
         public float BoomY;                                   // twin booms either side of the centre line; none when 0
-        public bool FlyingWing;
-        public bool HidePods;                                 // the engines are inside the hull: flames only, no pods
-        public float EngineX = NozzleX;
         public float HammerFront, HammerHalfY, HammerSweep; // the hammerhead crossbar; none when HammerHalfY is 0
         public float BodyEnd = Nose; // the fuselage stops here
         public float SeamOffsetX, SeamOffsetY;
@@ -150,9 +147,6 @@ public static class ShipHullGenerator
                     AddFuselageDetail(ref best, x, fy);
                 }
             }
-
-            if (FlyingWing)
-                AddFlyingWing(ref best, x, ay);
 
             if (BoomY > 0f)
             {
@@ -187,7 +181,7 @@ public static class ShipHullGenerator
             if (Wings.Count > 0)
                 AddGuns(ref best, x, ay);
 
-            foreach (float py in HidePods ? Array.Empty<float>() : EngineY.ToArray())
+            foreach (float py in EngineY)
             {
                 float d = MathF.Abs(y - py) / PodHalfWidth;
                 if (d < 1f && x is >= NozzleX and <= -0.5f)
@@ -230,42 +224,6 @@ public static class ShipHullGenerator
                     Put(0.95f - 0.2f * d2, Mat.Glass);
             }
             return best;
-        }
-
-        // Where the wing's trailing edge is at each distance from the centre line: a long central lobe, then a notch and a smaller lobe either side.
-        private static readonly (float Y, float X)[] Trailing =
-            { (0f, -0.5f), (0.2f, -0.5f), (0.38f, -0.3f), (0.58f, -0.42f), (0.78f, -0.18f), (0.96f, 0.02f) };
-
-        private static float TrailingEdge(float ay)
-        {
-            for (int i = 1; i < Trailing.Length; i++)
-                if (ay <= Trailing[i].Y)
-                {
-                    float f = (ay - Trailing[i - 1].Y) / (Trailing[i].Y - Trailing[i - 1].Y);
-                    return MathHelper.Lerp(Trailing[i - 1].X, Trailing[i].X, (1f - MathF.Cos(f * MathF.PI)) * 0.5f); // eased, so the lobes are soft
-                }
-            return Trailing[^1].X;
-        }
-
-        /// <summary>The flying wing: swept back from a blunt nose to the tips, thickest down the middle, with panel lines and exhaust slits along the back.</summary>
-        private void AddFlyingWing(ref Cell cell, float x, float ay)
-        {
-            float lead = 0.52f - 0.5f * MathF.Sqrt(ay * ay + 0.02f), trail = TrailingEdge(ay); // a blunt, rounded nose and a curved sweep
-            if (ay > 0.96f || x > lead || x < trail) return;
-
-            float hump = MathHelper.Clamp(1f - ay / 0.3f, 0f, 1f);
-            float h = 0.4f + 0.2f * hump * hump * (3f - 2f * hump);
-            if (lead - x < 0.022f) h += 0.04f;                       // raised leading edge
-            if (x - trail < 0.02f) h += 0.02f;                       // trailing edge lip
-            if (Frac(ay * 13f) < 0.05f) h += 0.015f;                 // panel ribs
-
-            Mat m = ay < 0.014f && x < 0.38f ? Mat.Accent : Mat.Hull;
-            if (x - trail is > 0.025f and < 0.07f && ay < 0.19f && Frac(ay / 0.05f) < 0.55f)
-            {
-                h -= 0.06f;                                          // exhaust slits
-                m = Mat.Vent;
-            }
-            PutHigher(ref cell, h, m);
         }
 
         private float HammerEdge(float ay) => HammerFront - HammerSweep * (ay / HammerHalfY) * (ay / HammerHalfY);
@@ -440,25 +398,13 @@ public static class ShipHullGenerator
             d.SidePodX = -0.1f;
             d.SidePodY = a.BodyWidth * 0.6f + a.SidePods * 0.5f;
         }
-        if (a.FlyingWing)
-        {
-            d.FlyingWing = true;
-            d.BodyEnd = -2f; // no fuselage
-            d.HidePods = true;
-            d.EngineY.Clear();
-            foreach (float y in new[] { -0.1f, 0f, 0.1f })
-                d.EngineY.Add(y);
-            d.EngineX = -0.52f;
-            d.ConeX = 0.3f;
-            d.ConeRadiusX = 0.12f;
-        }
         if (a.TwinBoom > 0f)
         {
             d.ConeX = 0.3f;
             d.ConeRadiusX = 0.16f;
         }
 
-        d.ConeRadiusY = a.FlyingWing ? 0.04f : a.TwinBoom > 0f ? 0.07f : a.BodyWidth * 0.5f;
+        d.ConeRadiusY = a.TwinBoom > 0f ? 0.07f : a.BodyWidth * 0.5f;
         if (a.CargoBays > 0)
         {
             // Bridge block, containers and engine block along a thin spine. The bridge spans both rows of containers together.
@@ -638,7 +584,7 @@ public static class ShipHullGenerator
 
         var engines = new Vector2[design.EngineY.Count];
         for (int i = 0; i < engines.Length; i++)
-            engines[i] = new Vector2(design.EngineX, design.EngineY[i]);
+            engines[i] = new Vector2(NozzleX, design.EngineY[i]);
 
         return new ShipHull { Pixels = pixels, Engines = engines, ShieldRadius = ShieldBubble(cover, n) };
     }

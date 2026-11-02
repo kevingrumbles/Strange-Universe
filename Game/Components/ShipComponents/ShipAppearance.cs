@@ -37,12 +37,6 @@ public sealed class ShipAppearance
     /// </summary>
     public int CargoBays { get; set; }
 
-    /// <summary>
-    /// True for a flying wing, like a stealth bomber: no fuselage, just a broad swept wing with a sawtooth trailing edge, a raised hump down the middle and
-    /// the engines buried at the trailing edge.
-    /// </summary>
-    public bool FlyingWing { get; set; }
-
     /// <summary>0 for none. Otherwise the half width of a rounded pod along each side of the fuselage, such as a cargo pod.</summary>
     public float SidePods { get; set; }
 
