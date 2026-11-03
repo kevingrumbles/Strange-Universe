@@ -102,6 +102,7 @@ public static class ShipHullGenerator
     {
         public float X, Y, HalfX, HalfY;
         public bool Contains(float x, float ay) => MathF.Abs(x - X) < HalfX && MathF.Abs(ay - Y) < HalfY;
+        public float EdgeDistance(float x, float ay) => MathF.Min(HalfX - MathF.Abs(x - X), HalfY - MathF.Abs(ay - Y));
     }
 
     private sealed class Design
@@ -128,10 +129,7 @@ public static class ShipHullGenerator
             var best = new Cell();
             float ay = MathF.Abs(y);
 
-            void Put(float h, Mat m)
-            {
-                if (h > best.H) { best.H = h; best.M = m; }
-            }
+            void Put(float h, Mat m) => PutHigher(ref best, h, m);
 
             float t = (x - Tail) / (Nose - Tail);
             if (t is >= 0f and <= 1f && x <= BodyEnd)
@@ -203,23 +201,20 @@ public static class ShipHullGenerator
             foreach (var (box, accent) in Containers)
                 if (box.Contains(x, ay))
                 {
-                    float edge = MathF.Min(box.HalfX - MathF.Abs(x - box.X), box.HalfY - MathF.Abs(ay - box.Y));
-                    float h = 0.62f + (edge < 0.016f ? 0.07f : 0f) + (Frac(ay * 24f) < 0.1f ? 0.025f : 0f); // a raised frame and ribbed sides
+                    float h = 0.62f + (box.EdgeDistance(x, ay) < 0.016f ? 0.07f : 0f) + (Frac(ay * 24f) < 0.1f ? 0.025f : 0f); // a raised frame and ribbed sides
                     Put(h, accent ? Mat.Accent : Mat.Hull);
                 }
 
             foreach (var (box, height, bridge) in Blocks)
                 if (box.Contains(x, ay))
                 {
-                    float edge = MathF.Min(box.HalfX - MathF.Abs(x - box.X), box.HalfY - MathF.Abs(ay - box.Y));
                     bool glass = bridge && x > box.X + box.HalfX - 0.07f && ay < box.HalfY - 0.04f; // a band of windows across the front
-                    Put(height + (edge < 0.02f ? 0.05f : 0f) + (glass ? 0.03f : 0f), glass ? Mat.Glass : Mat.Hull);
+                    Put(height + (box.EdgeDistance(x, ay) < 0.02f ? 0.05f : 0f) + (glass ? 0.03f : 0f), glass ? Mat.Glass : Mat.Hull);
                 }
 
             if (best.H > 0f)
             {
-                float dx = (x - ConeX) / ConeRadiusX, dy = y / ConeRadiusY;
-                float d2 = dx * dx + dy * dy;
+                float dx = (x - ConeX) / ConeRadiusX, dy = y / ConeRadiusY, d2 = dx * dx + dy * dy;
                 if (d2 < 1f)
                     Put(0.95f - 0.2f * d2, Mat.Glass);
             }
@@ -298,11 +293,8 @@ public static class ShipHullGenerator
 
             bool barrel = x > leading && x < leading + 0.16f && MathF.Abs(ay - gunY) < 0.012f;
             bool mount = x > leading - 0.05f && x < leading + 0.02f && MathF.Abs(ay - gunY) < 0.03f;
-            if ((barrel || mount) && 0.4f > cell.H)
-            {
-                cell.H = 0.4f;
-                cell.M = Mat.Engine;
-            }
+            if (barrel || mount)
+                PutHigher(ref cell, 0.4f, Mat.Engine);
         }
 
         /// <summary>The fuselage's half width at <paramref name="t"/> (0 at the tail, 1 at the nose): the smooth profile, stepped by armour section.</summary>
@@ -385,8 +377,9 @@ public static class ShipHullGenerator
         if (a.TwinBoom > 0f)
         {
             d.BoomY = a.TwinBoom;
-            d.EngineY.Add(-a.TwinBoom); // an engine at the tail of each boom
-            d.EngineY.Add(a.TwinBoom);
+            d.EngineY.AddRange(new[] { -a.TwinBoom, a.TwinBoom }); // an engine at the tail of each boom
+            d.ConeX = 0.3f;
+            d.ConeRadiusX = 0.16f;
         }
         else
             for (int i = 0; i < engines; i++)
@@ -398,12 +391,6 @@ public static class ShipHullGenerator
             d.SidePodX = -0.1f;
             d.SidePodY = a.BodyWidth * 0.6f + a.SidePods * 0.5f;
         }
-        if (a.TwinBoom > 0f)
-        {
-            d.ConeX = 0.3f;
-            d.ConeRadiusX = 0.16f;
-        }
-
         d.ConeRadiusY = a.TwinBoom > 0f ? 0.07f : a.BodyWidth * 0.5f;
         if (a.CargoBays > 0)
         {

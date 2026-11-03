@@ -166,11 +166,11 @@ public class Universe : IDisposable
         {
             int first = _nebulaStartIndex;
             _nebulaStartIndex = -1;
-            GenerateNebulaPool(first);
+            StartNebula(first).ContinueWith(_ => StartRemainingNebulae(), TaskScheduler.Default); // the rest wait so they don't compete with it for CPU
         }
 
         // Once the nebulae are done (or were never wanted) the art of the ships not met yet is made in the background, so buying one is instant.
-        if (_shipPreloadPending && _nebulaStartIndex < 0 && (!_nebulaWanted || _nebulaUploaded.All(uploaded => uploaded)))
+        if (_shipPreloadPending && (!_nebulaWanted || _nebulaUploaded.All(uploaded => uploaded)))
         {
             _shipPreloadPending = false;
             _assets.PreloadShipArt(ShipStats.BuiltIn());
@@ -370,16 +370,7 @@ public class Universe : IDisposable
     private bool _shipPreloadPending;
     private int _nebulaStartIndex = -1; // the slot to generate first at the end of the first update; -1 when there is nothing to start
 
-    /// <summary>
-    /// Starts background generation of every pool slot not already started. <paramref name="firstIndex"/>
-    /// is generated first; the rest start once it has finished so they don't compete with it for CPU.
-    /// Each slot is generated at most once per session.
-    /// </summary>
-    private void GenerateNebulaPool(int firstIndex)
-    {
-        StartNebula(firstIndex).ContinueWith(_ => StartRemainingNebulae(), TaskScheduler.Default);
-    }
-
+    /// <summary>Starts every pool slot not already started. Each slot is generated at most once per session.</summary>
     private void StartRemainingNebulae()
     {
         if (_disposed) return;
