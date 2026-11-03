@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.ShipComponents;
@@ -102,6 +103,26 @@ public sealed class AssetService : IAssetRequests, IDisposable
         RegisterShipArt(made.Type, made.Hull);
     }
 
+    /// <summary>Fades a picture's edges to nothing, so it blends into whatever it is drawn over (the picture is premultiplied, so every channel fades).</summary>
+    private static Texture2D FeatherEdges(Texture2D picture)
+    {
+        if (picture == null) return null;
+
+        const float Fade = 0.22f; // the fraction of the picture, from each edge, that fades
+        var pixels = new Color[picture.Width * picture.Height];
+        picture.GetData(pixels);
+
+        float Ramp(int i, int count) => MathHelper.SmoothStep(0f, 1f, MathF.Min(i, count - 1 - i) / (count * Fade));
+        for (int y = 0; y < picture.Height; y++)
+        {
+            float rowFade = Ramp(y, picture.Height);
+            for (int x = 0; x < picture.Width; x++)
+                pixels[y * picture.Width + x] *= rowFade * Ramp(x, picture.Width);
+        }
+        picture.SetData(pixels);
+        return picture;
+    }
+
     private void RegisterShipArt(ShipStats shipType, ShipHull hull)
     {
         var tex = new Texture2D(_graphicsDevice, ShipHull.AtlasWidth, ShipHull.Size); // every lighting direction, side by side
@@ -124,7 +145,7 @@ public sealed class AssetService : IAssetRequests, IDisposable
         Texture2D splashTex = null;
         string splashName = shipType.Appearance.SplashName;
         if (!string.IsNullOrEmpty(splashName) && !_splashFiles.TryGetValue(splashName, out splashTex))
-            _splashFiles[splashName] = splashTex = LoadArt(splashName);
+            _splashFiles[splashName] = splashTex = FeatherEdges(LoadArt(splashName));
         if (splashTex == null)
         {
             splashTex = new Texture2D(_graphicsDevice, ShipHull.Size, ShipHull.Size);

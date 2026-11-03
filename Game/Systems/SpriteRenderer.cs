@@ -852,24 +852,18 @@ public class SpriteRenderer
         currentY += SectionSpacing;
 
         // -- Selection Display (no label) -------------------------------------
-        const int SelectionSectionHeight = 80;
+        const int SelectionSectionHeight = 104;
 
         if (universe.Player.Target != null && universe.Player.IsTargetValid(universe.Player.Target))
         {
             var target = universe.Player.Target;
 
-            // Splash art -- centered in the panel, filling most of the section height
-            const int SplashSize = 72;
-            int splashX = mapLeft + (MapSize - SplashSize) / 2;
-            int splashY = currentY + (SelectionSectionHeight - SplashSize) / 2;
+            // Splash art -- the full width of the panel, its edges already faded into the background
             if (_assets.TryGet(target.SplashArtKey, out var splashTex) && splashTex != null)
             {
-                float splashScale = (float)SplashSize / Math.Max(splashTex.Width, splashTex.Height);
-                var splashOrigin = new Vector2(splashTex.Width * 0.5f, splashTex.Height * 0.5f);
-                var splashCenter = new Vector2(splashX + SplashSize * 0.5f, splashY + SplashSize * 0.5f);
-                _spriteBatch.Draw(splashTex,
-                    splashCenter, null, Color.White * 0.85f,
-                    -MathF.PI, splashOrigin, splashScale, SpriteEffects.FlipVertically, 0f);
+                int splashHeight = Math.Min(SelectionSectionHeight, MapSize * splashTex.Height / splashTex.Width);
+                var splashBox = new Rectangle(mapLeft, currentY + (SelectionSectionHeight - splashHeight) / 2, MapSize, splashHeight);
+                _spriteBatch.Draw(splashTex, splashBox, null, Color.White * 0.9f, 0f, Vector2.Zero, SpriteEffects.FlipHorizontally, 0f);
             }
 
             // Name -- centered horizontally, flush to top of section, drawn over splash
