@@ -39,8 +39,8 @@ internal static class EquipmentCatalog
     public static WeaponComponent HeavyLaser => new(EquipmentType.FixedProjectile)
     {
         EquipmentName       = "Heavy Laser",
-        Price = 400,
-        Grade = 2,
+        Price               = 400,
+        Grade               = 2,
         Damage              = 35,
         ProjectileSpeed     = 1800f,
         Range               = 2000f,
@@ -62,8 +62,8 @@ internal static class EquipmentCatalog
     public static WeaponComponent PulseCannon => new(EquipmentType.TurretProjectile)
     {
         EquipmentName       = "Pulse Cannon",
-        Price = 300,
-        Grade = 1,
+        Price               = 300,
+        Grade               = 1,
         Damage              = 20,
         ProjectileSpeed     = 1500f,
         Range               = 1200f,
@@ -85,8 +85,8 @@ internal static class EquipmentCatalog
     public static WeaponComponent GatlingGun => new(EquipmentType.FixedProjectile)
     {
         EquipmentName       = "Gatling Gun",
-        Price = 350,
-        Grade = 2,
+        Price               = 350,
+        Grade               = 2,
         Damage              = 8,
         ProjectileSpeed     = 2500f,
         Range               = 1000f,
@@ -141,8 +141,8 @@ internal static class EquipmentCatalog
     public static WeaponComponent PlasmaBeam => new(EquipmentType.FixedBeam)
     {
         EquipmentName       = "Plasma Beam",
-        Price = 700,
-        Grade = 4,
+        Price               = 700,
+        Grade               = 4,
         Damage              = 50,
         Range               = 2500f,
         EnergyCost          = 40f,
@@ -162,8 +162,8 @@ internal static class EquipmentCatalog
     public static WeaponComponent MiningBeam => new(EquipmentType.TurretBeam)
     {
         EquipmentName       = "Mining Beam",
-        Price = 200,
-        Grade = 1,
+        Price               = 200,
+        Grade               = 1,
         Damage              = 5,
         Range               = 800f,
         EnergyCost          = 15f,
@@ -183,8 +183,8 @@ internal static class EquipmentCatalog
     public static WeaponComponent LightMissile => new(EquipmentType.FixedMissile)
     {
         EquipmentName   = "Light Missile",
-        Price = 300,
-        Grade = 2,
+        Price           = 300,
+        Grade           = 2,
         Damage          = 80,
         ProjectileSpeed = 500f,
         Range           = 3000f,
@@ -196,8 +196,8 @@ internal static class EquipmentCatalog
     public static WeaponComponent HeavyTorpedo => new(EquipmentType.TurretMissile)
     {
         EquipmentName   = "Heavy Torpedo",
-        Price = 800,
-        Grade = 3,
+        Price           = 800,
+        Grade           = 3,
         Damage          = 200,
         ProjectileSpeed = 300f,
         Range           = 5000f,
@@ -210,9 +210,9 @@ internal static class EquipmentCatalog
 
     public static ShieldComponent BasicShieldGenerator => new()
     {
-        EquipmentName = "Basic Shield Generator",
-        Price = 200,
-        Grade = 1,
+        EquipmentName  = "Basic Shield Generator",
+        Price          = 200,
+        Grade          = 1,
         ShieldStrength = 25f,
         RechargeRate   = 5f,
         RechargeDelay  = 5f,
@@ -222,9 +222,9 @@ internal static class EquipmentCatalog
 
     public static ShieldComponent AdvancedShieldGenerator => new()
     {
-        EquipmentName = "Advanced Shield Generator",
-        Price = 600,
-        Grade = 2,
+        EquipmentName  = "Advanced Shield Generator",
+        Price          = 600,
+        Grade          = 2,
         ShieldStrength = 60f,
         RechargeRate   = 10f,
         RechargeDelay  = 3f,
@@ -234,9 +234,9 @@ internal static class EquipmentCatalog
 
     public static ShieldComponent MilitaryShieldGenerator => new()
     {
-        EquipmentName = "Military Shield Generator",
-        Price = 1500,
-        Grade = 3,
+        EquipmentName  = "Military Shield Generator",
+        Price          = 1500,
+        Grade          = 3,
         ShieldStrength = 125f,
         RechargeRate   = 16f,
         RechargeDelay  = 2f,
@@ -248,48 +248,48 @@ internal static class EquipmentCatalog
 
     public static PlatingComponent LightHullPlating => new()
     {
-        EquipmentName = "Light Hull Plating",
-        Price = 100,
-        Grade = 1,
-        HullStrength  = 25f,
-        Mass          = 150f,
+        EquipmentName  = "Light Hull Plating",
+        Price          = 100,
+        Grade          = 1,
+        HullStrength   = 25f,
+        Mass           = 150f,
     };
 
     public static PlatingComponent ReinforcedHull => new()
     {
-        EquipmentName = "Reinforced Hull",
-        Price = 350,
-        Grade = 2,
-        HullStrength  = 65f,
-        Mass          = 400f,
+        EquipmentName  = "Reinforced Hull",
+        Price          = 350,
+        Grade          = 2,
+        HullStrength   = 65f,
+        Mass           = 400f,
     };
 
     public static PlatingComponent MilitaryArmor => new()
     {
-        EquipmentName = "Military Armor",
-        Price = 900,
-        Grade = 3,
-        HullStrength  = 125f,
-        Mass          = 800f,
+        EquipmentName  = "Military Armor",
+        Price          = 900,
+        Grade          = 3,
+        HullStrength   = 125f,
+        Mass           = 800f,
     };
 
     // -- Engines -----------------------------------------------------------------
 
     public static EngineComponent StandardEngine => new()
     {
-        EquipmentName = "Standard Engine",
-        Price = 300,
-        Grade = 1,
-        EngineThrust  = 1000f,
-        FuelLevel     = 100f,
-        Mass          = 300f,
+        EquipmentName  = "Standard Engine",
+        Price          = 300,
+        Grade          = 1,
+        EngineThrust   = 1000f,
+        FuelLevel      = 100f,
+        Mass           = 300f,
     };
 
     public static EngineComponent HighPerformanceEngine => new()
     {
         EquipmentName = "High-Performance Engine",
-        Price = 800,
-        Grade = 3,
+        Price         = 800,
+        Grade         = 3,
         EngineThrust  = 2000f,
         FuelLevel     = 80f,
         Mass          = 450f,
@@ -298,8 +298,8 @@ internal static class EquipmentCatalog
     public static EngineComponent EfficientEngine => new()
     {
         EquipmentName = "Efficient Engine",
-        Price = 500,
-        Grade = 2,
+        Price         = 500,
+        Grade         = 2,
         EngineThrust  = 1200f,
         FuelLevel     = 150f,
         Mass          = 350f,
@@ -309,26 +309,26 @@ internal static class EquipmentCatalog
 
     public static UtilityComponent CargoExpander => new()
     {
-        EquipmentName = "Cargo Expander",
-        Price = 100,
-        Grade = 1,
-        Mass          = 100f,
+        EquipmentName  = "Cargo Expander",
+        Price          = 100,
+        Grade          = 1,
+        Mass           = 100f,
     };
 
     public static UtilityComponent SensorArray => new()
     {
-        EquipmentName = "Sensor Array",
-        Price = 150,
-        Grade = 1,
-        EnergyCost    = 5f,
-        Mass          = 75f,
+        EquipmentName  = "Sensor Array",
+        Price          = 150,
+        Grade          = 1,
+        EnergyCost     = 5f,
+        Mass           = 75f,
     };
 
     public static UtilityComponent AutoRepairModule => new()
     {
         EquipmentName = "Auto-Repair Module",
-        Price = 400,
-        Grade = 2,
+        Price         = 400,
+        Grade         = 2,
         EnergyCost    = 15f,
         Mass          = 150f,
     };

@@ -12,6 +12,12 @@ public sealed class GameSettings
     /// </summary>
     public bool TestMode { get; set; }
 
+    /// <summary>
+    /// Debug: no nebula is generated, so performance can be seen without it (systems have no nebula background). Set from
+    /// <c>Launcher.PauseNebulaGeneration</c>; read when a universe is started.
+    /// </summary>
+    public bool PauseNebulaGeneration { get; set; }
+
     /// <summary>When true, ships collide with planets (formerly <c>Launcher.PlanetColision</c>).</summary>
     public bool PlanetCollision { get; set; }
 }

@@ -568,7 +568,7 @@ public class ShipComponentTests
         {
             Assert.True(type.Flight.MaxSpeed > 0f && type.Flight.ThrustForce > 0f && type.Flight.Radius > 0f);
             Assert.True(type.Durability.MaxHull > 0 && type.Durability.MaxFuel > 0);
-            Assert.False(string.IsNullOrEmpty(type.Appearance.SpriteName));
+            Assert.InRange(type.Appearance.EngineCount, 1, 4);
             Assert.NotEmpty(type.DefaultLoadout);
         }
 

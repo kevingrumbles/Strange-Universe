@@ -37,7 +37,7 @@ public class Universe : IDisposable
 
     /// <summary>
     /// Builds the system for <paramref name="node"/>, makes it active, attaches the player and records
-    /// it as the player's current system. Blocks until the system's nebula is uploaded.
+    /// it as the player's current system. Does not wait for the system's nebula: it is generated in the background and shows once <see cref="Update"/> uploads it.
     /// </summary>
     public StarSystem EnterSystem(StarSystemNode node)
     {
@@ -59,8 +59,6 @@ public class Universe : IDisposable
         Player.StarSystem = _activeStarSystem;
         Player.CurrentStarSystemID = node.SystemId;
         Player.RefillShield(); // shields are always full when the player loads into a system
-        if (_assets != null)
-            WaitForNebula(_activeStarSystem.NebulaId);
         Events.Publish(new SystemEntered(_activeStarSystem));
         return _activeStarSystem;
     }
@@ -108,7 +106,7 @@ public class Universe : IDisposable
     public IEventBus Events { get; } = new EventBus();
 
     // One background generation task per pool slot, started at most once per launch.
-    // Results are uploaded on the main thread (UploadFinishedNebulae / WaitForNebula).
+    // Results are uploaded on the main thread (UploadFinishedNebulae).
     private readonly Task<Nebula>[] _nebulaTasks = new Task<Nebula>[NebulaPoolSize];
     private readonly bool[] _nebulaUploaded = new bool[NebulaPoolSize];
     private volatile bool _disposed;
@@ -160,10 +158,23 @@ public class Universe : IDisposable
     {
         UploadFinishedNebulae();
 
-        if (IsDocked)
-            return; // nothing is simulated while docked: there is no active star system
+        if (!IsDocked) // nothing is simulated while docked: there is no active star system
+            ActiveStarSystem.Update(deltaTime, input);
 
-        ActiveStarSystem.Update(deltaTime, input);
+        // The nebulae use every core for seconds, so they start only once the game has run a frame, not while it is starting up.
+        if (_nebulaStartIndex >= 0)
+        {
+            int first = _nebulaStartIndex;
+            _nebulaStartIndex = -1;
+            StartNebula(first).ContinueWith(_ => StartRemainingNebulae(), TaskScheduler.Default); // the rest wait so they don't compete with it for CPU
+        }
+
+        // Once the nebulae are done (or were never wanted) the art of the ships not met yet is made in the background, so buying one is instant.
+        if (_shipPreloadPending && (!_nebulaWanted || _nebulaUploaded.All(uploaded => uploaded)))
+        {
+            _shipPreloadPending = false;
+            _assets.PreloadShipArt(ShipStats.BuiltIn());
+        }
     }
 
     // -- Docking -----------------------------------------------------------------
@@ -328,7 +339,7 @@ public class Universe : IDisposable
 
     /// <summary>
     /// Starts a play session: attaches runtime services, starts nebula generation (the starting
-    /// system's nebula first) and enters the player's starting system.
+    /// system's nebula first, unless <see cref="GameSettings.PauseNebulaGeneration"/>, and only once the game is running) and enters the player's starting system.
     /// </summary>
     public void Generate(IAssetRequests assets)
     {
@@ -342,8 +353,9 @@ public class Universe : IDisposable
         _assets = assets;
 
         StarSystemNode start = ResolveStartNode();
-        if (assets != null)
-            GenerateNebulaPool(StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize));
+        _nebulaWanted = assets != null && !Settings.PauseNebulaGeneration;
+        _nebulaStartIndex = _nebulaWanted ? StarSystemGenerator.NebulaIndexFor(start.SystemId, NebulaPoolSize) : -1;
+        _shipPreloadPending = assets != null;
         Player.Generate();
         _assets?.EnsureShipArt(Player.ShipType);
         EnterSystem(start);
@@ -354,16 +366,11 @@ public class Universe : IDisposable
             Player.EnqueueNavTask(new SpawnTask(Player));
     }
 
-    /// <summary>
-    /// Starts background generation of every pool slot not already started. <paramref name="firstIndex"/>
-    /// is generated first; the rest start once it has finished so they don't compete with it for CPU.
-    /// Each slot is generated at most once per session.
-    /// </summary>
-    private void GenerateNebulaPool(int firstIndex)
-    {
-        StartNebula(firstIndex).ContinueWith(_ => StartRemainingNebulae(), TaskScheduler.Default);
-    }
+    private bool _nebulaWanted;
+    private bool _shipPreloadPending;
+    private int _nebulaStartIndex = -1; // the slot to generate first at the end of the first update; -1 when there is nothing to start
 
+    /// <summary>Starts every pool slot not already started. Each slot is generated at most once per session.</summary>
     private void StartRemainingNebulae()
     {
         if (_disposed) return;
@@ -373,6 +380,7 @@ public class Universe : IDisposable
 
     private void ResetNebulaState()
     {
+        _nebulaStartIndex = -1;
         for (int i = 0; i < NebulaPoolSize; i++)
         {
             Volatile.Write(ref _nebulaTasks[i], null);
@@ -394,23 +402,6 @@ public class Universe : IDisposable
         if (existing != null) return existing;
         created.Start(TaskScheduler.Default);
         return created;
-    }
-
-    /// <summary>
-    /// Blocks until the nebula <paramref name="nebulaId"/> is generated and uploaded, so a system
-    /// never renders without its nebula. Main thread only.
-    /// </summary>
-    private void WaitForNebula(string nebulaId)
-    {
-        for (int i = 0; i < NebulaPoolSize; i++)
-        {
-            if (NebulaPoolId(Seed, i) != nebulaId) continue;
-            if (_nebulaUploaded[i]) return;
-
-            StartNebula(i).Wait();
-            UploadNebula(i);
-            return;
-        }
     }
 
     /// <summary>Uploads nebulae whose background generation has finished. Main thread only.</summary>

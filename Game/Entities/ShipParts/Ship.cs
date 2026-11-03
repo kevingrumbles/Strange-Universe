@@ -194,7 +194,18 @@ public abstract class Ship : WorldBody
 
         Weapons.UpdateCooldowns(deltaTime);
         Durability.Update(deltaTime);
+
+        // The engines build up and die away over a fraction of a second, so the flame swells and fades instead of blinking.
+        float target = Physics.ThrustedThisFrame ? 1f : 0f;
+        Physics.ThrustedThisFrame = false;
+        ThrustLevel = MoveToward(ThrustLevel, target, deltaTime * (target > ThrustLevel ? 8f : 5f));
     }
+
+    /// <summary>How hard the engines are firing, 0 to 1, for drawing the flames. Not saved.</summary>
+    [JsonIgnore] public float ThrustLevel { get; private set; }
+
+    private static float MoveToward(float value, float target, float maxStep) =>
+        value < target ? MathF.Min(value + maxStep, target) : MathF.Max(value - maxStep, target);
 
     // -- Navigation ---------------------------------------------------------
     [JsonIgnore] public bool HasActiveNavTask => Navigator.HasActiveTask;

@@ -1,6 +1,10 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Strange_Universe.Game.Components;
 using Strange_Universe.Game.Components.ShipComponents;
@@ -18,6 +22,12 @@ public sealed class AssetService : IAssetRequests, IDisposable
 {
     private readonly GraphicsDevice _graphicsDevice;
     private readonly Dictionary<string, Texture2D> _textures = new();
+    private readonly Dictionary<string, ShipHull> _hulls = new();
+    private readonly Dictionary<string, Texture2D> _splashFiles = new(); // splash pictures read from files, shared by the types that use them
+
+    /// <summary>Texture id of the engine flame shared by every ship.</summary>
+    public const string FlameId = "ship_flame";
+    public const string ScorchId = "ship_scorch";
 
     public AssetService(GraphicsDevice graphicsDevice)
     {
@@ -37,6 +47,9 @@ public sealed class AssetService : IAssetRequests, IDisposable
     }
 
     public bool TryGet(string id, out Texture2D texture) => _textures.TryGetValue(id, out texture);
+
+    /// <summary>The generated ship for a ship type name: where its engines are.</summary>
+    public bool TryGetHull(string shipTypeName, out ShipHull hull) => _hulls.TryGetValue(shipTypeName, out hull);
 
     /// <summary>
     /// Loads a PNG from <paramref name="relativePath"/> (relative to the executable directory), read straight from disk so replacing a file shows on
@@ -62,14 +75,83 @@ public sealed class AssetService : IAssetRequests, IDisposable
     {
         if (shipType == null || TryGet(shipType.ShipTypeName, out _)) return;
 
-        var tex = LoadArt(shipType.Appearance.SpriteName);
-        Register(shipType.ShipTypeName, tex);
+        RegisterShipArt(shipType, ShipHullGenerator.Generate(shipType.Appearance));
+    }
 
-        // Splash art -- fall back to the standard sprite if not provided or not found
+    // Hulls made in the background wait here (pixels only; no GPU use) until the main thread uploads them.
+    private readonly ConcurrentQueue<(ShipStats Type, ShipHull Hull)> _preloadedHulls = new();
+
+    /// <summary>Makes the hulls of the ship types that have none, one after another on a background thread. See <see cref="UploadPreloadedShipArt"/>.</summary>
+    public void PreloadShipArt(IReadOnlyList<ShipStats> shipTypes)
+    {
+        var missing = shipTypes.Where(type => !TryGet(type.ShipTypeName, out _)).ToList();
+        if (missing.Count == 0) return;
+
+        Task.Run(() =>
+        {
+            foreach (var type in missing)
+                _preloadedHulls.Enqueue((type, ShipHullGenerator.Generate(type.Appearance)));
+        });
+    }
+
+    /// <summary>Uploads one preloaded hull, if one is ready: a frame's worth of the work, so there is no hitch. Call every frame, on the main thread.</summary>
+    public void UploadPreloadedShipArt()
+    {
+        if (!_preloadedHulls.TryDequeue(out var made)) return;
+        if (TryGet(made.Type.ShipTypeName, out _)) return; // the game needed this one first and made it itself
+
+        RegisterShipArt(made.Type, made.Hull);
+    }
+
+    /// <summary>Fades a picture's edges to nothing, so it blends into whatever it is drawn over (the picture is premultiplied, so every channel fades).</summary>
+    private static Texture2D FeatherEdges(Texture2D picture)
+    {
+        if (picture == null) return null;
+
+        const float Fade = 0.22f; // the fraction of the picture, from each edge, that fades
+        var pixels = new Color[picture.Width * picture.Height];
+        picture.GetData(pixels);
+
+        float Ramp(int i, int count) => MathHelper.SmoothStep(0f, 1f, MathF.Min(i, count - 1 - i) / (count * Fade));
+        for (int y = 0; y < picture.Height; y++)
+        {
+            float rowFade = Ramp(y, picture.Height);
+            for (int x = 0; x < picture.Width; x++)
+                pixels[y * picture.Width + x] *= rowFade * Ramp(x, picture.Width);
+        }
+        picture.SetData(pixels);
+        return picture;
+    }
+
+    private void RegisterShipArt(ShipStats shipType, ShipHull hull)
+    {
+        var tex = new Texture2D(_graphicsDevice, ShipHull.AtlasWidth, ShipHull.Size); // every lighting direction, side by side
+        tex.SetData(hull.Pixels);
+        Register(shipType.ShipTypeName, tex);
+        _hulls[shipType.ShipTypeName] = hull;
+
+        if (!TryGet(FlameId, out _))
+        {
+            var flame = new Texture2D(_graphicsDevice, ShipHullGenerator.FlameWidth, ShipHullGenerator.FlameHeight);
+            flame.SetData(ShipHullGenerator.Flame());
+            Register(FlameId, flame);
+
+            var scorch = new Texture2D(_graphicsDevice, ShipHullGenerator.ScorchSize, ShipHullGenerator.ScorchSize);
+            scorch.SetData(ShipHullGenerator.Scorch());
+            Register(ScorchId, scorch);
+        }
+
+        // Splash art -- fall back to the generated hull if not provided or not found. A file is read once, however many types show it.
         Texture2D splashTex = null;
-        if (!string.IsNullOrEmpty(shipType.Appearance.SplashName))
-            splashTex = LoadArt(shipType.Appearance.SplashName);
-        Register(Ship.SplashArtKeyFor(shipType), splashTex ?? tex);
+        string splashName = shipType.Appearance.SplashName;
+        if (!string.IsNullOrEmpty(splashName) && !_splashFiles.TryGetValue(splashName, out splashTex))
+            _splashFiles[splashName] = splashTex = FeatherEdges(LoadArt(splashName));
+        if (splashTex == null)
+        {
+            splashTex = new Texture2D(_graphicsDevice, ShipHull.Size, ShipHull.Size);
+            splashTex.SetData(hull.Picture(0));
+        }
+        Register(Ship.SplashArtKeyFor(shipType), splashTex);
     }
 
     public void EnsureAsteroidTexture(string paletteId, int seed)
@@ -105,7 +187,8 @@ public sealed class AssetService : IAssetRequests, IDisposable
     public void Dispose()
     {
         foreach (var texture in _textures.Values)
-            texture?.Dispose();
+            texture?.Dispose(); // a shared splash picture is disposed once per type that shows it, which is harmless
         _textures.Clear();
+        _splashFiles.Clear();
     }
 }

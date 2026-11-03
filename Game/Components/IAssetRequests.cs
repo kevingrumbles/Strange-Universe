@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Strange_Universe.Game.Components.ShipComponents;
 using Strange_Universe.Game.Entities;
 
@@ -12,6 +13,12 @@ public interface IAssetRequests
 {
     /// <summary>Ensures sprite and splash art for <paramref name="shipType"/> are loaded.</summary>
     void EnsureShipArt(ShipStats shipType);
+
+    /// <summary>
+    /// Starts making the art of every one of <paramref name="shipTypes"/> that has none yet, in the background, so it is ready before the player meets
+    /// the type (buying it, an NPC arriving in one). Does nothing for a type whose art exists.
+    /// </summary>
+    void PreloadShipArt(IReadOnlyList<ShipStats> shipTypes);
 
     /// <summary>
     /// Ensures the asteroid palette texture <paramref name="paletteId"/> exists.

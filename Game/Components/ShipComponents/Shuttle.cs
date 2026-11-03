@@ -1,3 +1,4 @@
+using Strange_Universe.Game.Helpers;
 using Strange_Universe.Game.Components.EquipmentComponents;
 
 namespace Strange_Universe.Game.Components.ShipComponents;
@@ -19,9 +20,20 @@ public sealed class Shuttle : ShipStats
         Durability.MaxHull = 5;
         Durability.MaxFuel = 5;
 
-        Appearance.SpriteName  = "Art/Shuttle_sprite.png";
-        Appearance.SplashName  = "Art/Shuttle_splash.png";
-        Appearance.SpriteScale = 1.5f;
+        Appearance.SplashName   = "Art/Shuttle_splash.png";
+        Appearance.SpriteScale  = 0.85f;
+        Appearance.HullSeed     = 11;
+        Appearance.BodyWidth    = 0.3f;
+        Appearance.NoseSharpness = 0.3f;
+        Appearance.Blockiness   = 0.9f;
+        Appearance.WingPairs    = 1;
+        Appearance.WingSpan     = 0.4f;
+        Appearance.WingSweep    = 0.04f;
+        Appearance.WingChord    = 0.3f;
+        Appearance.EngineCount  = 2;
+        Appearance.WindowCount  = 10;
+        Appearance.HullColor    = new Rgba(92, 90, 86);
+        Appearance.AccentColor  = new Rgba(138, 92, 34);
 
         DefaultLoadout = new EquipmentComponent[] { EquipmentCatalog.LightLaser, EquipmentCatalog.BasicShieldGenerator, EquipmentCatalog.LightHullPlating };
         TypicalCredits = 100;
