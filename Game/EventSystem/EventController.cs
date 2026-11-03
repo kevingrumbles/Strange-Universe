@@ -95,13 +95,16 @@ public class EventController
 
     // -- The events -----------------------------------------------------------------
 
-    /// <summary>A shuttle that patrols between all the planets, to try things on.</summary>
+    /// <summary>One of each kind of ship, each patrolling between all the planets, to try things on.</summary>
     public static void SpawnNpcTest(StarSystem world)
     {
         var patrolPoints = world.Planets.Select(planet => planet.Position).ToList();
-        var npc = new Nonplayer(npcId: $"Npc_test_{world.Npcs.Count + 1}", shipType: new Shuttle(), jumpSpawn: true, npcName: "Testing Shuttle");
-        npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));
-        world.AddNpc(npc);
+        foreach (var shipType in ShipStats.BuiltIn())
+        {
+            var npc = new Nonplayer(npcId: $"Npc_test_{shipType.ShipTypeName}_{world.Npcs.Count + 1}", shipType: shipType, jumpSpawn: true, npcName: $"Testing {shipType.ShipTypeName}");
+            npc.EnqueueNavTask(new PatrolTask(npc, patrolPoints));
+            world.AddNpc(npc);
+        }
     }
 
     /// <summary>A guard orbiting every planet, and five patrols.</summary>

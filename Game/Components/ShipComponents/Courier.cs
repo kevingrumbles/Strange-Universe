@@ -17,8 +17,8 @@ public sealed class Courier : ShipStats
         Flight.SoftCapStart  = 0.75f;
         Flight.Radius        = 12f;
 
-        Durability.MaxHull = 4;
-        Durability.MaxFuel = 12;
+        Durability.MaxHull   = 4;
+        Durability.MaxFuel   = 12;
 
         Appearance.SplashName    = "Art/Courier_splash.png";
         Appearance.SpriteScale   = 0.9f;
