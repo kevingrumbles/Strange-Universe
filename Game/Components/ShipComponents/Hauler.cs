@@ -20,7 +20,7 @@ public sealed class Hauler : ShipStats
         Durability.MaxHull = 8;
         Durability.MaxFuel = 10;
 
-        Appearance.SplashName    = "Art/Shuttle_splash.png";
+        Appearance.SplashName    = "Art/Hauler_splash.png";
         Appearance.SpriteScale   = 0.85f;
         Appearance.HullSeed      = 31;
         Appearance.BodyWidth     = 0.34f;

@@ -20,7 +20,7 @@ public sealed class Freighter : ShipStats
         Durability.MaxHull = 14;
         Durability.MaxFuel = 16;
 
-        Appearance.SplashName    = "Art/Shuttle_splash.png";
+        Appearance.SplashName    = "Art/Freighter_splash.png";
         Appearance.SpriteScale   = 0.85f;
         Appearance.HullSeed      = 37;
         Appearance.BodyWidth     = 0.15f;

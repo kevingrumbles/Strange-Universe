@@ -20,7 +20,7 @@ public sealed class Frigate : ShipStats
         Durability.MaxHull = 10;
         Durability.MaxFuel = 8;
 
-        Appearance.SplashName    = "Art/Shuttle_splash.png";
+        Appearance.SplashName    = "Art/Frigate_splash.png";
         Appearance.SpriteScale   = 0.85f;
         Appearance.HullSeed      = 59;
         Appearance.BodyWidth     = 0.26f;

@@ -20,7 +20,7 @@ public sealed class Runner : ShipStats
         Durability.MaxHull = 5;
         Durability.MaxFuel = 7;
 
-        Appearance.SplashName   = "Art/Shuttle_splash.png";
+        Appearance.SplashName   = "Art/runner_splash.png";
         Appearance.SpriteScale  = 0.9f;
         Appearance.HullSeed     = 23;
         Appearance.BodyWidth    = 0.12f;

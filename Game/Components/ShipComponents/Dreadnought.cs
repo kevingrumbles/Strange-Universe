@@ -20,7 +20,7 @@ public sealed class Dreadnought : ShipStats
         Durability.MaxHull = 20;
         Durability.MaxFuel = 10;
 
-        Appearance.SplashName    = "Art/Shuttle_splash.png";
+        Appearance.SplashName    = "Art/Dreadnought_splash.png";
         Appearance.SpriteScale   = 0.85f;
         Appearance.HullSeed      = 67;
         Appearance.BodyWidth     = 0.17f;

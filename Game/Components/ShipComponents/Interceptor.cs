@@ -20,7 +20,7 @@ public sealed class Interceptor : ShipStats
         Durability.MaxHull = 4;
         Durability.MaxFuel = 6;
 
-        Appearance.SplashName    = "Art/Shuttle_splash.png";
+        Appearance.SplashName    = "Art/Interceptor_splash.png";
         Appearance.SpriteScale   = 0.95f;
         Appearance.HullSeed      = 53;
         Appearance.BodyWidth     = 0.07f;

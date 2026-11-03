@@ -20,7 +20,7 @@ public sealed class Courier : ShipStats
         Durability.MaxHull = 4;
         Durability.MaxFuel = 12;
 
-        Appearance.SplashName    = "Art/Shuttle_splash.png";
+        Appearance.SplashName    = "Art/Courier_splash.png";
         Appearance.SpriteScale   = 0.9f;
         Appearance.HullSeed      = 41;
         Appearance.BodyWidth     = 0.13f;
