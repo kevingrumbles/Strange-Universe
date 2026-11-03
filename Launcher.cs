@@ -19,7 +19,7 @@ namespace Strange_Universe
         public static bool TestMode { get; set; } = true;
 
         /// <summary>Developer switch. When true no nebula is generated (see <see cref="GameSettings.PauseNebulaGeneration"/>). Read when a universe is started.</summary>
-        public static bool PauseNebulaGeneration { get; set; }
+        public static bool PauseNebulaGeneration { get; set; } = false;
 
         private readonly GameSettings _settings = new();
         private readonly SaveService _saves = new FileSaveService();
